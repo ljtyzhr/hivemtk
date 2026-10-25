@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/response"
 
@@ -42,6 +43,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			}
 		}
 		if authHeader == "" {
+			recordAuthFailure(model.SecurityAccessKindTokenMissing, c)
 			response.Error(c, http.StatusUnauthorized, "未提供认证令牌")
 			c.Abort()
 			return
@@ -49,6 +51,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if !(len(parts) == 2 && parts[0] == "Bearer") {
+			recordAuthFailure(model.SecurityAccessKindTokenFormat, c)
 			response.Error(c, http.StatusUnauthorized, "认证令牌格式错误")
 			c.Abort()
 			return
@@ -57,20 +60,23 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		claims, err := jwtUtils.ParseToken(parts[1])
 		if err != nil {
 			log.Printf("[WARN] JWT 校验失败: %v", err)
+			recordAuthFailure(model.SecurityAccessKindTokenInvalid, c)
 			response.Error(c, http.StatusUnauthorized, "无效的认证令牌")
 			c.Abort()
 			return
 		}
 
 		if utils.IsJWTBlacklisted(parts[1]) {
+			recordAuthFailure(model.SecurityAccessKindTokenExpired, c)
 			response.Error(c, http.StatusUnauthorized, "认证令牌已失效，请重新登录")
 			c.Abort()
 			return
 		}
 
-		// 按用户维度的即时吊销（禁用/删除/改角色/改密）：
+		// 按用户维度的即时吊销（禁用/删除/改密）：
 		// 令牌签发时间早于该用户的作废水位线 ⇒ 一律拒绝，不等 24h 自然过期。
 		if utils.IsTokenRevoked(c.Request.Context(), claims.UserID, claims.IssuedAt) {
+			recordAuthFailure(model.SecurityAccessKindStatusChanged, c)
 			response.Error(c, http.StatusUnauthorized, "账号状态已变更，请重新登录")
 			c.Abort()
 			return

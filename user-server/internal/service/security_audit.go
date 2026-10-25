@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"hivemtk-user/internal/model"
@@ -191,7 +192,55 @@ func (s *SecurityAuditService) buildChecks(ctx context.Context) []auditCheck {
 			name: "短链/活码无外部跳转风险", category: "触达安全", level: "high", weight: 20,
 			run: s.auditOutboundLinkSafety,
 		},
+		{
+			// R39-K3 弱密码腿（离线口径：本地常见密码表 + bcrypt 抽样比对，不引外部 API）。
+			// 库里只有哈希，历史密码的熵无从回溯——能做的诚实形态是"抽样探测"：
+			// 前 10 个活跃用户 × 前 3 个常见密码，有命中即红并点名（脱敏到用户名）。
+			name: "常见弱密码抽样探测", category: "身份与访问", level: "high", weight: 15,
+			run: s.auditWeakPasswordSample,
+		},
 	}
+}
+
+// weakPasswordProbeUsers / weakPasswordProbeCandidates 抽样探测的窗口上限。
+// bcrypt 单次比对毫秒级，10×3=30 次在审计端点的预算内；放开窗口等于把
+// 管理员动作变成自伤型慢查询。
+const (
+	weakPasswordProbeUsers      = 10
+	weakPasswordProbeCandidates = 3
+)
+
+// auditWeakPasswordSample 抽样探测活跃用户是否仍在用常见弱密码。
+func (s *SecurityAuditService) auditWeakPasswordSample(ctx context.Context) (string, string) {
+	if s == nil || s.repo == nil {
+		return "warn", "审计仓储未初始化，跳过弱密码抽样"
+	}
+	users, err := s.repo.ListActiveUserPasswordHashes(ctx, weakPasswordProbeUsers)
+	if err != nil {
+		return "fail", "读取用户密码哈希失败: " + err.Error()
+	}
+	if len(users) == 0 {
+		return "warn", "无活跃用户可抽样"
+	}
+	candidates := DefaultCommonPasswords
+	if len(candidates) > weakPasswordProbeCandidates {
+		candidates = candidates[:weakPasswordProbeCandidates]
+	}
+	var hit []string
+	for _, u := range users {
+		for _, cand := range candidates {
+			if bcrypt.CheckPassword(u.Password, cand) == nil {
+				hit = append(hit, u.Username)
+				break // 一个用户点名一次就够，不再多烧比对
+			}
+		}
+	}
+	if len(hit) > 0 {
+		return "fail", fmt.Sprintf("抽样 %d 个活跃用户，%d 个仍在使用常见弱密码（%s）；请立即改密并确认密码策略已启用",
+			len(users), len(hit), strings.Join(hit, ", "))
+	}
+	return "pass", fmt.Sprintf("抽样 %d 个活跃用户 × %d 个常见密码，未发现弱密码（抽样探测非全量证明）",
+		len(users), len(candidates))
 }
 
 func (s *SecurityAuditService) auditOutboundLinkSafety(ctx context.Context) (string, string) {

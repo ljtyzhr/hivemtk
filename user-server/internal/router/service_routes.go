@@ -561,15 +561,22 @@ func setupQualityRoutes(auth *gin.RouterGroup) {
 }
 
 func setupSecurityAuditRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	ctrl := controller.NewSecurityAuditController(service.NewSecurityAuditService(func() *repository.SecurityAuditRepository {
+	auditRepo := func() *repository.SecurityAuditRepository {
 		r := repository.NewSecurityAuditRepository()
 		r.SetDB(context.Background(), gormDB)
 		return r
-	}()))
+	}()
+	ctrl := controller.NewSecurityAuditController(service.NewSecurityAuditService(auditRepo))
 	auth.GET("/security/audit/list", ctrl.ListSecurityAudits)
 	auth.GET("/security/audit/:id", ctrl.GetSecurityAudit)
 
+	// R39-K3 overview 腿：四路聚合（登录事件/告警/最近审计/JWT 401 聚合）。
+	// 401 遥测的写侧在 middleware/security_recorder（router.Setup 统一装配），
+	// 读侧经同一个 platform_config_kv 键，两侧不直接依赖。
+	overviewCtrl := controller.NewSecurityOverviewController(
+		service.NewSecurityOverviewService(auditRepo, repository.NewPlatformConfigKVRepositoryWithDB(gormDB)))
 	admin := auth.Group("", middleware.AdminAuthMiddleware())
+	admin.GET("/security/overview", overviewCtrl.Overview)
 	admin.POST("/security/audit", ctrl.RunSecurityAudit)
 }
 

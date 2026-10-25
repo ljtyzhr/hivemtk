@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"hivemtk-user/internal/model"
 	_pagination "hivemtk-user/internal/pkg/pagination"
@@ -211,4 +212,76 @@ func (r *SecurityAuditRepository) ListLiveCodeOutboundURLs(ctx context.Context) 
 		}
 	}
 	return out, nil
+}
+
+// ---- C-5 安全总览 / 弱密码抽样探测的取数面 ----
+
+// CountLoginEventsSince 统计 since 之后的登录事件总数与高危数（overview 用）。
+func (r *SecurityAuditRepository) CountLoginEventsSince(ctx context.Context, since time.Time) (total, high int64, err error) {
+	if r == nil || r.db == nil {
+		return 0, 0, errors.New("security audit repository not initialized")
+	}
+	base := r.db.WithContext(ctx).Model(&model.LoginEvent{}).Where("login_at >= ?", since)
+	if err := base.Count(&total).Error; err != nil {
+		return 0, 0, err
+	}
+	err = r.db.WithContext(ctx).Model(&model.LoginEvent{}).
+		Where("login_at >= ? AND risk_level IN ?", since, []model.RiskLevel{model.RiskLevelHigh, model.RiskLevelCritical}).
+		Count(&high).Error
+	return total, high, err
+}
+
+// CountOpenAlertsBySeverity 统计 open 状态告警按风险级分布（overview 用）。
+func (r *SecurityAuditRepository) CountOpenAlertsBySeverity(ctx context.Context) (map[string]int64, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("security audit repository not initialized")
+	}
+	type row struct {
+		RiskLevel string
+		Cnt       int64
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).Model(&model.SecurityAlert{}).
+		Select("risk_level, count(*) as cnt").
+		Where("status = ?", model.SecurityAlertStatusOpen).
+		Group("risk_level").Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]int64, len(rows))
+	for _, rw := range rows {
+		out[rw.RiskLevel] = rw.Cnt
+	}
+	return out, nil
+}
+
+// LatestSecurityAudit 取最近一次审计（含 Items，供总览读弱密码项结论）。
+func (r *SecurityAuditRepository) LatestSecurityAudit(ctx context.Context) (*model.SecurityAudit, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("security audit repository not initialized")
+	}
+	var audit model.SecurityAudit
+	err := r.db.WithContext(ctx).Preload("Items").Order("id DESC").First(&audit).Error
+	if err != nil {
+		return nil, err
+	}
+	return &audit, nil
+}
+
+// ListActiveUserPasswordHashes 弱密码抽样探测的取数面：只回活跃用户的哈希，
+// 不回明文（库里有且只有哈希）；limit 由调用方约束在两位数——bcrypt 比对是
+// 毫秒级×候选数，扫全量会把审计端点拖成 DoS 自己。
+func (r *SecurityAuditRepository) ListActiveUserPasswordHashes(ctx context.Context, limit int) ([]model.SystemUser, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("security audit repository not initialized")
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 10
+	}
+	var users []model.SystemUser
+	err := r.db.WithContext(ctx).
+		Select("id, username, password").
+		Where("status = ?", 1).
+		Order("id ASC").Limit(limit).Find(&users).Error
+	return users, err
 }

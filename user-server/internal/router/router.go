@@ -820,6 +820,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupQualityRoutes(auth)
 
+		// R-8 同址约束：401 遥测记录器在路由装配前注入句柄（middleware 自持 repository，
+		// platform 仓 PlatformAuditMiddleware 同一先例）。未授权访问的归属人是攻击者不是
+		// 租户，落 platform_config_kv 部署级键（与 D-2 would_deny 同款载体）。
+		middleware.InitSecurityRecorder(gormDB)
 		setupSecurityAuditRoutes(auth, gormDB)
 
 		setupSecurityRulesRoutes(auth, gormDB)
@@ -840,6 +844,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		setupCustomReportRoutes(auth)
 
 		setupDashboardRoutes(auth, public)
+
+		// R39-K7/K8：知识库模板与大屏模板（业务闭环 C-6 收编）。读/apply/rate
+		// 登录档，模板写/publish/clone 租户 admin——分档判据见 r39_panel_routes.go 头注。
+		setupR39PanelRoutes(auth, gormDB)
 
 		setupTemplateRoutes(auth)
 
