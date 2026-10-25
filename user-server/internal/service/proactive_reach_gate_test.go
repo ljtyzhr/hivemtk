@@ -77,7 +77,7 @@ func newSpyReachService(t *testing.T, spy *reachSendSpy) (*ProactiveReachService
 // 判定键只由客户身份与渠道决定，多开一个库只会把第一个库的现场清掉。
 func newSpyReachServiceOn(db *gorm.DB, spy *reachSendSpy) *ProactiveReachService {
 	// telegram 要 accountLookup 给出活跃账号，这里用 mockAccountLookup 满足它。
-	svc := NewProactiveReachService(db, &mockAccountLookup{
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(db), repository.NewCustomerDoNotContactRepository(db), &mockAccountLookup{
 		supported: map[string]bool{"telegram": true},
 		results:   map[string]string{"telegram": "acc-tg-1"},
 	})

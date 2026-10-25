@@ -19,6 +19,11 @@ type AgentKBBindingRepository struct {
 	db *gorm.DB
 }
 
+// NewAgentKBBindingRepositoryDefault 默认构造（全局句柄；与传 GetDB() 同语义）。
+func NewAgentKBBindingRepositoryDefault() *AgentKBBindingRepository {
+	return NewAgentKBBindingRepository(GetDB())
+}
+
 func NewAgentKBBindingRepository(db *gorm.DB) *AgentKBBindingRepository {
 	return &AgentKBBindingRepository{db: db}
 }

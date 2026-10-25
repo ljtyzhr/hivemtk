@@ -38,8 +38,8 @@ func NewXianyuCardService(db any) XianyuCardService {
 	return &xianyuCardService{
 		repo:              repository.NewXianyuCardRepository(gormDB),
 		statsService:      NewXianyuCardStatsService(gormDB),
-		shortLinkService:  NewShortLinkService(gormDB),
-		domainPoolService: NewDomainPoolService(gormDB),
+		shortLinkService:  NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)),
+		domainPoolService: NewDomainPoolService(repository.NewDomainPoolRepository(gormDB), repository.NewDomainBlacklistRepository(gormDB)),
 		templateService:   template.NewTemplateService("internal/template"),
 	}
 }

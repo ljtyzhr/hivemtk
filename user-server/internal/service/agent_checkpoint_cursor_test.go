@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 const checkpointTableDDL = `CREATE TABLE IF NOT EXISTS agent_checkpoints (
@@ -91,7 +93,7 @@ func TestLoadLatestCheckpoint_CursorNeverGoesBackwards(t *testing.T) {
 	if err := db.Exec(checkpointTableDDL).Error; err != nil {
 		t.Skipf("建表失败（环境限制）: %v", err)
 	}
-	repo := NewAgentCheckpointRepository(db)
+	repo := repository.NewAgentCheckpointRepository(db)
 	ctx := context.Background()
 
 	const thread = "thr-cursor-1"

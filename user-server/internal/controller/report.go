@@ -2,10 +2,11 @@
 //
 // 设计文档：docs/architecture/design/T3-observability-reports.md
 // 端点：
-//   GET /api/reports/llm/overview     总览 KPI（含环比）
-//   GET /api/reports/llm/timeseries   时间序列
-//   GET /api/reports/llm/breakdown    维度分解
-//   GET /api/reports/llm/errors       错误聚合+明细
+//
+//	GET /api/reports/llm/overview     总览 KPI（含环比）
+//	GET /api/reports/llm/timeseries   时间序列
+//	GET /api/reports/llm/breakdown    维度分解
+//	GET /api/reports/llm/errors       错误聚合+明细
 //
 // 权限：登录态（auth 组）；租户维度由 GORM 隔离 callback 强制（本仓隔离判据
 // = 表有 tenant_id 列）。平台级跨租户查询走独立 Platform 端点（下一步接入）。

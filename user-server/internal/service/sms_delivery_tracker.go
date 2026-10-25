@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
@@ -33,6 +31,7 @@ type SmsDeliveryTrackerService struct {
 	tracking     *SmsTrackingService
 	repo         repository.SmsTrackingRepository
 	deliveryRepo repository.SmsDeliveryRepository
+	smsRepo      repository.SmsRepository
 
 	carrierMu        sync.RWMutex
 	carrierCache     map[string]model.SmsCarrier
@@ -42,19 +41,19 @@ type SmsDeliveryTrackerService struct {
 
 // NewSmsDeliveryTrackerService 创建短信到达率追踪服务
 //
-// 注：保留 db *gorm.DB 入参以维持向后兼容（router / 调用方不改动），
-// 内部在构造函数中实例化 repository，service struct 不直接持有 *gorm.DB。
-func NewSmsDeliveryTrackerService(db *gorm.DB, tracking *SmsTrackingService, repo repository.SmsTrackingRepository) *SmsDeliveryTrackerService {
+// 句柄由 repository 自取全局库（测试用 db.SetTestDB／testutil 换库）；repo 可显式注入。
+func NewSmsDeliveryTrackerService(tracking *SmsTrackingService, repo repository.SmsTrackingRepository) *SmsDeliveryTrackerService {
 	if tracking == nil {
 		tracking = NewSmsTrackingService(repo)
 	}
 	if repo == nil {
-		repo = repository.NewSmsTrackingRepository(db)
+		repo = repository.NewSmsTrackingRepositoryDefault()
 	}
 	return &SmsDeliveryTrackerService{
 		tracking:      tracking,
 		repo:          repo,
-		deliveryRepo:  repository.NewSmsDeliveryRepository(db),
+		deliveryRepo:  repository.NewSmsDeliveryRepositoryDefault(),
+		smsRepo:       repository.NewSmsRepository(),
 		carrierCache:  make(map[string]model.SmsCarrier),
 		carrierLoaded: false,
 	}
@@ -408,6 +407,8 @@ func (s *SmsDeliveryTrackerService) RecordFromProvider(ctx context.Context, r *P
 		return err
 	}
 
+	s.markLedgerByMsgID(ctx, r)
+
 	go func(phone, carrier string) {
 		bgCtx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), utils.ShortTimeout)
 		defer cancel()
@@ -419,6 +420,35 @@ func (s *SmsDeliveryTrackerService) RecordFromProvider(ctx context.Context, r *P
 	}
 
 	return nil
+}
+
+// markLedgerByMsgID 回执终态按单号回写外发台账（best-effort：失败只记日志，不拦回执 200）。
+//
+// 送达表只认 message_id，而台账此前没有这个键——回执到了也对不上外发行，这是
+// 送达率链的最后一公里。现在 SendSms/ResendSms 落 MsgID，这里闭回另一半环。
+// 只有 delivered/failed 两种终态动台账：retryable 是送达表侧的语义（可重试），
+// 台账侧与 failed 同落 failed 并保留渠道错误码；pending/sent 中间态没有要推进的东西。
+func (s *SmsDeliveryTrackerService) markLedgerByMsgID(ctx context.Context, r *ProviderDeliveryReport) {
+	if s.smsRepo == nil || r.MessageID == "" {
+		return
+	}
+	ledgerStatus := ""
+	switch normalizeSmsStatus(r.Status) {
+	case model.SmsStatusDelivered:
+		ledgerStatus = model.SmsStatusDelivered
+	case model.SmsStatusFailed:
+		ledgerStatus = model.SmsStatusFailed
+	default:
+		return
+	}
+	n, err := s.smsRepo.MarkDeliveryByMsgID(ctx, r.MessageID, ledgerStatus, r.ErrorCode, r.ErrorMsg)
+	if err != nil {
+		logger.Errorf("[SmsDeliveryTracker] 回执回写台账失败 message_id=%s: %v", r.MessageID, err)
+		return
+	}
+	if n > 0 {
+		logger.Infof("[SmsDeliveryTracker] 回执已回写台账 message_id=%s status=%s rows=%d", r.MessageID, ledgerStatus, n)
+	}
 }
 
 // bindReportTenant 运营商回执没有登录态，租户线索只有两处：

@@ -10,16 +10,17 @@ import (
 	"hivemtk-user/internal/storage"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 // InitDefaultStorageIfEmpty 启动时检查 obs_config 表是否为空，为空则 seed 一条默认 local 配置。
 //
 // 私有化部署零云依赖的核心保证：无论用户有没有手动配置，系统都能立即可用。
 // 幂等：只在 count == 0 时 seed；后续启动不会重复插入。
-func InitDefaultStorageIfEmpty(gdb *gorm.DB) {
-	if gdb == nil {
-		logger.Warn("[OBS] InitDefaultStorageIfEmpty: gdb is nil, skip")
+func InitDefaultStorageIfEmpty(repo repository.ObsConfigRepository) {
+	if repo == nil {
+		logger.Warn("[OBS] InitDefaultStorageIfEmpty: obs 仓储未装配, skip")
 		return
 	}
 
@@ -31,8 +32,8 @@ func InitDefaultStorageIfEmpty(gdb *gorm.DB) {
 	// migration 的 default ai_agent 种子同规范，单租户生产数据口径）。
 	sysCtx := tenant.WithSystemScope(context.Background())
 
-	var count int64
-	if err := gdb.WithContext(sysCtx).Model(&model.ObsConfig{}).Count(&count).Error; err != nil {
+	_, count, err := repo.GetList(sysCtx, 1, 1, "", "")
+	if err != nil {
 		logger.Warnf("[OBS] InitDefaultStorageIfEmpty: count failed: %v", err)
 		return
 	}
@@ -59,7 +60,7 @@ func InitDefaultStorageIfEmpty(gdb *gorm.DB) {
 		Bucket:    "",
 	}
 
-	if err := gdb.WithContext(sysCtx).Create(cfg).Error; err != nil {
+	if err := repo.Create(sysCtx, cfg); err != nil {
 		logger.Errorf("[OBS] InitDefaultStorageIfEmpty: seed failed: %v", err)
 		return
 	}

@@ -20,6 +20,11 @@ type TenantConfigParamRepository struct {
 	db *gorm.DB
 }
 
+// NewTenantConfigParamRepositoryDefault 默认构造（全局句柄；与传 GetDB() 同语义）。
+func NewTenantConfigParamRepositoryDefault() *TenantConfigParamRepository {
+	return NewTenantConfigParamRepository(GetDB())
+}
+
 func NewTenantConfigParamRepository(db *gorm.DB) *TenantConfigParamRepository {
 	return &TenantConfigParamRepository{db: db}
 }

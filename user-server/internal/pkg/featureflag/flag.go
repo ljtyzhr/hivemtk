@@ -1,11 +1,5 @@
 // Package featureflag 提供企业级 FeatureFlag 支持
 //
-// 设计依据: AI 智能体性能优化
-//   - 支持灰度发布 + 一键回滚
-//   - 6 个核心开关: parallel / stream / layer1 / fallback_chain / debug_log / sse_bridge
-//   - 通过 env (FF_XXX=1) 注入, 无需重启即可热加载
-//   - 所有 flag 默认关闭 (安全)
-//
 // 使用方式:
 //
 //	import "hivemtk-user/internal/pkg/featureflag"
@@ -29,9 +23,7 @@ const (
 )
 
 // DefaultPollInterval 热加载轮询周期的代码兜底（参数中心 telemetry.feature_flag_poll_interval
-// 未配置时用）。
-// 每 5s 重新读取 env, 实现 "改 env 不重启" 的热加载。
-// 5s 平衡了响应延迟和 CPU 开销 (每秒 0.2 次 env 读取, 对 5 个 flag 几乎无负担)。
+// 未配置时用）。每 5s 重新读取 env，实现"改 env 不重启"的热加载。
 const DefaultPollInterval = 5 * time.Second
 
 var pollIntervalProvider func() time.Duration
@@ -158,8 +150,7 @@ func MustGet(name string) *Flag {
 //   - env FF_<NAME>=0 / false / no / "" -> false
 //   - env 未设置 -> 使用 defaultValue
 //
-// 不再每次都读 env, 而是返回 cachedValue, 由后台 goroutine 每 5s 刷新。
-// 业务代码调用 f.Bool() 数十次/请求, 缓存避免重复系统调用。
+// 返回 cachedValue，由后台 goroutine 每 5s 刷新，避免业务代码高频调用时重复读 env。
 func (f *Flag) Bool() bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
@@ -168,18 +159,11 @@ func (f *Flag) Bool() bool {
 
 // EnvNameOf 返回 flag 对应的环境变量名。
 //
-// 与 readEnv 同源：告警/运维端点提示"该开哪个 env"时必须用这里算，
-// 否则会出现提示写 FF_A_B、代码读 FF_A.B 这种查不出来的漂移。
+// 与 readEnv 同源：告警/运维端点提示"该开哪个 env"时必须用这里算，否则提示与读取会漂移。
+// 点号（以及任何不是 [A-Z0-9_] 的字符）在这里翻成下划线：点号在 flag 名里合法，
+// 但 shell 环境变量名不允许，若不归一化，提示里的变量永远设不上。
 //
-// 点号（以及任何不是 [A-Z0-9_] 的字符）在这里翻成下划线：flag 名里点号是合法的
-// （`ai.safety.tool_approval_gate` 这种分层写法），但**环境变量名里不是** ——
-// shell 里 `export FF_AI.SAFETY.TOOL_APPROVAL_GATE=1` 直接报 invalid variable name，
-// 于是"提示让你开的那个变量"永远开不上：旗子在端点上照旧读作 off，运维反复确认
-// 自己写对了名字，白名单却一次也没生效过。提示与读取必须落在同一个可用的名字上。
-//
-// 不做的事：不把名字压成去重后的同一片（`a.b` 与 `a_b` 会撞名）—— 现有注册表里
-// 没有这种成对的名字，而防撞名的做法要么加后缀要么判冲突，都超出"把点号写对"这件事。
-// 撞名这件事由测试盯着（见 flag_envname_test.go）。
+// 不把名字压成去重后的同一片（`a.b` 与 `a_b` 会撞名）；撞名由测试盯着（见 flag_envname_test.go）。
 func EnvNameOf(name string) string {
 	var b strings.Builder
 	b.WriteString("FF_")
@@ -197,9 +181,8 @@ func EnvNameOf(name string) string {
 }
 
 // legacyEnvName 点号原名直接拼出来的那份（`FF_AI.SAFETY.TOOL_APPROVAL_GATE`）。
-// 它不可从 shell 设置，却**可能**已经在 compose/k8s 的 env 映射里被人照着旧提示写过
-// （那些地方允许点号键名）。归一化之后如果只认新名字，那种写法会静默变成 off ——
-// 一把安全闸门开关从"开着"掉回"关着"，且没有任何一处报错。读的时候两份都看，新名优先。
+// 它不可从 shell 设置，却可能已在 compose/k8s 的 env 映射里被照旧提示写过；
+// 读的时候两份都看，新名优先。
 func legacyEnvName(name string) string {
 	return "FF_" + strings.ToUpper(name)
 }
@@ -209,8 +192,7 @@ func (f *Flag) readEnv() bool {
 }
 
 // readEnvNamed 按优先级读两个候选变量名。
-// 拆开是因为"未设置"与"设置了空串"在旧行为里是两种判读（空串回落到默认值），
-// 这个区别必须留在同一处，别在两个候选名之间丢失它。
+// "未设置"与"设置了空串"是两种判读（空串回落默认值），这个区别必须留在同一处。
 func (f *Flag) readEnvNamed(names ...string) bool {
 	v := ""
 	for _, n := range names {
@@ -256,9 +238,6 @@ func (f *Flag) LastReload() time.Time {
 }
 
 // ReloadAll 重新加载所有 flag (可由 SIGHUP handler / admin API / 后台 poller 触发)
-//
-// 立即读一次 env 刷新所有 flag 的 cachedValue, 同时更新 lastReload。
-// 后台 poller 每 5s 自动调用一次; SIGHUP handler / admin API 触发即时刷新。
 func (m *FlagManager) ReloadAll() {
 	m.mu.RLock()
 	flags := make([]*Flag, 0, len(m.flags))

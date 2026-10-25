@@ -61,7 +61,7 @@ func TestTGGateHandledSuppressesSalesTrigger(t *testing.T) {
 			accountID := tgGateTestAccount(t, db, tag)
 			salesEntry := batchKSalesEngineEntryCounter(t)
 
-			ws := NewWebhookService(db)
+			ws := NewWebhookService()
 			t.Cleanup(func() { ws.Stop(context.Background()) })
 
 			tr := &fakeAITrigger{}

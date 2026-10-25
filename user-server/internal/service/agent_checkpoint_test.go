@@ -7,6 +7,8 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 // D06: 阶段边界 checkpoint 落库 + 恢复游标
@@ -17,7 +19,7 @@ func TestD06_CheckpointSaveResume(t *testing.T) {
 	if err := db.Exec(checkpointTableDDL).Error; err != nil {
 		t.Skipf("建表失败（环境限制）: %v", err)
 	}
-	repo := NewAgentCheckpointRepository(db)
+	repo := repository.NewAgentCheckpointRepository(db)
 	ctx := context.Background()
 
 	if stage := ResumeStage(nil); stage != "perception" {

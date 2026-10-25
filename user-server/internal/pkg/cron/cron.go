@@ -13,6 +13,8 @@ import (
 	"sync"
 
 	"github.com/robfig/cron/v3"
+
+	"hivemtk-user/internal/repository"
 )
 
 var (
@@ -183,7 +185,7 @@ func ChurnCalculationCron() {
 func LiveCodeRotateCron() {
 	logger.Info("开始执行活码轮询定时任务...")
 
-	liveCodeService := service.NewLiveCodeService(db.GetDB())
+	liveCodeService := service.NewLiveCodeService()
 
 	if err := fanoutTask(context.Background(), liveCodeService.RotateLiveCodes); err != nil {
 		logger.Error(err, "活码轮询定时任务执行失败")
@@ -196,7 +198,7 @@ func LiveCodeRotateCron() {
 // PasswordResetTokenCleanupCron 密码重置令牌清理定时任务
 func PasswordResetTokenCleanupCron() {
 	logger.Info("开始执行密码重置令牌清理定时任务...")
-	resetService := service.NewPasswordResetService(db.GetDB())
+	resetService := service.NewPasswordResetService(repository.NewPasswordResetTokenRepository(db.GetDB()))
 	if err := fanoutTask(context.Background(), resetService.CleanupExpiredTokens); err != nil {
 		logger.Error(err, "密码重置令牌清理定时任务执行失败")
 		return

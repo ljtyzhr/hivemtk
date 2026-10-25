@@ -124,7 +124,7 @@ func setupDingTalkInbound(t *testing.T, acc *model.DingTalkAppAccount) (*DingTal
 	ingress.cache = mc
 	tr := &fakeAITrigger{}
 	ingress.SetAITrigger(tr)
-	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), tr, acc.ID
+	return NewDingTalkAppService(&WebhookService{ingressSvc: ingress}), tr, acc.ID
 }
 
 func dtRobotHeaders(secret string, ts int64) map[string]string {

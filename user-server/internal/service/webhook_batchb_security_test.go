@@ -45,7 +45,7 @@ func setupFeishuVerify(t *testing.T, verificationToken, encryptKey string) (*Web
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed feishu account: %v", err)
 	}
-	return NewWebhookService(db), fmt.Sprintf("%d", acc.ID)
+	return NewWebhookService(), fmt.Sprintf("%d", acc.ID)
 }
 
 func feishuV2EventBody(token, eventID string) []byte {
@@ -146,7 +146,7 @@ func TestVerify_InsecureBypassDoesNotSkipConfiguredSecret(t *testing.T) {
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed qq account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	body := []byte(`{"op":0,"t":"GROUP_AT_MESSAGE_CREATE","d":{"id":"m1"}}`)
 	forged := map[string]string{
 		"X-Signature-Ed25519":   strings.Repeat("00", 64),

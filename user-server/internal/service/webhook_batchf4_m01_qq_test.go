@@ -71,7 +71,7 @@ func f4QQSetup(t *testing.T) (*WebhookService, *gorm.DB) {
 	}).Error; err != nil {
 		t.Fatalf("seed qq account: %v", err)
 	}
-	ws := NewWebhookService(db)
+	ws := NewWebhookService()
 	t.Cleanup(func() { ws.Stop(context.Background()) })
 	return ws, db
 }
@@ -307,7 +307,7 @@ func TestM01_QQOutboundMsgIDIsOfficialDID(t *testing.T) {
 	if hub.MsgID != "qq_evt_"+evtID {
 		t.Errorf("hub.MsgID = %q, want qq_evt_%s（与 Ingress 落库 msg_id 同源）", hub.MsgID, evtID)
 	}
-	db2 := ws.dbHandle()
+	db2 := ws.eventRepo.GetDB()
 	row := f4QQLoadHub(t, db2, "qq_evt_"+evtID, false)
 	if got, _ := row.Extra["channel_msg_id"].(string); got != msgID {
 		t.Errorf("落库 Extra.channel_msg_id = %q, want %q", got, msgID)

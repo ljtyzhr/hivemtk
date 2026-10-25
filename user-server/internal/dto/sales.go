@@ -296,11 +296,11 @@ type SalesRequest struct {
 
 // SalesResponse 销售回复
 type SalesResponse struct {
-	Reply               string           `json:"reply"`
-	Intent              *RecognizeResult `json:"intent"`
-	Memory              *DialogueMemory  `json:"memory,omitempty"`
-	MatchedSOP          *SOPAgent        `json:"matched_sop,omitempty"`
-	RAGChunks           []RAGChunk       `json:"rag_chunks,omitempty"`
+	Reply      string           `json:"reply"`
+	Intent     *RecognizeResult `json:"intent"`
+	Memory     *DialogueMemory  `json:"memory,omitempty"`
+	MatchedSOP *SOPAgent        `json:"matched_sop,omitempty"`
+	RAGChunks  []RAGChunk       `json:"rag_chunks,omitempty"`
 	// Citations 答案引用溯源：FAQ 级/chunk 级引用，纯旁路字段，
 	// 不参与置信度判定（组装发生在 extractConfidenceWithTopK 之后）。
 	Citations           []Citation       `json:"citations,omitempty"`

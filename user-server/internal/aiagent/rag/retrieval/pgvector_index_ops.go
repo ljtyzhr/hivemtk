@@ -25,7 +25,7 @@ const (
 )
 
 // EnsureHNSWIndexIfNeeded 迁移辅助：行数超过阈值且索引缺失时创建 HNSW 索引
-//（vector_cosine_ops）。created=true 表示本次实际创建了索引；
+// （vector_cosine_ops）。created=true 表示本次实际创建了索引；
 // 行数未达阈值或索引已存在时不做任何事。
 // 注意：本函数使用普通 CREATE INDEX（迁移框架内执行）；生产大表建议运维手工
 // 用 CREATE INDEX CONCURRENTLY 执行同等 DDL 以避免锁写。

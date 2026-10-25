@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -63,7 +61,7 @@ type RagRecallMonitorService struct {
 //
 // interval / window <= 0 时使用默认值；db 为 nil 时 repo 为 nil，
 // 查询/写库类方法返回错误
-func NewRagRecallMonitorService(db *gorm.DB, interval, window time.Duration) *RagRecallMonitorService {
+func NewRagRecallMonitorService(repo repository.RagRecallMonitorRepository, interval, window time.Duration) *RagRecallMonitorService {
 	if interval <= 0 {
 		interval = RagRecallMonitorDefaultInterval
 	}
@@ -71,7 +69,7 @@ func NewRagRecallMonitorService(db *gorm.DB, interval, window time.Duration) *Ra
 		window = RagRecallMonitorDefaultWindow
 	}
 	return &RagRecallMonitorService{
-		repo:     repository.NewRagRecallMonitorRepository(db),
+		repo:     repo,
 		stopCh:   make(chan struct{}),
 		interval: interval,
 		window:   window,

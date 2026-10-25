@@ -30,7 +30,7 @@ func TestFeishuInbound_OfficialPayloadShape(t *testing.T) {
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed feishu account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 
 	cases := []struct {

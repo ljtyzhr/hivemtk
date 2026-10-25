@@ -1,4 +1,4 @@
-// Package secrets 的 fileloader 提供 Vault/KMS 形态的密钥注入通道（OPT-SEC-08）：
+// Package secrets 的 fileloader 提供 Vault/KMS 形态的密钥注入通道：
 //
 // 容器编排（K8s Secret 挂载 / Docker Swarm secrets / Vault Agent templating）
 // 普遍以“文件”而非“环境变量”分发密钥。LoadFiles 在 InitFromEnv 之前把

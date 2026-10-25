@@ -8,6 +8,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -21,7 +22,7 @@ func setupSummaryTestDB(t *testing.T) *gorm.DB {
 }
 
 func newAggSvc(database *gorm.DB, batchSize int) *MessageHubSummaryAggregationService {
-	svc := NewMessageHubSummaryAggregationService(database)
+	svc := NewMessageHubSummaryAggregationService(repository.NewMessageHubSummaryRepository(database))
 	if batchSize > 0 {
 		svc.batchSize = batchSize
 	}
@@ -216,7 +217,7 @@ func TestDashboardDoubleRead_FreshSummaryWins(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := NewDashboardStatsService(database)
+	svc := NewDashboardStatsService()
 	points := svc.CollectMessageVolume(ctx, 24)
 	if len(points) != 1 {
 		t.Fatalf("points = %d, want 1", len(points))
@@ -262,7 +263,7 @@ func TestDashboardDoubleRead_StaleSummaryFallsBackToRaw(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := NewDashboardStatsService(database)
+	svc := NewDashboardStatsService()
 	points := svc.CollectMessageVolume(ctx, 24)
 	if len(points) == 0 {
 		t.Fatal("兜底路径无返回")
@@ -294,7 +295,7 @@ func TestDashboardDoubleRead_EmptySummaryFallsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := NewDashboardStatsService(database)
+	svc := NewDashboardStatsService()
 	points := svc.CollectMessageVolume(ctx, 24)
 	if len(points) != 1 || points[0].Source != "raw" {
 		t.Fatalf("空 summary 应回源 raw: %+v", points)
@@ -312,14 +313,15 @@ func TestHubSummaryAggCronWiredExplicitly(t *testing.T) {
 		t.Fatal("导入本包就被装配了：init 副作用回来了，CLI/测试二进制会带一个哑 cron")
 	}
 
-	// DB 缺失时不得装配：宁可不汇总，也不要一个只会报错的协程
+	// 仓储缺失时不得装配：宁可不汇总，也不要一个只会报错的协程
+	// （服务层已不再收 *gorm.DB："没拿到 DB"在装配点表现为仓储为 nil）
 	StartMessageHubSummaryAggCron(nil)
 	if hubSummaryAggCronInst != nil {
-		t.Error("传 nil DB 仍装配了 cron ⇒ 回到 invalid db 的死循环")
+		t.Error("传 nil 仓储仍装配了 cron ⇒ 回到 invalid db 的死循环")
 	}
 
 	database := setupSummaryTestDB(t)
-	StartMessageHubSummaryAggCron(database)
+	StartMessageHubSummaryAggCron(repository.NewMessageHubSummaryRepository(database))
 	cron := hubSummaryAggCronInst
 	if cron == nil {
 		t.Fatal("带 DB 启动后 cron 仍为 nil ⇒ 汇总表永远没有写入者")
@@ -329,7 +331,7 @@ func TestHubSummaryAggCronWiredExplicitly(t *testing.T) {
 	}
 
 	// 重复启动不得再起第二个：两个写入者会各自推进同一水位线，同一批行被累加两次
-	StartMessageHubSummaryAggCron(database)
+	StartMessageHubSummaryAggCron(repository.NewMessageHubSummaryRepository(database))
 	if hubSummaryAggCronInst != cron {
 		t.Error("二次启动换掉了 cron 实例 ⇒ 旧协程泄漏，两个写入者并存")
 	}

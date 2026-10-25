@@ -13,7 +13,7 @@ import (
 // 所以六条种子全部标 Restart=true，改完只对下次启动的进程生效。
 //
 // 装配路径：
-//   - cmd/api/main.go:380 InitSOPExecutionDispatcher(db, sopSvc, nil) —— cfg 传 nil，
+//   - cmd/api/main.go:380 InitSOPExecutionDispatcher(sopSvc, nil) —— cfg 传 nil，
 //     旧代码在这里回落 DefaultSOPDispatcherConfig()（里头是三个写死的 16/1000/4）。
 //   - cmd/api/main.go:384 InitSOPCompensation(execDispatcher) —— 受
 //     FF_LTC_SAGA_COMPENSATION 开关控制，默认关闭；开启时才构造管理器。

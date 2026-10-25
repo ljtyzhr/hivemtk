@@ -163,7 +163,6 @@ func setupWebChatE2E(t *testing.T) (*VisitorChatService, *SmartCSOrchestrator, *
 	rag := newFakeRAG()
 	disp := newFakeLLMDispatcher(t)
 	engine := NewSalesEngine(
-		database,
 		disp,
 		fakeIntentRecognizer{},
 		fakeMemory{},
@@ -174,7 +173,7 @@ func setupWebChatE2E(t *testing.T) (*VisitorChatService, *SmartCSOrchestrator, *
 	)
 	orch := NewSmartCSOrchestrator(engine, DefaultOrchestratorConfig(), nil)
 	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
-	visitorSvc := NewVisitorChatService(context.Background(), database, channelSvc, orch, nil)
+	visitorSvc := NewVisitorChatService(channelSvc, orch, nil)
 	return visitorSvc, orch, rag, database
 }
 

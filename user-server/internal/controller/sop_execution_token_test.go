@@ -55,7 +55,7 @@ func setupSOPTokenDB(t *testing.T) *gorm.DB {
 
 func newSOPTokenEngine(database *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	ctrl := NewSOPController(service.NewSOPService(database, nil))
+	ctrl := NewSOPController(service.NewSOPService(nil))
 	engine := gin.New()
 	// 路径与 router/service_routes.go 里那两条一致：改路由名不改这里，测的就不是同一条出口。
 	engine.GET("/api/sop/executions", ctrl.ListExecutions)

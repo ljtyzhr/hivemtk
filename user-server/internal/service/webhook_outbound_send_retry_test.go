@@ -24,7 +24,7 @@ func nonRetryableSendErr() error {
 // TestEnqueueSendRetry_OnlyRetryableEnqueues 只有可重试失败才进持久化队列。
 func TestEnqueueSendRetry_OnlyRetryableEnqueues(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	p := &ParsedPayload{EventID: "evt-retry-1", Sender: "sender-retry"}
@@ -104,7 +104,7 @@ func TestNextSendRetryAt_BackoffAndQuietHours(t *testing.T) {
 // TestSendOutbound_RetryableFailureEntersRetryLane 实时投递失败 → 落队列，而不是只留日志。
 func TestSendOutbound_RetryableFailureEntersRetryLane(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	releaseReplyClaimForTest(t, "evt-retry-live")
 
@@ -164,7 +164,7 @@ func TestSendOutbound_RetryableFailureEntersRetryLane(t *testing.T) {
 // 次数用尽落 failed。免打扰首发记录维持一次性语义（失败也按 sent 收口）。
 func TestReplayDelayedOutbound_Outcomes(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	// SendAt 全部放未来：避免 30s 轮询的后台派发器与本用例抢占同一批行。

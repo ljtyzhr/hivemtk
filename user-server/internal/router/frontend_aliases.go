@@ -84,16 +84,16 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 		fmt.Printf("[OK] doRegAdmin registered: %s %s (handlers=%d)\n", method, path, len(adminHandlers))
 	}
 
-	notifCtrl := controller.NewNotificationController(service.NewNotificationService(gormDB))
+	notifCtrl := controller.NewNotificationController(service.NewNotificationService())
 	doReg("GET", "/notifications/list", notifCtrl.List)
 
 	clueRepo := repository.NewClueRepositoryWithDB(gormDB)
-	clueCtrl := controller.NewClueController(service.NewClueService(clueRepo, service.NewClueScoreService(gormDB)))
+	clueCtrl := controller.NewClueController(service.NewClueService(clueRepo, service.NewClueScoreService()))
 	doReg("GET", "/clues", clueCtrl.GetClueList)
 	doReg("GET", "/clues/import", clueCtrl.GetClueTypes)
 	doReg("GET", "/clue-statistics/overview", clueCtrl.GetClueStatistics)
 
-	customer360Ctrl := controller.NewCustomer360Controller(service.NewCustomer360Service(gormDB))
+	customer360Ctrl := controller.NewCustomer360Controller(service.NewCustomer360Service(repository.NewClueRepositoryWithDB(gormDB)))
 
 	doReg("GET", "/customer-tags", customer360Ctrl.GetCustomerTags)
 	doReg("PUT", "/customer-tags", customer360Ctrl.UpdateCustomerTags)
@@ -137,7 +137,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 
 	intentRec := service.GetIntentRecognizer()
 	if intentRec == nil {
-		intentRec = service.NewIntentRecognizer(gormDB, app.GetGlobalDispatcher(), nil)
+		intentRec = service.NewIntentRecognizer(app.GetGlobalDispatcher(), nil)
 	}
 	intentCtrl := controller.NewIntentController(intentRec)
 	doReg("GET", "/intent-records", intentCtrl.RecentIntents)
@@ -150,7 +150,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	doReg("GET", "/intent-records/keywords-override", intentCtrl.GetKeywordOverride)
 	doRegAdmin("PUT", "/intent-records/keywords-override", intentCtrl.UpdateKeywordOverride)
 
-	memCtrl := controller.NewDialogueMemoryController(service.NewDialogueMemoryService(gormDB, nil))
+	memCtrl := controller.NewDialogueMemoryController(service.NewDialogueMemoryService(nil))
 	doReg("GET", "/dialogue-memories", memCtrl.Stats)
 	doReg("GET", "/dialogue-memories/list", memCtrl.Stats)
 	doReg("GET", "/dialogue-memories/stats", memCtrl.Stats)
@@ -170,7 +170,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	doReg("GET", "/llm-routing/rules", llmCtrl.ListStrategies)
 	doReg("GET", "/llm-routing/models", llmCtrl.ListModels)
 
-	reachCtrl := controller.NewReachPipelineController(service.NewReachPipelineService(gormDB))
+	reachCtrl := controller.NewReachPipelineController(service.NewReachPipelineService(repository.NewReachPipelineRepository(gormDB)))
 	doReg("GET", "/reach-pipelines", reachCtrl.ListPipelines)
 	doReg("GET", "/reach-pipelines/list", reachCtrl.ListPipelines)
 	doReg("GET", "/reach-pipelines/:id", reachCtrl.GetPipeline)
@@ -185,7 +185,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	doReg("GET", "/batch-operations", batchOpCtrl.GetTools)
 	doReg("GET", "/batch-operations/list", batchOpCtrl.GetHistories)
 
-	sopCtrl := controller.NewSOPController(service.NewSOPService(gormDB, nil))
+	sopCtrl := controller.NewSOPController(service.NewSOPService(nil))
 	doReg("GET", "/sop-agents", sopCtrl.List)
 	doReg("GET", "/sop-agents/list", sopCtrl.List)
 	doReg("GET", "/sop-agents/stats", sopCtrl.Stats)
@@ -277,7 +277,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 		doReg("GET", "/kuaishou-cards/:id", kuaishouCtrl.GetByID)
 	}
 	{
-		xhsCtrl := controller.NewXiaohongshuCardController(service.NewXiaohongshuCardService(gormDB))
+		xhsCtrl := controller.NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(gormDB), service.NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)), service.NewDomainPoolService(repository.NewDomainPoolRepository(gormDB), repository.NewDomainBlacklistRepository(gormDB))))
 		doReg("GET", "/xiaohongshu-cards", xhsCtrl.GetList)
 		doReg("GET", "/xiaohongshu-cards/list", xhsCtrl.GetList)
 		doReg("GET", "/xiaohongshu-cards/:id", xhsCtrl.GetByID)
@@ -300,18 +300,26 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	// 由权威路由挂 admin，别名此前落在 doReg（登录即可读），等于"同一个 handler、
 	// 换个 URL 就掉一级守卫"。这两个口回的是对端渠道的账号清单（app_id、同步状态、
 	// 错误详情），属于运营配置面，不是坐席工作数据；前端零消费点（全仓 grep user-web 无引用）。
-	feishuCtrl := controller.NewFeishuAccountController(service.NewFeishuService(gormDB), service.NewFeishuIntegrationService(gormDB))
+	feishuCtrl := controller.NewFeishuAccountController(
+		service.NewFeishuService(repository.NewFeishuAccountRepositoryWithDB(gormDB)),
+		service.NewFeishuIntegrationService(
+			repository.NewFeishuAccountRepositoryWithDB(gormDB),
+			repository.NewFeishuMessageRepositoryWithDB(gormDB),
+		),
+	)
 	doRegAdmin("GET", "/feishu/accounts/list", feishuCtrl.List)
 
-	tgCtrl := controller.NewTelegramAccountController(service.NewTelegramService(gormDB))
+	tgCtrl := controller.NewTelegramAccountController(
+		service.NewTelegramService(repository.NewTelegramAccountRepositoryWithDB(gormDB)),
+	)
 	doRegAdmin("GET", "/telegram/accounts/list", tgCtrl.List)
 
-	shortLinkCtrl := controller.NewShortLinkController(service.NewShortLinkService(gormDB))
+	shortLinkCtrl := controller.NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)))
 	doReg("GET", "/short-links", shortLinkCtrl.GetList)
 	doReg("GET", "/short-links/list", shortLinkCtrl.GetList)
 	doReg("GET", "/short-links/:id", shortLinkCtrl.GetByID)
 
-	liveCodeCtrl := controller.NewLiveCodeController(service.NewLiveCodeService(gormDB))
+	liveCodeCtrl := controller.NewLiveCodeController(service.NewLiveCodeService())
 	doReg("GET", "/live-codes", liveCodeCtrl.GetList)
 
 	ragProductCtrl := controller.NewRagProductController()
@@ -453,7 +461,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 
 	doReg("GET", "/customer-service/ai-suggestions", aiSuggestionCtrl.GetSuggestions)
 
-	notifCtrlAlias := controller.NewNotificationController(service.NewNotificationService(gormDB))
+	notifCtrlAlias := controller.NewNotificationController(service.NewNotificationService())
 	doReg("POST", "/mentions/:id/read", notifCtrlAlias.MarkRead)
 	doReg("GET", "/mentions/mine", notifCtrlAlias.List)
 	// doReg("GET", "/system/menus", systemInfoCtrl.SystemMenus)
@@ -471,7 +479,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	domainDB := gormDB
 	domainPoolRepo := repository.NewDomainPoolRepository(domainDB)
 	domainCtrl := controller.NewDomainPoolController(
-		service.NewDomainPoolService(domainDB),
+		service.NewDomainPoolService(repository.NewDomainPoolRepository(domainDB), repository.NewDomainBlacklistRepository(domainDB)),
 		service.NewDomainHealthService(domainDB, domainPoolRepo),
 	)
 	doReg("GET", "/domain-pool", domainCtrl.List)

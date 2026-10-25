@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 )
@@ -20,8 +21,14 @@ type WechatAccountRepository struct {
 	db *gorm.DB
 }
 
-// NewWechatAccountRepository 构造
-func NewWechatAccountRepository(db *gorm.DB) *WechatAccountRepository {
+// NewWechatAccountRepository 用全局连接构造（无参服务构造器走这一扇门）。
+// 全局未初始化时 db 为 nil，各方法按既有语义回 gorm.ErrInvalidDB。
+func NewWechatAccountRepository() *WechatAccountRepository {
+	return &WechatAccountRepository{db: _db.GetDB()}
+}
+
+// NewWechatAccountRepositoryWithDB 构造指定连接（测试/装配点显式注入）
+func NewWechatAccountRepositoryWithDB(db *gorm.DB) *WechatAccountRepository {
 	return &WechatAccountRepository{db: db}
 }
 

@@ -126,7 +126,7 @@ func r65SetupGate(t *testing.T, stub *r65GateStub) (*TelegramGateService, *gorm.
 	}
 	srv := httptest.NewServer(http.HandlerFunc(stub.handle))
 	t.Cleanup(srv.Close)
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	svc.SetAPIBase(srv.URL)
 	return svc, db, acc.ID
 }

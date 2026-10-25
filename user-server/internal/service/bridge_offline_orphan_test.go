@@ -342,7 +342,7 @@ func withOrphanConfig(t *testing.T, db *gorm.DB, key, value, valueType string) {
 	globalConfigParamMu.RLock()
 	prev := globalConfigParam
 	globalConfigParamMu.RUnlock()
-	SetGlobalForTest(NewConfigParamService(db))
+	SetGlobalForTest(NewConfigParamService())
 	t.Cleanup(func() {
 		globalConfigParamMu.Lock()
 		globalConfigParam = prev

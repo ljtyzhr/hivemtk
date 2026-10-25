@@ -17,6 +17,7 @@ package service
 
 import (
 	"context"
+	"hivemtk-user/internal/repository"
 	"sort"
 	"strconv"
 	"strings"
@@ -155,7 +156,7 @@ func TestMessageNodeCompensate_PartialRollback(t *testing.T) {
 	}
 
 	reg := NewNodeExecutorRegistry()
-	RegisterAllNodeExecutors(reg, &SOPNodeExecutorDeps{DB: db})
+	RegisterAllNodeExecutors(reg, &SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 	executor := reg.MustGet(ctx, SOPNodeTypeGreeting)
 	if _, ok := executor.(Compensable); !ok {
 		t.Fatal("消息节点应实现 Compensable（部分补偿）")
@@ -223,7 +224,7 @@ func reloadExecutionData(t *testing.T, db *gorm.DB, id uint) model.JSONMap {
 func TestMessageNodeCompensate_DegradesWithoutDB(t *testing.T) {
 	ctx := context.Background()
 	reg := NewNodeExecutorRegistry()
-	RegisterAllNodeExecutors(reg, &SOPNodeExecutorDeps{DB: nil})
+	RegisterAllNodeExecutors(reg, &SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(nil), TimerRepo: repository.NewSOPTimerRepository(nil)})
 
 	rec := NewCompensationManager(DefaultCompensationConfig()).CompensateNode(
 		ctx,

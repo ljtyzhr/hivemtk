@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"hivemtk-user/internal/repository"
 	"strings"
 	"sync"
 	"time"
@@ -238,6 +240,19 @@ func (m *CompensationManager) CompensateNode(
 				Int("attempt", attempt).
 				Dur("duration", time.Since(rec.StartedAt)).
 				Msg("[Compensation] node compensated")
+			return rec
+		}
+
+		// 无库降级（嵌入式/测试直构形态）：仓储未装配＝无事可做，报成功而非
+		// 重试三次后 failed——否则 Summary 的 failed 数被部署形态污染。
+		if errors.Is(err, repository.ErrSopExecutionRepoNotInitialized) ||
+			errors.Is(err, repository.ErrSopAgentRepoNotInitialized) {
+			rec.Status = CompensationStatusCompleted
+			rec.Reason = "无库降级：仓储未装配，无事可做"
+			rec.FinishedAt = time.Now()
+			logger.Ctx(ctx).Info().
+				Str("node_id", rec.NodeID).
+				Msg("[Compensation] degrade without db, completed")
 			return rec
 		}
 

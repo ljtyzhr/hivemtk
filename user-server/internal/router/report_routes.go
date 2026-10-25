@@ -11,6 +11,7 @@ import (
 
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/pkg/cron"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +20,7 @@ import (
 
 // SetupReportRoutes LLM 报表读侧 + 聚合任务注册
 func SetupReportRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	reportSvc := service.NewReportService(gormDB)
+	reportSvc := service.NewReportService(repository.NewLLMUsageReportRepository(gormDB))
 	reportCtrl := controller.NewReportController(reportSvc)
 
 	auth.GET("/reports/llm/overview", reportCtrl.GetOverview)

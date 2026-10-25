@@ -2,7 +2,7 @@ package service
 
 // reach_pipeline.go 触达流水线核心：步骤/状态常量、错误定义、限流与重试配置类型、
 // ReachPipelineService 服务结构与构造、Pipeline CRUD、步骤校验。
-// 本服务没有全局单例：每个装配点各自 NewReachPipelineService(db)，
+// 本服务没有全局单例：每个装配点各自 NewReachPipelineService(repository.NewReachPipelineRepository(db))，
 // 旧版这里的 Init/Get 一对函数在全仓没有任何调用点，Get 只会永远返回 nil，已删除。
 // 按流水线阶段拆分的其余文件：
 //   - reach_pipeline_alert.go     任务终态告警回调
@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"gorm.io/gorm"
 
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
@@ -182,10 +180,9 @@ type ReachPipelineService struct {
 	alertHook ReachAlertHook
 }
 
-func NewReachPipelineService(db *gorm.DB) *ReachPipelineService {
-	_ = db
+func NewReachPipelineService(repo *repository.ReachPipelineRepository) *ReachPipelineService {
 	return &ReachPipelineService{
-		repo:        repository.NewReachPipelineRepository(db),
+		repo:        repo,
 		rateState:   make(map[string]*rateBucket),
 		dailyQuota:  make(map[string]*dailyCounter),
 		perUserHits: make(map[string][]time.Time),

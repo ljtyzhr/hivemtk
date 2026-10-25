@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
@@ -38,21 +36,13 @@ type RagMetricsService struct {
 	started bool
 }
 
-// GetDB 返回底层 DB（用于租户扇出场景）
-func (s *RagMetricsService) GetDB() *gorm.DB {
-	if s.repo == nil {
-		return nil
-	}
-	return s.repo.GetDB(context.Background())
-}
-
 // NewRagMetricsService 创建召回率监控服务
 //
 // db 为 nil 时（repo 为 nil）仅可调用计算类方法（buildQueryLog），
 // 查询/写库类方法返回错误，RecordQuery 降级为 no-op
-func NewRagMetricsService(db *gorm.DB) *RagMetricsService {
+func NewRagMetricsService(repo repository.RagMetricsRepository) *RagMetricsService {
 	s := &RagMetricsService{
-		repo:    repository.NewRagMetricsRepository(db),
+		repo:    repo,
 		queue:   make([]*model.RagQueryLog, 0, RagMetricsBatchSize),
 		flushCh: make(chan struct{}, 1),
 		stopCh:  make(chan struct{}),
@@ -504,7 +494,7 @@ func (c *RagMetricsCron) run(ctx context.Context) {
 		case <-ticker.C:
 			// 多租户模式下，需以租户扇出方式逐租户执行聚合
 			if tenant.IsMultiTenant() {
-				_, _ = tenant.Fanout(ctx, c.svc.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+				_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
 					ctx, cancel := context.WithTimeout(ctx, utils.DefaultHTTPTimeout)
 					_, err := c.svc.AggregateLastWindow(ctx)
 					cancel()

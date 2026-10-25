@@ -18,7 +18,7 @@ type TelegramGateController struct {
 
 func NewTelegramGateController(svc *service.TelegramGateService) *TelegramGateController {
 	if svc == nil {
-		svc = service.NewTelegramGateService(nil)
+		svc = service.NewTelegramGateService()
 	}
 	return &TelegramGateController{svc: svc}
 }

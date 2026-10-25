@@ -108,7 +108,7 @@ func InitHumanTaskSLA(db *gorm.DB) *HumanTaskSLARuntime {
 	}
 
 	svc := service.NewHumanTaskService(repository.NewHumanTaskRepositoryWithDB(db), service.GlobalConfigParam())
-	notifier := service.NewNotificationService(db)
+	notifier := service.NewNotificationService()
 	worker := service.NewHumanTaskSLAWorker(svc, notifier, mode, 0, 0)
 	rt := &HumanTaskSLARuntime{worker: worker, mode: mode}
 	worker.Start(context.Background())

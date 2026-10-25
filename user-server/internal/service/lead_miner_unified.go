@@ -299,18 +299,20 @@ func recordUnifiedLeadScore(ctx context.Context, s *WebhookService, clue *model.
 	if s == nil || clue == nil || clue.ID == "" {
 		return
 	}
-	db := s.dbHandle() // E-4：经 repo 回拿句柄（不再兜底全局）
-	if db == nil {
+	if s.eventRepo == nil {
 		return
 	}
+	// 2026-10-25 E-4 收口：不再从 eventRepo 借句柄（service 不得经手 *gorm.DB），
+	// 评分仓储改默认构造；eventRepo 未装配仍整段跳过。句柄未就绪的残余风险
+	// 由本段既有的 defer recover 兜底。
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
 		}
 	}()
 	scoreSvc := NewClueScoreServiceWithRepos(
-		repository.NewClueScoreRepositoryWithDB(db),
-		repository.NewClueEngagementRepositoryWithDB(db),
+		repository.NewClueScoreRepository(),
+		repository.NewClueEngagementRepository(),
 		s.clueRepo,
 	)
 	_ = scoreSvc.RecordEngagement(ctx, clue.ID, "group_message", channel, map[string]any{"is_opportunity": isOpp})

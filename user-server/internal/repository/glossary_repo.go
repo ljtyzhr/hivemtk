@@ -82,7 +82,7 @@ func (r *GlossaryRepository) Update(ctx context.Context, g *model.Glossary) erro
 }
 
 // Delete 按 TermID 删除术语。模型带 gorm.DeletedAt 时是软删除，否则物理删除
-//（由 GORM 按模型定义决定）。命中 0 行（不存在/别租户）报不存在。
+// （由 GORM 按模型定义决定）。命中 0 行（不存在/别租户）报不存在。
 func (r *GlossaryRepository) Delete(ctx context.Context, termID string) error {
 	if termID == "" {
 		return errors.New("glossary: empty term_id")

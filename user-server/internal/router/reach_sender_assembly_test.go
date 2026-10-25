@@ -11,7 +11,7 @@ import (
 //
 //   - 装配点漏掉这一行 ⇒ 图上的外发节点全部 fail-closed（"外发服务未装配"），
 //     而 internal/service 的用例带着自己的夹具跑，一条都不会红；
-//   - 装配点改成 `SetSOPReachSender(service.NewProactiveReachService(db, nil))`（新建一个没装
+//   - 装配点改成 `SetSOPReachSender(service.NewProactiveReachService(nil, nil, nil))`（新建一个没装
 //     闸门的实例）⇒ 编译过、路由通、发得出短信，只是 W-1 那道发送前门从此不在 Active 这条路上。
 //
 // 所以这里断的有两件：**存在**（恰好一处）与**次序**（在 AttachReachGate 之后，且交的是同一个

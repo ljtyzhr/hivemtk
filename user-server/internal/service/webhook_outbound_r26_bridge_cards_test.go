@@ -54,7 +54,7 @@ func TestSendOutbound_Bridge_CardsDroppedRecordedOnRow(t *testing.T) {
 		&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 		&model.WebhookEvent{}, &model.IntegrationAccount{}, &DelayedOutboundReply{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	hub := bridgeCardsTestHub("douyin", "acct-r26-drop", "conv-r26-drop", "cust-r26-drop")
@@ -96,7 +96,7 @@ func TestSendOutbound_Bridge_NoCardsNoDroppedKey(t *testing.T) {
 		&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 		&model.WebhookEvent{}, &model.IntegrationAccount{}, &DelayedOutboundReply{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	hub := bridgeCardsTestHub("kuaishou", "acct-r26-none", "conv-r26-none", "cust-r26-none")
@@ -130,7 +130,7 @@ func TestSendOutbound_Bridge_CardsDropWarns(t *testing.T) {
 		&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 		&model.WebhookEvent{}, &model.IntegrationAccount{}, &DelayedOutboundReply{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	hub := bridgeCardsTestHub("xiaohongshu", "acct-r26-warn", "conv-r26-warn", "cust-r26-warn")
@@ -192,11 +192,11 @@ func TestSendOutbound_Bridge_CardsDropWarns(t *testing.T) {
 // 五族同样整批丢掉。出声口径必须覆盖"没有卡片载体"的全部渠道，不能只修被点名的那一族。
 func TestSendOutbound_CardlessChannelWarns(t *testing.T) {
 	t.Setenv("DISABLE_AI_QUIET_HOURS", "1")
-	db := testutil.NewTestDB(t,
+	testutil.NewTestDB(t,
 		&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 		&model.WebhookEvent{}, &model.IntegrationAccount{}, &DelayedOutboundReply{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	releaseReplyClaimForTest(t, "evt-r26-wecom")
@@ -260,11 +260,11 @@ func TestSendOutbound_CardCapableChannelStaysQuiet(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			db := testutil.NewTestDB(t,
+			testutil.NewTestDB(t,
 				&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 				&model.WebhookEvent{}, &model.IntegrationAccount{}, &DelayedOutboundReply{},
 			)
-			svc := NewWebhookService(db)
+			svc := NewWebhookService()
 			defer svc.Stop(context.Background())
 
 			// 事件号必须新且未被 claim：claim 失败会在 guard 之前 return，

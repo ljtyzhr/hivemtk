@@ -21,10 +21,10 @@ func newWebhookParamFixture(t *testing.T) (*ConfigParamService, *gorm.DB) {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	if err := SeedConfigParams(context.Background(), database); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := NewConfigParamService(database)
+	svc := NewConfigParamService()
 	SetGlobalForTest(svc)
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	return svc, database

@@ -38,7 +38,7 @@ func TestSmsDeliveryTracker_DetectAndRecordPortability_BaselineFromDB(t *testing
 		t.Fatalf("准备基线失败: %v", err)
 	}
 
-	svc := NewSmsDeliveryTrackerService(db, nil, nil)
+	svc := NewSmsDeliveryTrackerService(nil, nil)
 	if err := svc.DetectAndRecordPortability(ctx, phone, "telecom"); err != nil {
 		t.Fatalf("DetectAndRecordPortability 返回错误: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestSmsDeliveryTracker_DetectAndRecordPortability_BaselineFromDB(t *testing
 func TestSmsDeliveryTracker_DetectAndRecordPortability_NoBaselineNoRecord(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.SmsNumberPortabilityRecord{})
 
-	svc := NewSmsDeliveryTrackerService(db, nil, nil)
+	svc := NewSmsDeliveryTrackerService(nil, nil)
 	if err := svc.DetectAndRecordPortability(context.Background(), "13900139000", "telecom"); err != nil {
 		t.Fatalf("DetectAndRecordPortability 返回错误: %v", err)
 	}

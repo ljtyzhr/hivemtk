@@ -14,13 +14,11 @@ import (
 // bridge_metrics 落库 sink。
 //
 // 分层：本包只做"采样 + 序列化"，落库交给实现了 BridgeMetricWriter 的仓储
-// （生产实现是 `repository.BridgeMetricsRepository`）。此前这里直接持 `*gorm.DB`
-// 并 `db.Create(...)`——pkg 层持库句柄写表，等于每个 pkg 都能绕过仓储写任意表。
+// （生产实现是 `repository.BridgeMetricsRepository`），pkg 层不直接持库句柄写表。
 //
-// 租户口径：bridge_metrics 是指标时间序列，维度是 (metric_name, labels, ts)，没有租户
-// 归属语义（按租户切分只会把同一张运维看板拆成 N 份）。所以写入走**系统域**显式豁免：
-// on 模式下普通 ctx 没有租户绑定，隔离 callback 会 fail-closed，而这条链路既不该
-// 被某个租户看到、也不该按租户重复跑一遍。
+// 租户口径：bridge_metrics 是指标时间序列，维度是 (metric_name, labels, ts)，
+// 没有租户归属语义。写入走**系统域**显式豁免：on 模式下普通 ctx 没有租户绑定，
+// 隔离 callback 会 fail-closed，而这条链路既不该被某个租户看到、也不该按租户重复跑。
 
 // BridgeMetricWriter bridge_metrics 的写入口（由仓储实现）。
 type BridgeMetricWriter interface {
@@ -81,9 +79,7 @@ func labelsToJSON(keys, values []string, agg string) string {
 
 // StartBridgeMetricsSink 启动定期落库后台任务（每 interval 一次 Flush）。
 // interval <= 0 时使用默认 60s。返回 stop 函数（可安全多次调用）。
-//
-// 注意：本函数在生产装配里**尚未启用**（见 model-list.md #201 的待决策项：
-// 先要有一条保留期/归档策略，否则每分钟一写就是无界增长）。
+// 注意：生产装配里尚未启用（需先确定 bridge_metrics 的保留期/归档策略，否则无界增长）。
 func StartBridgeMetricsSink(w BridgeMetricWriter, interval time.Duration) (stop func()) {
 	if w == nil {
 		return func() {}

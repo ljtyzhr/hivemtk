@@ -5,8 +5,6 @@ import (
 	"math"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -127,12 +125,9 @@ type dashboardStatsService struct {
 	repo repository.DashboardStatsRepository
 }
 
-// NewDashboardStatsService 创建实时驾驶舱统计服务
-//
-// 注：保留 db *gorm.DB 入参以维持向后兼容（router / 调用方不改动），
-// 内部在构造函数中实例化 repository，service struct 不直接持有 *gorm.DB。
-func NewDashboardStatsService(db *gorm.DB) DashboardStatsService {
-	return &dashboardStatsService{repo: repository.NewDashboardStatsRepository(db)}
+// NewDashboardStatsService 创建实时驾驶舱统计服务（句柄由 repository 自取全局库）
+func NewDashboardStatsService() DashboardStatsService {
+	return &dashboardStatsService{repo: repository.NewDashboardStatsRepositoryDefault()}
 }
 
 func (s *dashboardStatsService) Available(ctx context.Context) bool {

@@ -38,7 +38,7 @@ func setupMaterialRoutes(auth *gin.RouterGroup) {
 
 func setupClueRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	clueRepo := repository.NewClueRepositoryWithDB(gormDB)
-	clueScoreSvc := service.NewClueScoreService(gormDB)
+	clueScoreSvc := service.NewClueScoreService()
 	clueCtrl := controller.NewClueController(service.NewClueService(clueRepo, clueScoreSvc))
 	auth.GET("/clue/list", clueCtrl.GetClueList)
 	auth.GET("/clue/statistics", clueCtrl.GetClueStatistics)

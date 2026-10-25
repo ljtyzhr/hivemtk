@@ -8,8 +8,6 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // XiaohongshuCardStatsService 小红书卡片统计服务接口
@@ -24,16 +22,16 @@ type xiaohongshuCardStatsService struct {
 }
 
 // NewXiaohongshuCardStatsService 创建小红书卡片统计服务实例
-func NewXiaohongshuCardStatsService(db *gorm.DB) XiaohongshuCardStatsService {
+func NewXiaohongshuCardStatsService(repo repository.XiaohongshuCardStatsRepository) XiaohongshuCardStatsService {
 	return &xiaohongshuCardStatsService{
-		repo: repository.NewXiaohongshuCardStatsRepository(db),
+		repo: repo,
 	}
 }
 
 func (s *xiaohongshuCardStatsService) GetCardStats(ctx context.Context, req *dto.XiaohongshuCardStatsRequest) (*dto.XiaohongshuCardStatsResponse, error) {
 	card, err := s.repo.GetCardByID(ctx, req.CardID)
 	if err != nil {
-		return nil, fmt.Errorf("卡片不存在: %v", err)
+		return nil, fmt.Errorf("卡片不存在: %w", err)
 	}
 
 	views, err := s.repo.CountCardViews(ctx, req.CardID)

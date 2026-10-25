@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -151,7 +152,7 @@ func (c *Client) ensureJWTToken() error {
 		"password": password,
 	})
 	loginURL := config.PlatformURL() + "/api/auth/login"
-	req, err := newPlatformRequest(nil, "POST", loginURL, loginBody)
+	req, err := newPlatformRequest(context.Background(), "POST", loginURL, loginBody)
 	if err != nil {
 		return fmt.Errorf("构造平台登录请求失败: %w", err)
 	}
@@ -227,7 +228,7 @@ func (c *Client) doRetry(method, path string, reqData, respData any, retried boo
 	}
 	logger.Info(reqLog)
 
-	req, err := newPlatformRequest(nil, method, url, body)
+	req, err := newPlatformRequest(context.Background(), method, url, body)
 	if err != nil {
 		return fmt.Errorf("构造平台请求失败: %w", err)
 	}
@@ -466,7 +467,7 @@ func (c *Client) CheckConnection() error {
 	if config.PlatformCfg == nil {
 		return fmt.Errorf("%w: 未配置平台地址，连通性探测无从发出", ErrPlatformNotConfigured)
 	}
-	req, err := newPlatformRequest(nil, http.MethodGet, config.PlatformURL()+"/health", nil)
+	req, err := newPlatformRequest(context.Background(), http.MethodGet, config.PlatformURL()+"/health", nil)
 	if err != nil {
 		return fmt.Errorf("平台连通性探测请求构造失败: %w", err)
 	}
@@ -543,7 +544,7 @@ func (c *Client) ReportInstall(req *ReportInstallReq) error {
 		return fmt.Errorf("序列化安装信息失败: %w", err)
 	}
 	url := strings.TrimRight(config.PlatformURL(), "/") + "/api/platform/install"
-	httpReq, err := newPlatformRequest(nil, "POST", url, body)
+	httpReq, err := newPlatformRequest(context.Background(), "POST", url, body)
 	if err != nil {
 		return fmt.Errorf("构造安装上报请求失败: %w", err)
 	}
@@ -608,7 +609,7 @@ func (c *Client) ReportHeartbeat(req *ReportHeartbeatReq) error {
 		return fmt.Errorf("序列化心跳数据失败: %w", err)
 	}
 	url := strings.TrimRight(config.PlatformURL(), "/") + "/api/platform/heartbeat"
-	httpReq, err := newPlatformRequest(nil, "POST", url, body)
+	httpReq, err := newPlatformRequest(context.Background(), "POST", url, body)
 	if err != nil {
 		return fmt.Errorf("构造心跳上报请求失败: %w", err)
 	}

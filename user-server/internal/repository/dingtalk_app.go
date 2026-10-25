@@ -20,6 +20,11 @@ type dingTalkAppRepo struct {
 	db *gorm.DB
 }
 
+// NewDingTalkAppRepositoryDefault 默认构造（全局句柄）。
+func NewDingTalkAppRepositoryDefault() DingTalkAppRepository {
+	return NewDingTalkAppRepository(GetDB())
+}
+
 func NewDingTalkAppRepository(db *gorm.DB) DingTalkAppRepository {
 	return &dingTalkAppRepo{db: db}
 }

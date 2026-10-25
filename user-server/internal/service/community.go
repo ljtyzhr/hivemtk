@@ -10,7 +10,6 @@ import (
 	"hivemtk-user/internal/repository"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type CommunityService struct {
@@ -18,8 +17,8 @@ type CommunityService struct {
 }
 
 // NewCommunityService 用装配点注入的连接创建社群服务。
-func NewCommunityService(db *gorm.DB) *CommunityService {
-	return &CommunityService{repo: repository.NewCommunityRepository(db)}
+func NewCommunityService(repo repository.CommunityRepository) *CommunityService {
+	return &CommunityService{repo: repo}
 }
 
 func (s *CommunityService) GetGroups(ctx context.Context, page, pageSize int, search string) ([]*dto.CommunityGroupResponse, int64, error) {

@@ -61,10 +61,14 @@ type SmsHuaweiConfig struct {
 type SmsRecord struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID        uint           `gorm:"primarykey" json:"id"`
-	Phone     string         `gorm:"type:varchar(20);index" json:"phone"`
-	Content   string         `gorm:"type:text" json:"content"`
-	Provider  string         `gorm:"type:varchar(50)" json:"provider"`
+	ID       uint   `gorm:"primarykey" json:"id"`
+	Phone    string `gorm:"type:varchar(20);index" json:"phone"`
+	Content  string `gorm:"type:text" json:"content"`
+	Provider string `gorm:"type:varchar(50)" json:"provider"`
+	// MsgID 运营商消息号（阿里云 BizId／腾讯云 SerialNo／华为云 smsId）。
+	// 送达回执 webhook 以它回连并回写台账行；空串 = 渠道没给或改造前老行，
+	// 此时回执只留在 sms_delivery_statuses 侧，台账行停在 sent。
+	MsgID     string         `gorm:"type:varchar(64);index" json:"msgId,omitempty"`
 	Status    string         `gorm:"type:varchar(20);index;default:'pending'" json:"status"`
 	ErrorCode string         `gorm:"type:varchar(50)" json:"errorCode"`
 	ErrorMsg  string         `gorm:"type:text" json:"errorMsg"`

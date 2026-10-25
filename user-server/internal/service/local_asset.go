@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"hivemtk-user/internal/domain/asset"
 	bizerr "hivemtk-user/internal/domain/errors"
@@ -34,9 +33,7 @@ func NewLocalAssetService(
 	dr repository.LocalAssetDataRepository,
 	sr repository.LocalAssetSyncLogRepository,
 	pc repository.PlatformAPIClient,
-	db *gorm.DB,
 ) *LocalAssetService {
-	_ = db
 	return &LocalAssetService{assetRepo: ar, dataRepo: dr, syncLogRepo: sr, platformClient: pc}
 }
 

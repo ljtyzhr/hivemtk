@@ -122,7 +122,7 @@ func newScopedEngine(t *testing.T) (tenantPaths, systemPaths map[string]bool) {
 	setupTenantRoutes(nil, tenantAuth, systemAdmin)
 	setupModuleRoutes(nil, tenantAuth, tenantAdmin, systemAdmin)
 	setupConfigParamRoutes(tenantAuth, tenantAdmin, systemAdmin, nil)
-	setupSSOConfigRoutes(tenantAdmin, controller.NewSSOController(service.NewSSOService(nil)))
+	setupSSOConfigRoutes(tenantAdmin, controller.NewSSOController(service.NewSSOService(nil, nil)))
 	setupDictionaryRoutes(tenantAuth, systemAdmin, (*gorm.DB)(nil))
 	// 备份/恢复只有平台运营方档：全局表 backups / restore_records
 	setupBackupRoutes(systemAdmin, nil)

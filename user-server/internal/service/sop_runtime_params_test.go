@@ -19,10 +19,10 @@ func newSOPParamFixture(t *testing.T) (*ConfigParamService, *gorm.DB) {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	if err := SeedConfigParams(context.Background(), database); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := NewConfigParamService(database)
+	svc := NewConfigParamService()
 	SetGlobalForTest(svc)
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	return svc, database
@@ -181,7 +181,7 @@ func TestNewSOPExecutionDispatcherNilConfigPicksUpParams(t *testing.T) {
 	setSOPParam(t, svc, SOPDispatcherQueueCapacityParam, "7")
 	setSOPParam(t, svc, SOPDispatcherLLMConcurrencyParam, "2")
 
-	d := NewSOPExecutionDispatcher(nil, nil, NewNodeExecutorRegistry(), nil)
+	d := NewSOPExecutionDispatcher(nil, NewNodeExecutorRegistry(), nil)
 	defer d.Stop(context.Background())
 	if d.workerCount != 3 {
 		t.Errorf("workerCount 应读到 3, got %d", d.workerCount)
@@ -217,7 +217,7 @@ func TestInitSOPCompensationPicksUpParams(t *testing.T) {
 	compensationEnabledFn = func() bool { return true }
 	t.Cleanup(func() { compensationEnabledFn = orig })
 
-	d := NewSOPExecutionDispatcher(nil, nil, NewNodeExecutorRegistry(), nil)
+	d := NewSOPExecutionDispatcher(nil, NewNodeExecutorRegistry(), nil)
 	defer d.Stop(context.Background())
 	mgr := InitSOPCompensation(d)
 	if mgr == nil {

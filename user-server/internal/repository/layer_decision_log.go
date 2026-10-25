@@ -12,6 +12,14 @@ type LayerDecisionLogRepository struct {
 	db *gorm.DB
 }
 
+// NewLayerDecisionLogRepositoryDefault 默认构造（全局句柄；未装配时返回 nil，调用方按「repo 未装配」处理）。
+func NewLayerDecisionLogRepositoryDefault() *LayerDecisionLogRepository {
+	if db := GetDB(); db != nil {
+		return NewLayerDecisionLogRepository(db)
+	}
+	return nil
+}
+
 func NewLayerDecisionLogRepository(db *gorm.DB) *LayerDecisionLogRepository {
 	return &LayerDecisionLogRepository{db: db}
 }

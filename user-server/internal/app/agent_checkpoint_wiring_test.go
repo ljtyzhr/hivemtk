@@ -11,9 +11,10 @@ import (
 
 	agent_runtime "hivemtk-user/internal/aiagent/agent/runtime"
 	"hivemtk-user/internal/pkg/testutil"
-	"hivemtk-user/internal/service"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func newCheckpointStoreForTest(t *testing.T) (*agentCheckpointStore, *gorm.DB, func()) {
@@ -31,7 +32,7 @@ func newCheckpointStoreForTest(t *testing.T) (*agentCheckpointStore, *gorm.DB, f
 	)`).Error; err != nil {
 		t.Skipf("建表失败（环境限制）: %v", err)
 	}
-	return &agentCheckpointStore{repo: service.NewAgentCheckpointRepository(db)}, db, func() {
+	return &agentCheckpointStore{repo: repository.NewAgentCheckpointRepository(db)}, db, func() {
 		db.Exec("DELETE FROM agent_checkpoints")
 	}
 }

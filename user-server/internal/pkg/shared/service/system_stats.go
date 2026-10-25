@@ -38,16 +38,12 @@ type SystemInfo struct {
 	// 前端启动即可拿到，用来隐藏那些"点了必然 403"的上架入口。
 	PlatformEnabled bool `json:"platform_enabled"`
 
-	// PlatformContract 平台最近一次以 **426** 拒绝本机的契约版本状态（SaaS 审计 A4）。
+	// PlatformContract 平台最近一次以 **426** 拒绝本机的契约版本状态。
 	//
-	// 为什么这条必须出现在这里而不是只写日志：A4 的原始症状就是"失败被日志吞掉，
-	// 表现为同步一直没生效"。管理端要能一眼看到"平台在要求本机升级"，否则运维只会去
-	// 查业务代码。
-	//
-	// 用指针 + `omitempty`：从未被拒过时**整个字段不出现**，于是 `off` 模式（无平台）
-	// 的响应体与改造前**逐字节等价** —— 这条是硬约束，不是风格偏好。
-	// 它也只进管理员视图：`publicSystemInfo` 是白名单裁剪，不列这个字段就不会泄露
-	// "这台机器接的平台是哪一版"。
+	// 为什么必须出现在响应里而不只写日志：失败若只进日志，运维无从得知"平台在要求
+	// 本机升级"。用指针 + `omitempty`：从未被拒过时整个字段不出现，off 模式（无平台）
+	// 的响应体与改造前逐字节等价——这是硬约束。只进管理员视图：publicSystemInfo
+	// 是白名单裁剪，不列此字段则不泄露平台契约版本。
 	PlatformContract *contract.Status `json:"platform_contract,omitempty"`
 }
 
@@ -98,8 +94,7 @@ func (s *SystemStatsService) GetSystemInfo() (*SystemInfo, error) {
 
 		PlatformEnabled: config.PlatformEnabled(),
 	}
-	// 只有**正在被拒**时才填：填一个"没被拒过"的空结构会让管理端显示一行无意义的告警，
-	// 也会让 `omitempty` 失效（off 模式逐字节等价就破了）。
+	// 只有**正在被拒**时才填：填空结构会让 omitempty 失效（off 模式逐字节等价被破坏）。
 	if st, ok := contract.UpgradeRequired(); ok {
 		info.PlatformContract = &st
 	}

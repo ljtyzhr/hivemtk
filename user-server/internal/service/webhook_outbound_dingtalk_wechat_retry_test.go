@@ -45,7 +45,7 @@ func TestSendOutbound_DingTalk_PlatformRejectionEntersRetryLane(t *testing.T) {
 	quietHoursOffForTest(t)
 	allowAnyDingtalkHostForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-dt-retry-lane"
@@ -85,7 +85,7 @@ func TestSendOutbound_DingTalk_TransportFailureEntersRetryLane(t *testing.T) {
 	quietHoursOffForTest(t)
 	allowAnyDingtalkHostForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-dt-transport-lane"
@@ -129,7 +129,7 @@ func TestSendOutbound_DingTalk_MissingSessionWebhookStaysNonRetryable(t *testing
 	quietHoursOffForTest(t)
 	allowAnyDingtalkHostForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-dt-no-webhook"
@@ -170,7 +170,7 @@ func TestSendOutbound_DingTalk_MissingSessionWebhookStaysNonRetryable(t *testing
 func TestSendOutbound_Wechat_FailureEntersRetryLane(t *testing.T) {
 	quietHoursOffForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{}, &model.WechatAccount{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-wx-retry-lane"

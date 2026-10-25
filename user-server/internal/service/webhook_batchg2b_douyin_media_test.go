@@ -233,7 +233,7 @@ func g2bSetup(t *testing.T, clientKey string) (*WebhookService, context.Context,
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed douyin account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 	return svc, context.Background(), db
 }
@@ -1038,7 +1038,7 @@ func TestG2B_TikTokNeverCallsDouyinEndpoint(t *testing.T) {
 			t.Fatalf("seed %s account: %v", acc.Platform, err)
 		}
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	ctx := context.Background()
 	t.Cleanup(func() { svc.Stop(ctx) })
 
@@ -1094,7 +1094,7 @@ func TestG2B_MissingClientKeySkips(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 
 	called := 0

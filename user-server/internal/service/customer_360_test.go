@@ -26,13 +26,13 @@ func setupCustomer360TestDB(t *testing.T) *gorm.DB {
 
 func setupCustomer360Service(t *testing.T, db *gorm.DB) *Customer360Service {
 	return &Customer360Service{
-		sessionRepo:      repository.NewCustomerSessionRepositoryWithDB(db),
-		messageRepo:      repository.NewSessionMessageRepositoryWithDB(db),
-		clueRepo:         repository.NewClueRepositoryWithDB(db),
-		orderRepo:        repository.NewOrderRepositoryWithDB(db),
-		unifiedMsgRepo:   repository.NewUnifiedMessageRepositoryWithDB(db),
-		customerRepo:     repository.NewCustomerRepository(),
-		eventRepo:        repository.NewCustomerEventRepository(),
+		sessionRepo:    repository.NewCustomerSessionRepositoryWithDB(db),
+		messageRepo:    repository.NewSessionMessageRepositoryWithDB(db),
+		clueRepo:       repository.NewClueRepositoryWithDB(db),
+		orderRepo:      repository.NewOrderRepositoryWithDB(db),
+		unifiedMsgRepo: repository.NewUnifiedMessageRepositoryWithDB(db),
+		customerRepo:   repository.NewCustomerRepository(),
+		eventRepo:      repository.NewCustomerEventRepository(),
 	}
 }
 

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/safeprompt"
@@ -30,8 +28,8 @@ type securityRulesService struct {
 //
 // 安全规则是平台级安全基线（safeprompt 词典为进程级全局运行时状态，
 // 无租户写入口），不是租户业务配置 → platform_config_kv。
-func NewSecurityRulesService(db *gorm.DB) SecurityRulesService {
-	kv := repository.NewPlatformConfigKVRepositoryWithDB(db)
+func NewSecurityRulesService() SecurityRulesService {
+	kv := repository.NewPlatformConfigKVRepository()
 	return &securityRulesService{repo: repository.NewSecurityRulesRepository(kv)}
 }
 

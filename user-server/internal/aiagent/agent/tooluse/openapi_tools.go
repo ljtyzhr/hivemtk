@@ -218,7 +218,7 @@ func (t *openAPITool) Execute(ctx context.Context, args map[string]any) (ToolRes
 	url := strings.TrimRight(t.spec.BaseURL, "/") + t.op.Path
 	for _, p := range t.op.Params {
 		if p.In == "path" {
-			v, _ := args[p.Name]
+			v := args[p.Name]
 			url = strings.ReplaceAll(url, "{"+p.Name+"}", fmt.Sprintf("%v", v))
 		}
 	}
@@ -270,7 +270,7 @@ func (t *openAPITool) Execute(ctx context.Context, args map[string]any) (ToolRes
 	if err != nil {
 		return ErrorResult(t.Name(), err), err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 	out := map[string]any{
 		"status": resp.StatusCode,

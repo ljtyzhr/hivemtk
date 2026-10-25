@@ -16,15 +16,15 @@ type RagProductService struct {
 	repo *kbrepo.RagConfigRepository
 }
 
-func NewRagProductService(db *gorm.DB) *RagProductService {
-	return &RagProductService{repo: kbrepo.NewRagConfigRepository(db)}
+func NewRagProductService(repo *kbrepo.RagConfigRepository) *RagProductService {
+	return &RagProductService{repo: repo}
 }
 
 // NewRagProductServiceFromGlobal 全局 DB 装配入口。
 // 供 router 装配层调用，controller 不直连 gorm（depguard controller-layer 规则）。
 // gorm 句柄经 repository 层 GetDB() 访问器获取，service 自身不 import pkg/db。
 func NewRagProductServiceFromGlobal() *RagProductService {
-	return NewRagProductService(repository.GetDB())
+	return NewRagProductService(kbrepo.NewRagConfigRepository(repository.GetDB()))
 }
 
 func (s *RagProductService) List(ctx context.Context) ([]*model.RagProduct, error) {

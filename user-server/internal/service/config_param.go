@@ -17,8 +17,6 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 type paramEntry struct {
@@ -54,11 +52,11 @@ var (
 	globalConfigParam   *ConfigParamService
 )
 
-// NewConfigParamService 构造（main 启动时调用）
-func NewConfigParamService(db *gorm.DB) *ConfigParamService {
+// NewConfigParamService 构造（句柄由 repository 自取全局库；main 启动时调用）
+func NewConfigParamService() *ConfigParamService {
 	return &ConfigParamService{
-		repo:       repository.NewConfigParamRepository(db),
-		tenantRepo: repository.NewTenantConfigParamRepository(db),
+		repo:       repository.NewConfigParamRepositoryDefault(),
+		tenantRepo: repository.NewTenantConfigParamRepositoryDefault(),
 		cache:      make(map[string]paramEntry, 256),
 		loaded:     make(map[string]bool, 32),
 		nowFn:      time.Now,
@@ -145,15 +143,15 @@ func InboxStaffLoadLimit(ctx context.Context) int {
 
 // SeedConfigParams 启动时调用：AutoMigrate + Upsert 默认参数。
 // 首次启动会写入全部 60+ 参数；后续启动只补齐缺失项，不覆盖用户已改值。
-func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
+func SeedConfigParams(ctx context.Context) error {
 	// 建表已收敛到启动期 AutoMigrate（db.RegisterExtraModels），此处仅 seed。
 	// 表自检与行写入都在仓储侧：本函数只做「读种子定义 → 比对 → 决定增/刷」，
 	// 不持有查询能力（五层边界）。
-	repo := repository.NewConfigParamRepository(db)
+	repo := repository.NewConfigParamRepositoryDefault()
 	if err := repo.TableReady(ctx); err != nil {
 		return fmt.Errorf("config_params 表不可用: %w", err)
 	}
-	svc := NewConfigParamService(db)
+	svc := NewConfigParamService()
 	SetGlobal(svc)
 
 	knowledgesvc.SetConfigReader(svc)
@@ -233,11 +231,15 @@ func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
 // 「哪张表和哪张表绑着」这条知识藏进一个所有测试共用的黑箱里，而它本可以由两个独立的
 // 入口自然表达。改为独立入口后：失败只降级外观、只在 main.go 一处调用、
 // 且各有各的测试。
-func SeedParamGroups(ctx context.Context, db *gorm.DB) error {
-	if db == nil {
+//
+// 五层边界 §3.2：本函数收仓储而不是 *gorm.DB——句柄→仓储的转换在装配点
+// （cmd/api/main.go）完成。repo 为 nil（或仓储没装句柄）时返回
+// ErrConfigParamStoreUnavailable，调用方据此降级外观而不阻断启动。
+func SeedParamGroups(ctx context.Context, repo *repository.ConfigParamRepository) error {
+	if repo == nil {
 		return repository.ErrConfigParamStoreUnavailable
 	}
-	return seedParamGroups(ctx, repository.NewConfigParamRepository(db))
+	return seedParamGroups(ctx, repo)
 }
 
 // seedParamGroups 把分组元数据 upsert 进库，并清掉"种子里已经没有、且组内再无活参数"的组。

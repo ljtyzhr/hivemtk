@@ -17,6 +17,14 @@ func NewAIPerformanceRepository(db *gorm.DB) *AIPerformanceRepository {
 	return &AIPerformanceRepository{db: db}
 }
 
+// NewAIPerformanceRepositoryFromGlobal 用全局句柄构造（与其它 *FromGlobal 仓储同口径）。
+//
+// 供 service 层的 *FromGlobal 便捷构造使用：service 只拿仓储，句柄→仓储的转换
+// 留在这里，避免服务层出现 *gorm.DB 形参（五层架构 §3.2）。
+func NewAIPerformanceRepositoryFromGlobal() *AIPerformanceRepository {
+	return &AIPerformanceRepository{db: GetDB()}
+}
+
 // CountSessionsSince 窗口内会话计数（cond 附加过滤，可为空串）
 func (r *AIPerformanceRepository) CountSessionsSince(ctx context.Context, since time.Time, cond string) (int64, error) {
 	if r.db == nil {

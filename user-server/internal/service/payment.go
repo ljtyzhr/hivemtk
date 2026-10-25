@@ -81,6 +81,10 @@ type paymentStore interface {
 	ListByBillID(ctx context.Context, billID string) ([]*model.Payment, error)
 	MarkReversed(ctx context.Context, id string) error
 	SumSettledByBill(ctx context.Context, billID string) (float64, error)
+	// CreateRefundGuarded 退款入账的原子通路（A11 TOCTOU 修复）：锁账单 →
+	// 事务内求和 → guard 校验 → 插入，guard 报错即整体回滚。语义见
+	// repository.PaymentRepository.CreateRefundGuarded 同名注释。
+	CreateRefundGuarded(ctx context.Context, p *model.Payment, guard func(settledBefore float64) error) error
 }
 
 // settlementBillStore 入账腿对账单存储的全部依赖。
@@ -495,16 +499,10 @@ func (s *PaymentService) RecordPartialRefund(ctx context.Context, in RecordParti
 		return s.receiptOf(ctx, existing, bill)
 	}
 
-	// 前置：退款额不许超过净到账（含本批退款前的既有 refunded）。
-	settledBefore, err := s.payments.SumSettledByBill(ctx, billID)
-	if err != nil {
-		return nil, fmt.Errorf("payment: 读净到账失败：%w", err)
-	}
-	if money2(in.Amount) > money2(settledBefore)+paymentCentEpsilon {
-		return nil, fmt.Errorf("%w: 退款额 %v 超过账单 %s 的净到账 %v（先核对渠道数据，负结清是假事实）",
-			ErrPaymentInputInvalid, in.Amount, billID, settledBefore)
-	}
-
+	// A11 TOCTOU（2026-10-24）：求和与插入收进同一个事务（账单粒度 advisory lock
+	// 串行化同账单并发退款）。净到账校验从"先查后写"两步改成守卫闭包——语义原样
+	// 搬进锁内：退款额不许超过净到账（含本批退款前的既有 refunded）。
+	// guard 返回的错误就是入参错误（调用方改载荷），包一层 sentinel 保留类型。
 	now := s.now()
 	row := &model.Payment{
 		ID: newPaymentKey(now, nextPaymentSeq()), BillID: billID,
@@ -514,7 +512,18 @@ func (s *PaymentService) RecordPartialRefund(ctx context.Context, in RecordParti
 		Platform: platform, OrderID: orderID, Reason: reason,
 		CreatedAt: now, UpdatedAt: now,
 	}
-	if err := s.payments.Create(ctx, row); err != nil {
+	amount := money2(in.Amount)
+	guard := func(settledBefore float64) error {
+		if amount > money2(settledBefore)+paymentCentEpsilon {
+			return fmt.Errorf("%w: 退款额 %v 超过账单 %s 的净到账 %v（先核对渠道数据，负结清是假事实）",
+				ErrPaymentInputInvalid, amount, billID, settledBefore)
+		}
+		return nil
+	}
+	if err := s.payments.CreateRefundGuarded(ctx, row, guard); err != nil {
+		if errors.Is(err, ErrPaymentInputInvalid) {
+			return nil, err
+		}
 		if !errors.Is(err, repository.ErrPaymentAlreadyRecorded) {
 			return nil, fmt.Errorf("payment: 记录退款失败（账单 %s 未做任何折算）：%w", billID, err)
 		}

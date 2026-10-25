@@ -687,7 +687,7 @@ func TestPaymentServicePortSurfacesAreNarrow(t *testing.T) {
 		want []string
 	}{
 		{"paymentStore", (*paymentStore)(nil),
-			[]string{"Available", "Create", "GetByChannelRef", "ListByBillID", "MarkReversed", "SumSettledByBill"}},
+			[]string{"Available", "Create", "CreateRefundGuarded", "GetByChannelRef", "ListByBillID", "MarkReversed", "SumSettledByBill"}},
 		{"settlementBillStore", (*settlementBillStore)(nil),
 			[]string{"Available", "GetByID", "ListByQuoteID", "UpdateStatus"}},
 	} {
@@ -714,7 +714,7 @@ func TestPaymentServicePortSurfacesAreNarrow(t *testing.T) {
 // 没有 quote_id / opportunity_id（副本会漂，来路只有 bill_id 一条 —— 见 model/payment.go）。
 func TestRecordPaymentInputIsWhitelistShaped(t *testing.T) {
 	st := reflect.TypeOf(RecordPaymentInput{})
-	want := []string{"BillID", "ChannelRef", "Amount", "Currency", "PaidAt", "Platform", "OrderID", "Status"}
+	want := []string{"BillID", "ChannelRef", "Amount", "Currency", "PaidAt", "Platform", "OrderID", "Status", "Reason"}
 	if st.NumField() != len(want) {
 		t.Fatalf("RecordPaymentInput 字段数 %d ≠ %d（%v）", st.NumField(), len(want), st)
 	}

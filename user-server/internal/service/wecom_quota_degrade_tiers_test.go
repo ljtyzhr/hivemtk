@@ -34,7 +34,7 @@ func TestComputeHealthScoreQuotaDegradeBothTiers(t *testing.T) {
 		}
 		// 冷缓存 service：参数服务按 group.key 缓存 60s（configParamTTL），
 		// 否则读到的还是上一个 service 留下的旧值。
-		SetGlobalForTest(NewConfigParamService(db))
+		SetGlobalForTest(NewConfigParamService())
 	}
 
 	t.Run("默认 0.9 时行为与写死 0.95 逐档一致", func(t *testing.T) {

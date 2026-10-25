@@ -147,11 +147,11 @@ func newRetireFixture(t *testing.T) (*ConfigParamService, *repository.ConfigPara
 	if gdb == nil {
 		t.Skip("no DB")
 	}
-	if err := SeedConfigParams(context.Background(), gdb); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams: %v", err)
 	}
 	repo := repository.NewConfigParamRepository(gdb)
-	svc := NewConfigParamService(gdb)
+	svc := NewConfigParamService()
 	SetGlobalForTest(svc)
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	return svc, repo, gdb
@@ -227,7 +227,7 @@ func TestRuntimeCacheStillReadsRetiredParams(t *testing.T) {
 		Update("param_value", "45").Error; err != nil {
 		t.Fatalf("直写库失败: %v", err)
 	}
-	fresh := NewConfigParamService(gdb)
+	fresh := NewConfigParamService()
 	if v := fresh.GetDuration(ctx, "bridge", "polling_default_timeout", 7); v != 45*time.Second {
 		t.Errorf("读取侧读到 %v，want 45s——已下架参数在读取路径上被静默丢弃了", v)
 	}
@@ -293,7 +293,7 @@ func TestDeprecatedAtIsWrittenOnlyOnce(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("插入基线行失败: %v", err)
 	}
-	if err := SeedConfigParams(ctx, gdb); err != nil {
+	if err := SeedConfigParams(ctx); err != nil {
 		t.Fatalf("SeedConfigParams: %v", err)
 	}
 
@@ -308,7 +308,7 @@ func TestDeprecatedAtIsWrittenOnlyOnce(t *testing.T) {
 
 	// 第二次 seed：时间戳不该被刷新成"这次启动的时间"。
 	time.Sleep(1100 * time.Millisecond) // 毫秒精度下两个 now() 必须可区分
-	if err := SeedConfigParams(ctx, gdb); err != nil {
+	if err := SeedConfigParams(ctx); err != nil {
 		t.Fatalf("第二次 SeedConfigParams: %v", err)
 	}
 	second := mustGetRawParam(ctx, t, gdb, "bridge", "polling_default_timeout")
@@ -427,7 +427,7 @@ func TestSeedParamGroupsIsIdempotent(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	if err := SeedParamGroups(ctx, gdb); err != nil {
+	if err := SeedParamGroups(ctx, repository.NewConfigParamRepository(gdb)); err != nil {
 		t.Fatalf("SeedParamGroups: %v", err)
 	}
 	repo := repository.NewConfigParamRepository(gdb)
@@ -441,7 +441,7 @@ func TestSeedParamGroupsIsIdempotent(t *testing.T) {
 
 	// 再跑一次：行数不能变。UpsertGroups 用 OnConflict 逐组更新而不是整表重建，
 	// 整表重建会抹掉运营手工排的序，也会把别的进程正在读的行短暂清空。
-	if err := SeedParamGroups(ctx, gdb); err != nil {
+	if err := SeedParamGroups(ctx, repository.NewConfigParamRepository(gdb)); err != nil {
 		t.Fatalf("第二次 SeedParamGroups: %v", err)
 	}
 	second, err := repo.ListGroups(ctx)

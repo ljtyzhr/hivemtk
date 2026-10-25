@@ -191,7 +191,7 @@ func InitApprovalRuntime(db *gorm.DB) *ApprovalRuntime {
 		return rt
 	}
 
-	bridge := service.NewApprovalResumeBridge(svc, db)
+	bridge := service.NewApprovalResumeBridge(svc)
 	rt.bridge = bridge
 	service.SetApprovalResumeBridge(bridge)
 	// 推送出口装在服务上：裁决与到期都经它叫醒等待中的流程（只省时间，正确性走点火回读）。

@@ -119,11 +119,11 @@ func TestD12_TTLExpiryReloads(t *testing.T) {
 	if db == nil {
 		t.Skip("无测试库")
 	}
-	svc := NewConfigParamService(db)
+	svc := NewConfigParamService()
 	now := time.Now()
 	svc.nowFn = func() time.Time { return now }
 
-	if err := SeedConfigParams(context.Background(), db); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Skipf("seed 不可用（schema 环境）: %v", err)
 	}
 

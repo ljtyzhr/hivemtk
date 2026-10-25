@@ -75,7 +75,6 @@ func setupAgentLoopSalesEngine(t *testing.T, db *gorm.DB, dispatcher *llm.Dispat
 	executor := setupAgentLoopExecutor(t, db)
 
 	engine := service.NewSalesEngine(
-		db,
 		dispatcher,
 		nil,
 		nil,

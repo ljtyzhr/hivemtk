@@ -38,7 +38,7 @@ func setupAuthRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	auth.GET("/auth/password-policy", authCtrl.GetPasswordPolicy)
 	auth.PUT("/auth/password-policy", authCtrl.SavePasswordPolicy)
 
-	notifCtrl := controller.NewNotificationController(service.NewNotificationService(gormDB))
+	notifCtrl := controller.NewNotificationController(service.NewNotificationService())
 	auth.GET("/auth/notifications", notifCtrl.List)
 	auth.POST("/auth/notifications/:id/read", notifCtrl.MarkRead)
 	auth.POST("/auth/notifications/read-all", notifCtrl.MarkAllRead)
@@ -95,8 +95,8 @@ func setupAccountRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 }
 
 func setupShortLinkRoutes(auth *gin.RouterGroup, public *gin.RouterGroup, gormDB *gorm.DB) {
-	shortLinkCtrl := controller.NewShortLinkController(service.NewShortLinkService(gormDB))
-	shortLinkStatsCtrl := controller.NewShortLinkStatsController(service.NewShortLinkService(gormDB))
+	shortLinkCtrl := controller.NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)))
+	shortLinkStatsCtrl := controller.NewShortLinkStatsController(service.NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)))
 
 	auth.GET("/short-link/list", shortLinkCtrl.GetList)
 	auth.GET("/short-link/:id", shortLinkCtrl.GetByID)
@@ -208,7 +208,7 @@ func setupSmsRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	smsUnsubscribeCtrl.RegisterRoutes(nil, auth)
 
 	smsDeliveryTrackerCtrl := controller.NewSmsDeliveryTrackerController(
-		service.NewSmsDeliveryTrackerService(gormDB, nil, nil),
+		service.NewSmsDeliveryTrackerService(nil, nil),
 	)
 	smsDeliveryTrackerCtrl.RegisterRoutes(nil, auth)
 }

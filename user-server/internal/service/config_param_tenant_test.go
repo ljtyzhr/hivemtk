@@ -24,7 +24,7 @@ func setupTenantParamFixture(t *testing.T) (*ConfigParamService, *gorm.DB) {
 		&model.TenantConfigParamAuditLog{},
 	)
 	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
-	return NewConfigParamService(db), db
+	return NewConfigParamService(), db
 }
 
 func seedBaseParam(t *testing.T, db *gorm.DB, group, key, def string) {

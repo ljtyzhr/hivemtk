@@ -12,8 +12,6 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 const complianceReminderTag = "[COMPLIANCE]"
@@ -47,16 +45,16 @@ var (
 )
 
 // InitComplianceAuditLogger 初始化全局合规审计落库器（main/router 装配时调用一次）。
-// db 为 nil 时退化为仅 WARN 日志（向后兼容）。表结构经 EnsureTable 惰性创建，
-// migrate.go 正式注册另行报告。
-func InitComplianceAuditLogger(db *gorm.DB) *ComplianceAuditLogger {
+// 句柄由 repository 自取全局库；库未就绪时退化为仅 WARN 日志（record* 均 nil-safe）。
+// 表结构经 EnsureTable 惰性创建，migrate.go 正式注册另行报告。
+func InitComplianceAuditLogger() *ComplianceAuditLogger {
 	complianceLoggerOnce.Do(func() {
 		complianceLogger = &ComplianceAuditLogger{
-			repo:    repository.NewReachComplianceLogRepository(db),
+			repo:    repository.NewReachComplianceLogRepositoryDefault(),
 			flushCh: make(chan struct{}, 1),
 			stop:    make(chan struct{}),
 		}
-		if db != nil {
+		if repository.DBReady() {
 			go complianceLogger.flushLoop()
 		}
 	})

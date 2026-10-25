@@ -39,7 +39,7 @@ type DashboardSSEController struct {
 
 // NewDashboardSSEController 创建实时驾驶舱 SSE 控制器
 //
-// statsSvc 由 router 注入（router 负责创建 service.NewDashboardStatsService(gormDB)）。
+// statsSvc 由 router 注入（router 负责创建 service.NewDashboardStatsService()）。
 // 传入 nil 时进入"离线模式"：SSE 仍可连接但跳过 DB 采集，返回零值快照。
 func NewDashboardSSEController(statsSvc service.DashboardStatsService) *DashboardSSEController {
 	return &DashboardSSEController{

@@ -32,8 +32,8 @@ func setupQQDB(t *testing.T) *gorm.DB {
 }
 
 func TestE2E_QQ_AccountCRUD(t *testing.T) {
-	db := setupQQDB(t)
-	svc := NewQQService(db)
+	setupQQDB(t)
+	svc := NewQQService()
 
 	acc, err := svc.CreateAccount(context.Background(), &model.QQAccount{
 		AccountName:    "QQ主号",
@@ -83,7 +83,7 @@ func TestE2E_QQ_AccountCRUD(t *testing.T) {
 
 func TestQQ_WebhookVerify_SignatureFlow(t *testing.T) {
 	db := setupQQDB(t)
-	svc := NewQQService(db)
+	svc := NewQQService()
 	acc, err := svc.CreateAccount(context.Background(), &model.QQAccount{
 		AccountName: "验签号", AppID: "a1", AppSecret: "s1", WebhookSecret: "verify-secret",
 	})
@@ -122,7 +122,7 @@ func TestQQ_WebhookVerify_SignatureFlow(t *testing.T) {
 
 func TestQQ_Op13CallbackChallenge(t *testing.T) {
 	db := setupQQDB(t)
-	svc := NewQQService(db)
+	svc := NewQQService()
 	if _, err := svc.CreateAccount(context.Background(), &model.QQAccount{
 		AccountName: "op13", AppID: "a", AppSecret: "s", WebhookSecret: "op13-secret",
 	}); err != nil {
@@ -161,7 +161,7 @@ func TestE2E_QQ_DispatchGroupIngest(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("seed acc: %v", err)
 	}
-	ws := NewWebhookService(db)
+	ws := NewWebhookService()
 	defer ws.Stop(context.Background())
 
 	raw := []byte(`{"id":"evt-777","op":0,"t":"GROUP_AT_MESSAGE_CREATE","d":{"id":"ROBOT1.0_m1","group_openid":"G9XYZ","content":"想了解价格","author":{"member_openid":"M77"},"timestamp":"2026-09-07T10:00:00+08:00"}}`)
@@ -212,7 +212,7 @@ func TestQQ_Integration_SendMessage(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	integration := NewQQIntegrationService(db)
+	integration := NewQQIntegrationService()
 	// 用 httptest 地址直接构造 Client 发送（Integration 内部 NewClient 走官方域名，
 	// 这里通过 patch apiBase 的等价路径验证逻辑：直接调 qq.Client）
 	// —— 真实出站域名在集成环境验证，单测验证 seq 递增与落库逻辑。

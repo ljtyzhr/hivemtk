@@ -17,8 +17,6 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 const (
@@ -135,16 +133,25 @@ type AudienceSelector struct {
 	churn *repository.ChurnScoreRepository
 }
 
-// NewAudienceSelectorWithDB 用同一个库装配三个源。
-func NewAudienceSelectorWithDB(database *gorm.DB) *AudienceSelector {
-	if database == nil {
+// NewAudienceSelector 用全局库装配三个源。
+func NewAudienceSelector() *AudienceSelector {
+	if !repository.DBReady() {
 		return nil
 	}
-	return &AudienceSelector{
-		rfm:   repository.NewCustomerRFMRepositoryWithDB(database),
-		tags:  repository.NewCustomerTagAssignmentRepositoryWithDB(database),
-		churn: repository.NewChurnScoreRepository(database),
-	}
+	return NewAudienceSelectorWithSources(
+		repository.NewCustomerRFMRepository(),
+		repository.NewCustomerTagAssignmentRepository(),
+		repository.NewChurnScoreRepositoryDefault(),
+	)
+}
+
+// NewAudienceSelectorWithSources 用调用方装配好的三个源构造（调度器自带库句柄时用）。
+func NewAudienceSelectorWithSources(
+	rfm repository.CustomerRFMRepository,
+	tags repository.CustomerTagAssignmentRepository,
+	churn *repository.ChurnScoreRepository,
+) *AudienceSelector {
+	return &AudienceSelector{rfm: rfm, tags: tags, churn: churn}
 }
 
 // Select 逐条件取名单后取交集。

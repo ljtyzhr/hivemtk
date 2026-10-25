@@ -14,6 +14,11 @@ type SOPExecEventRepository struct {
 	db *gorm.DB
 }
 
+// NewSOPExecEventRepositoryDefault 默认构造（全局句柄；与传 GetDB() 同语义）。
+func NewSOPExecEventRepositoryDefault() *SOPExecEventRepository {
+	return NewSOPExecEventRepository(GetDB())
+}
+
 func NewSOPExecEventRepository(db *gorm.DB) *SOPExecEventRepository {
 	return &SOPExecEventRepository{db: db}
 }

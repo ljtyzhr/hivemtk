@@ -267,7 +267,7 @@ func TestNotificationRead_PerUserIsolation(t *testing.T) {
 func TestNotificationService_CountUnread_NoDoubleCount(t *testing.T) {
 	database := setupNoticeTestDB(t)
 	repo, _ := newNoticeRepoForTest(t, database)
-	svc := NewNotificationService(database)
+	svc := NewNotificationService()
 
 	ctx := tenant.WithTenantID(context.Background(), 1)
 

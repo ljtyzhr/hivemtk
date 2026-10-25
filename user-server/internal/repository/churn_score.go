@@ -16,6 +16,11 @@ type ChurnScoreRepository struct {
 	db *gorm.DB
 }
 
+// NewChurnScoreRepositoryDefault 默认构造（全局句柄）。
+func NewChurnScoreRepositoryDefault() *ChurnScoreRepository {
+	return NewChurnScoreRepository(GetDB())
+}
+
 func NewChurnScoreRepository(db *gorm.DB) *ChurnScoreRepository {
 	return &ChurnScoreRepository{db: db}
 }

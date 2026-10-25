@@ -7,8 +7,8 @@ import (
 )
 
 // 本仓当前登记的三条 SLI。放在 sla 包而不是 app 装配层，是因为
-// 记录点散落在 service 层（编排器、人工待办），而 service 不能反向 import app
-// （app 装配 service，会成环）。名称与定义同处一包，读写两侧只认这一份。
+// 记录点散落在 service 层，而 service 不能反向 import app（会成环）。
+// 名称与定义同处一包，读写两侧只认这一份。
 const (
 	SLOInboundHandled      = "inbound_message_handled"
 	SLOAIAutoReplyCoverage = "ai_auto_reply_coverage"

@@ -95,7 +95,7 @@ func newCompensationFixture(t *testing.T) *compensationFixture {
 		}
 	}
 
-	disp := NewSOPExecutionDispatcher(db, NewSOPService(db, nil), NewNodeExecutorRegistry(), nil)
+	disp := NewSOPExecutionDispatcher(NewSOPService(nil), NewNodeExecutorRegistry(), nil)
 	return &compensationFixture{
 		db: db, disp: disp, execID: exec.ID,
 		llmNodeID: "n_llm", waitNode: "w1", otherNode: "other",
@@ -150,7 +150,7 @@ func TestInitSOPCompensation_FollowsFlag(t *testing.T) {
 	if got := CompensationEnabled(); got {
 		t.Fatal("env 置空应判关")
 	}
-	off := NewSOPExecutionDispatcher(nil, nil, NewNodeExecutorRegistry(), nil)
+	off := NewSOPExecutionDispatcher(nil, NewNodeExecutorRegistry(), nil)
 	if mgr := InitSOPCompensation(off); mgr != nil {
 		t.Fatal("开关关闭时不得注入管理器")
 	}
@@ -159,7 +159,7 @@ func TestInitSOPCompensation_FollowsFlag(t *testing.T) {
 	}
 
 	t.Setenv(compensationEnvVar, "1")
-	on := NewSOPExecutionDispatcher(nil, nil, NewNodeExecutorRegistry(), nil)
+	on := NewSOPExecutionDispatcher(nil, NewNodeExecutorRegistry(), nil)
 	mgr := InitSOPCompensation(on)
 	if mgr == nil {
 		t.Fatal("开关打开时必须注入管理器")

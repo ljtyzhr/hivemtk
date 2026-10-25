@@ -34,7 +34,7 @@ var objectionPriceExamples = []string{"这个东西太贵了", "价格有点高�
 
 func newCascadeFixture(t *testing.T, objectionCos float64) (*IntentRecognizer, *stubEmbedder) {
 	t.Helper()
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	dim := 4
 	s := math.Sqrt(1 - objectionCos*objectionCos)
 	objection := []float32{float32(objectionCos), float32(s), 0, 0}
@@ -90,7 +90,7 @@ func TestCascade_EmbeddingLayerSecond(t *testing.T) {
 
 func TestCascade_LLMFallbackWhenEmbeddingUnavailable(t *testing.T) {
 
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	stub := &stubEmbedder{dim: 4, failN: 1000}
 	rec.SetEmbeddingService(stub)
 	<-awaitAnchors(rec)
@@ -237,7 +237,7 @@ func TestEnsureIntentExamplesIndexed_Idempotent(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.IntentExample{})
 	ctx := context.Background()
 
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	rec.exampleRepo = newTestExampleRepo(db)
 
 	rec.embedSvc = &stubEmbedder{dim: 1024, vecs: map[string][]float32{
@@ -274,7 +274,7 @@ func TestLoadAnchorsFromDB(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.IntentExample{})
 	ctx := context.Background()
 
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	rec.exampleRepo = newTestExampleRepo(db)
 	rec.embedSvc = &stubEmbedder{dim: 1024, vecs: map[string][]float32{
 		"这个多少钱？": unitVec(1024, []int{0, 1}),
@@ -297,7 +297,7 @@ func TestLoadAnchorsFromDB(t *testing.T) {
 	}
 
 	emptyDB := testutil.NewTestDB(t, &model.IntentExample{})
-	rec2, _ := newIntentRecognizerNoDB(t)
+	rec2, _ := newIntentRecognizerForTest(t)
 	rec2.exampleRepo = newTestExampleRepo(emptyDB)
 	rec2.embedSvc = &stubEmbedder{dim: 1024}
 	if rec2.loadAnchorsFromDB(ctx) {

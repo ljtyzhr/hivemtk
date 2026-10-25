@@ -247,6 +247,9 @@ func allModels() []any {
 		&model.PromptABTest{},
 		&model.ReachPipeline{},
 		&model.ReachJob{},
+		// R-8 合规审计：落库器在 main 装配（InitComplianceAuditLogger），表必须随全量
+		// AutoMigrate 建出来，否则首次刷盘整批报"relation does not exist"后回队重试。
+		&model.ReachComplianceLog{},
 		&model.ScriptLibrary{},
 		&model.ScriptVersion{},
 		&model.ScriptExposureLog{},

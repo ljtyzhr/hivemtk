@@ -29,7 +29,7 @@ func TestKBItemBinding_FullAcceptance(t *testing.T) {
 		&model.FAQEntry{}, &model.SOPTemplate{}, &model.KnowledgeDocument{},
 		&model.AgentKBBinding{})
 	ctx := context.Background()
-	svc := service.NewKBItemBindingService(service.NewKnowledgeBaseService(db),
+	svc := service.NewKBItemBindingService(service.NewKnowledgeBaseService(),
 		repository.NewKBItemBindingRepository(db))
 
 	enabled := true
@@ -87,7 +87,7 @@ func TestKBItemBinding_FullAcceptance(t *testing.T) {
 
 	// item_count 与绑定行数一致（走 GetKBStats 真实口径）
 	// 本用例没建 agent 绑定 ⇒ agent_count=0 是正确读数，只断言契约键存在。
-	kbSvc := service.NewKnowledgeBaseService(db)
+	kbSvc := service.NewKnowledgeBaseService()
 	stats, err := kbSvc.GetKBStats(ctx, kb1.ID)
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, stats["item_count"])
@@ -122,7 +122,7 @@ func TestKBItemBinding_BindManyAllOrNothing(t *testing.T) {
 	}
 	db := testutil.NewTestDBOrSkip(t, &model.KnowledgeBase{}, &model.KBItemBinding{}, &model.FAQEntry{})
 	ctx := context.Background()
-	svc := service.NewKBItemBindingService(service.NewKnowledgeBaseService(db),
+	svc := service.NewKBItemBindingService(service.NewKnowledgeBaseService(),
 		repository.NewKBItemBindingRepository(db))
 	enabled := true
 	kb := &model.KnowledgeBase{TenantID: 1, KBCode: fmt.Sprintf("kbm-%d", time.Now().UnixNano()),

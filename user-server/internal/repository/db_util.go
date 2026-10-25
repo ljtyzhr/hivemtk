@@ -35,3 +35,7 @@ func isDuplicateKeyErr(err error) bool {
 func IsDuplicateKeyErr(err error) bool {
 	return isDuplicateKeyErr(err)
 }
+
+// DBReady 全局句柄是否已装配。给 service 层的就绪探针——
+// 句柄本身不出仓储，只回答这一句是非题（2026-10-25 句柄收口配套）。
+func DBReady() bool { return GetDB() != nil }

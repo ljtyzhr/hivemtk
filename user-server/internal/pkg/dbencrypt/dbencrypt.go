@@ -1,4 +1,4 @@
-// Package dbencrypt 提供数据库敏感字段的落库加密出口（OPT-SEC-04）。
+// Package dbencrypt 提供数据库敏感字段的落库加密出口。
 //
 // 设计要点：
 //   - 复用 internal/secrets 的 AES-256-GCM 原语，密文格式 `enc:v1:{base64}`，

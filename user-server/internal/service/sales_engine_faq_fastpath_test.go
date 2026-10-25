@@ -25,7 +25,7 @@ import (
 // 关键词加分），不另写一份 —— 另写一份就等于让用例锁住一份与生产不同的算法。
 func newFAQServiceForFastPath(entries []model.FAQEntry) *FAQService {
 	repo := &repository.FAQRepository{}
-	svc := NewFAQService(nil, nil)
+	svc := NewFAQService()
 	svc.repo = &faqFastPathRepo{base: repo, entries: entries}
 	return svc
 }

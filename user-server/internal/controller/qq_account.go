@@ -31,7 +31,7 @@ type QQAccountController struct {
 // NewQQAccountController 创建控制器
 func NewQQAccountController(svc *service.QQService) *QQAccountController {
 	if svc == nil {
-		svc = service.NewQQService(nil)
+		svc = service.NewQQService()
 	}
 	return &QQAccountController{svc: svc}
 }
@@ -295,7 +295,7 @@ func (ctrl *QQAccountController) TestSend(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
 		return
 	}
-	integration := service.NewQQIntegrationService(nil)
+	integration := service.NewQQIntegrationService()
 	if err := integration.SendMessage(c.Request.Context(), acc.ID, req.TargetOpenID, "", req.Text); err != nil {
 		response.ErrorFromDB(c, err, "发送失败（注意：QQ 主动消息需用户允许且受频控，建议在群里 @机器人 后用被动回复）", err.Error())
 		return

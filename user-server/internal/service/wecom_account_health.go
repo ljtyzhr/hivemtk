@@ -133,17 +133,14 @@ var (
 	ErrWeComHealthNotFound   = errors.New("health record not found")
 )
 
-// NewWeComAccountHealthService 创建账号健康度服务
-func NewWeComAccountHealthService(db *gorm.DB) *WeComAccountHealthService {
-	accountRepo := repository.NewWeComAccountRepository()
-	accountRepo.SetDB(context.Background(), db)
-	healthRepo := repository.NewWeComAccountHealthRepository()
-	if db != nil {
-		healthRepo = repository.NewWeComAccountHealthRepositoryWithDB(db)
-	}
+// NewWeComAccountHealthService 创建账号健康度服务。
+//
+// 五层架构 §3.2：构造器不接 DB 句柄，两个仓储都用各自的全局构造器装配
+// （repository.NewWeComAccountRepository / NewWeComAccountHealthRepository）。
+func NewWeComAccountHealthService() *WeComAccountHealthService {
 	return &WeComAccountHealthService{
-		accountRepo: accountRepo,
-		healthRepo:  healthRepo,
+		accountRepo: repository.NewWeComAccountRepository(),
+		healthRepo:  repository.NewWeComAccountHealthRepository(),
 	}
 }
 
@@ -547,10 +544,10 @@ func GetWeComAccountHealthService() *WeComAccountHealthService {
 	return wecomHealthInstance
 }
 
-// InitWeComAccountHealthService 初始化账号健康度服务
-func InitWeComAccountHealthService(db *gorm.DB) *WeComAccountHealthService {
+// InitWeComAccountHealthService 初始化账号健康度服务（全局单例）
+func InitWeComAccountHealthService() *WeComAccountHealthService {
 	wecomHealthOnce.Do(func() {
-		wecomHealthInstance = NewWeComAccountHealthService(db)
+		wecomHealthInstance = NewWeComAccountHealthService()
 	})
 	return wecomHealthInstance
 }

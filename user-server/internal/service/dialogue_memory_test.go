@@ -17,6 +17,16 @@ import (
 	"hivemtk-user/internal/model"
 )
 
+// newDialogueMemoryServiceNoDB 构造未接库的实例：锁住"库未就绪时方法走 nil 防御"这条腿，
+// 不受进程全局句柄的残留影响。
+func newDialogueMemoryServiceNoDB(dispatcher *llm.Dispatcher) *DialogueMemoryService {
+	return &DialogueMemoryService{
+		dispatcher: dispatcher,
+		sumBuf:     map[string][]string{},
+		sumDup:     map[string]int{},
+	}
+}
+
 func setupDialogueMemoryTestDB(t *testing.T) *gorm.DB {
 	return testutil.NewTestDB(t,
 		&model.DialogueMemory{},
@@ -29,7 +39,7 @@ func setupDialogueMemoryTestDB(t *testing.T) *gorm.DB {
 
 func newMemoryService(t *testing.T) (*DialogueMemoryService, *gorm.DB) {
 	db := setupDialogueMemoryTestDB(t)
-	return NewDialogueMemoryService(db, nil), db
+	return NewDialogueMemoryService(nil), db
 }
 
 // 1. 第一次创建
@@ -69,7 +79,7 @@ func TestGetOrCreate_DiffSession(t *testing.T) {
 
 // 4. nil db
 func TestGetOrCreate_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	_, err := svc.GetOrCreateMemory(context.Background(), "s-1", "u-1")
 	if err == nil {
 		t.Error("expected error")
@@ -614,8 +624,8 @@ func TestBuildContext_Empty(t *testing.T) {
 
 // 46. InitDialogueMemory
 func TestInitDialogueMemory(t *testing.T) {
-	db := setupMemoryTestDB(t)
-	svc1 := InitDialogueMemory(db, nil)
+	setupMemoryTestDB(t)
+	svc1 := InitDialogueMemory(nil)
 	svc2 := GetDialogueMemory()
 	if svc1 != svc2 {
 		t.Error("expected same")
@@ -984,7 +994,8 @@ func TestRecordSOP_Number(t *testing.T) {
 
 // 76. nil dispatcher
 func TestNilDispatcher(t *testing.T) {
-	svc := NewDialogueMemoryService(setupDialogueMemoryTestDB(t), nil)
+	setupDialogueMemoryTestDB(t)
+	svc := NewDialogueMemoryService(nil)
 	if err := svc.AppendMessage(context.Background(), "s-1", "u-1", dto.Message{
 		Role: "user", Content: "x", Timestamp: time.Now(),
 	}); err != nil {
@@ -1235,7 +1246,7 @@ func TestLastActiveAt_MultipleUpdates(t *testing.T) {
 
 // 94. nil db 在 AppendMessage
 func TestAppendMessage_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	err := svc.AppendMessage(context.Background(), "s-1", "u-1", dto.Message{Role: "user", Content: "x", Timestamp: time.Now()})
 	if err == nil {
 		t.Error("expected error")
@@ -1244,7 +1255,7 @@ func TestAppendMessage_NilDB(t *testing.T) {
 
 // 95. nil db 在 GetShortTermMemory
 func TestShortTerm_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	msgs, err := svc.GetShortTermMemory(context.Background(), "s-1")
 	if err != nil {
 		t.Error("expected nil err")
@@ -1256,7 +1267,7 @@ func TestShortTerm_NilDB(t *testing.T) {
 
 // 96. nil db 在 GetLongTermMemory
 func TestLongTerm_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	_, err := svc.GetLongTermMemory(context.Background(), "s-1")
 	if err == nil {
 		t.Error("expected error")
@@ -1265,7 +1276,7 @@ func TestLongTerm_NilDB(t *testing.T) {
 
 // 97. nil db 在 UpdateKeyFacts
 func TestUpdateKeyFacts_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	err := svc.UpdateKeyFacts(context.Background(), "s-1", map[string]string{"name": "x"})
 	if err == nil {
 		t.Error("expected error")
@@ -1274,7 +1285,7 @@ func TestUpdateKeyFacts_NilDB(t *testing.T) {
 
 // 98. nil db 在 RecordObjection
 func TestRecordObjection_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	err := svc.RecordObjection(context.Background(), "s-1", "t", "c")
 	if err == nil {
 		t.Error("expected error")
@@ -1283,7 +1294,7 @@ func TestRecordObjection_NilDB(t *testing.T) {
 
 // 99. nil db 在 RecordIntent
 func TestRecordIntent_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	err := svc.RecordIntent(context.Background(), "s-1", "t")
 	if err == nil {
 		t.Error("expected error")
@@ -1292,7 +1303,7 @@ func TestRecordIntent_NilDB(t *testing.T) {
 
 // 100. nil db 在 RecordSOP
 func TestRecordSOP_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	err := svc.RecordSOP(context.Background(), "s-1", "sop")
 	if err == nil {
 		t.Error("expected error")
@@ -1301,7 +1312,7 @@ func TestRecordSOP_NilDB(t *testing.T) {
 
 // 101. nil db 在 ListByCustomer
 func TestListByCustomer_NilDB(t *testing.T) {
-	svc := NewDialogueMemoryService(nil, nil)
+	svc := newDialogueMemoryServiceNoDB(nil)
 	list, total, err := svc.ListByCustomerID(context.Background(), "u-1", 10)
 	if err != nil {
 		t.Error("expected nil err")
@@ -1334,8 +1345,8 @@ func TestKeywordJaccard_Different(t *testing.T) {
 
 // M1-c: recurrence 触发——相似消息重复达 2 次即触发（替代每 5 条固定摘要）
 func TestOfferSummary_RecurrenceTrigger(t *testing.T) {
-	db := setupDialogueMemoryTestDB(t)
-	svc := NewDialogueMemoryService(db, nil)
+	setupDialogueMemoryTestDB(t)
+	svc := NewDialogueMemoryService(nil)
 	mem := &model.DialogueMemory{SessionID: "s-rec"}
 
 	if svc.offerSummary(context.Background(), mem, "u-1", "这个产品的价格是多少钱") {
@@ -1352,8 +1363,8 @@ func TestOfferSummary_RecurrenceTrigger(t *testing.T) {
 
 // M1-d: 缓冲满 12 条触发
 func TestOfferSummary_BufferFullTrigger(t *testing.T) {
-	db := setupDialogueMemoryTestDB(t)
-	svc := NewDialogueMemoryService(db, nil)
+	setupDialogueMemoryTestDB(t)
+	svc := NewDialogueMemoryService(nil)
 	mem := &model.DialogueMemory{SessionID: "s-buf"}
 
 	triggered := false
@@ -1391,8 +1402,8 @@ func TestAppendMessage_NoDispatcherNoSummaryTrigger(t *testing.T) {
 
 // M3-a: AppendMessage 双写 MemorySystem L1
 func TestAppendMessage_DualWriteL1(t *testing.T) {
-	db := setupDialogueMemoryTestDB(t)
-	svc := NewDialogueMemoryService(db, nil)
+	setupDialogueMemoryTestDB(t)
+	svc := NewDialogueMemoryService(nil)
 	svc.AppendMessage(context.Background(), "s-l1", "c-l1", dto.Message{
 		Role: "user", Content: "双写短期记忆验证", Timestamp: time.Now(),
 	})
@@ -1408,7 +1419,7 @@ func TestAppendMessage_DualWriteL1(t *testing.T) {
 // M3-b: 摘要结果统一经 routeSummaryToMemorySystem 写入（Remember 成功路径）
 func TestRouteSummary_RememberPath(t *testing.T) {
 	db := setupDialogueMemoryTestDB(t)
-	svc := NewDialogueMemoryService(db, nil)
+	svc := NewDialogueMemoryService(nil)
 	svc.ms.embeddingSvc = llm.NewHashEmbeddingService(1024)
 
 	svc.routeSummaryToMemorySystem(context.Background(), "c-m3", "客户关注价格与售后保障",
@@ -1427,11 +1438,11 @@ func TestRouteSummary_RememberPath(t *testing.T) {
 
 // M3-c: 空 customerID / nil ms 防御
 func TestRouteSummary_Guards(t *testing.T) {
-	db := setupDialogueMemoryTestDB(t)
-	svc := NewDialogueMemoryService(db, nil)
+	setupDialogueMemoryTestDB(t)
+	svc := NewDialogueMemoryService(nil)
 	svc.ms.embeddingSvc = llm.NewHashEmbeddingService(1024)
 	svc.routeSummaryToMemorySystem(context.Background(), "", "无客户ID摘要", nil)
 
-	nilSvc := NewDialogueMemoryService(nil, nil)
+	nilSvc := newDialogueMemoryServiceNoDB(nil)
 	nilSvc.routeSummaryToMemorySystem(context.Background(), "c-x", "摘要", nil)
 }

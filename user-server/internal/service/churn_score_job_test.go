@@ -7,12 +7,14 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 // TestD22b_ChurnWeeklyJob 真实 PG：ComputeAll 全链路（mock 订单统计 → 拟合 → upsert → 回读）
 func TestD22b_ChurnWeeklyJob(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ChurnScore{})
-	svc := NewChurnScoreService(db)
+	svc := NewChurnScoreService(repository.NewChurnScoreRepository(db))
 
 	base := time.Now().Add(-40 * 24 * time.Hour)
 	svc.statsFn = func(ctx context.Context) ([]ChurnCustomerStats, error) {
@@ -67,7 +69,7 @@ func TestD22b_ChurnWeeklyJob(t *testing.T) {
 // TestD22b_ChurnEmptyRun 无订单数据时空跑幂等（生产当前状态：订单表为空）
 func TestD22b_ChurnEmptyRun(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ChurnScore{})
-	svc := NewChurnScoreService(db)
+	svc := NewChurnScoreService(repository.NewChurnScoreRepository(db))
 	svc.statsFn = func(ctx context.Context) ([]ChurnCustomerStats, error) { return nil, nil }
 	n, err := svc.ComputeAll(context.Background())
 	if err != nil {

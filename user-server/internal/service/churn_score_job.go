@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -32,9 +30,9 @@ type ChurnCustomerStats struct {
 }
 
 // NewChurnScoreService 构造
-func NewChurnScoreService(db *gorm.DB) *ChurnScoreService {
+func NewChurnScoreService(repo *repository.ChurnScoreRepository) *ChurnScoreService {
 	return &ChurnScoreService{
-		repo:        repository.NewChurnScoreRepository(db),
+		repo:        repo,
 		statsFn:     defaultChurnStatsQuery,
 		horizonDays: 30,
 	}

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -339,8 +340,10 @@ func TestPaymentRepository_ListByBillIDIsScopedAndOrdered(t *testing.T) {
 }
 
 // TestPaymentRepository_MethodSetIsExactlyTheDocumentedSix 接口形状即"回款行不可改写"。
+// CreateRefundGuarded 是 A11 TOCTOU 修复加的退款入账原子通路（名字不以 Update/Save/
+// Upsert 开头：它只追加新行，不碰既有行——守卫由 banned 前缀循环钉住）。
 func TestPaymentRepository_MethodSetIsExactlyTheDocumentedSix(t *testing.T) {
-	want := []string{"Available", "Create", "GetByID", "GetByChannelRef", "ListByBillID", "MarkReversed", "SumSettledByBill"}
+	want := []string{"Available", "Create", "CreateRefundGuarded", "GetByID", "GetByChannelRef", "ListByBillID", "MarkReversed", "SumSettledByBill"}
 	st := reflect.TypeOf((*PaymentRepository)(nil)).Elem()
 	if st.NumMethod() != len(want) {
 		t.Fatalf("PaymentRepository 方法数 %d ≠ %d", st.NumMethod(), len(want))
@@ -408,4 +411,140 @@ func TestPaymentRepository_NilHandleFailsLoudly(t *testing.T) {
 		t.Error("nil 接收者报告可用")
 	}
 	_ = gorm.ErrRecordNotFound
+}
+
+// TestPaymentRepository_ConcurrentRefundsOverdrawRejected A11 TOCTOU 负向测试。
+//
+// 缺陷形状（修复前）：净到账求和与插入分在两个连接上，两个并发退款各读同一个
+// 净到账、各自过"不超过净到账"的前置、各自插入——结清和变负。判据打在落库行数
+// 与求和值上：净到账 100 的账单并发退两笔各 80，**至多一笔**成功；无论调度顺序
+// 如何，退完之后的净到账不许小于 0。
+//
+// 夹具取向：guard 语义归 service（"超过净到账就拒"），本用例自带同一条守卫
+// ——判据是仓储保证"求和、校验、插入"三步同锁同事务，不是替 service 定校验。
+func TestPaymentRepository_ConcurrentRefundsOverdrawRejected(t *testing.T) {
+	db := setupPaymentTestDB(t)
+	if db == nil {
+		t.Fatal("测试库不可达")
+	}
+	repo := NewPaymentRepositoryWithDB(db)
+	ctx := context.Background()
+
+	// 正控制：先落一笔 confirmed 100（净到账的唯一来源）。
+	seed := newPaymentRow("p_seed", "b_race", "ref-seed", 100)
+	seed.Status = model.PaymentStatusConfirmed
+	if err := repo.Create(ctx, seed); err != nil {
+		t.Fatalf("落正控制回款行失败: %v", err)
+	}
+
+	overdrawGuard := func(settledBefore float64) error {
+		// 50ms 是**判据的一部分**：guard 在锁内、写前执行，睡在这里等于把
+		// 「求和 → 插入」的窗口撑到调度粒度以上。不加这一觉，窗口只有亚毫秒，
+		// 机器一忙（并行会话/全量回归抢 CPU）16 路会被一条池连接天然吸收，
+		// 摘掉锁的变异也能 6/6 存活（实测）。加了之后：有锁 ⇒ 后到者排队、只放一笔；
+		// 无锁 ⇒ 16 路同时睡完同时插，必出多笔。
+		time.Sleep(50 * time.Millisecond)
+		if 80 > settledBefore { // 与 service 的 money2+epsilon 同向的简化版：够杀 TOCTOU
+			return fmt.Errorf("退款额 80 超过净到账 %v", settledBefore)
+		}
+		return nil
+	}
+
+	newRefund := func(id, ref string) *model.Payment {
+		row := newPaymentRow(id, "b_race", ref, 80)
+		row.Status = model.PaymentStatusRefunded
+		return row
+	}
+
+	const lanes = 16 // 多于两路，把调度窗口摊开；不同 channel_ref，幂等键不挡它们
+	results := make(chan error, lanes)
+	start := make(chan struct{}) // 同步起跑：不同步时首轮曾侥幸出现"恰好 1 笔成功"，判别力不稳
+	var wg sync.WaitGroup
+	for i := 0; i < lanes; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			results <- repo.CreateRefundGuarded(ctx,
+				newRefund(fmt.Sprintf("p_race_%d", i), fmt.Sprintf("ref-race-%d", i)),
+				overdrawGuard)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	succeeded := 0
+	for err := range results {
+		if err == nil {
+			succeeded++
+		}
+	}
+
+	if succeeded != 1 {
+		t.Errorf("并发 %d 路各退 80（净到账 100）：成功 %d 笔 ≠ 1（0=全被拒也是坏：守卫没放任何一路；≥2=TOCTOU 在场）", lanes, succeeded)
+	}
+	// 落库那一行是终审：行数与求和值都打在库上，不认内存返回值。
+	var n int64
+	if err := db.Model(&model.Payment{}).Where("bill_id = ? AND status = ?", "b_race", model.PaymentStatusRefunded).Count(&n).Error; err != nil {
+		t.Fatalf("清点退款行失败: %v", err)
+	}
+	if n != int64(succeeded) {
+		t.Errorf("库里退款行 %d ≠ 成功笔数 %d（返回值与落库不一致）", n, succeeded)
+	}
+	got, err := repo.SumSettledByBill(ctx, "b_race")
+	if err != nil {
+		t.Fatalf("复算净到账失败: %v", err)
+	}
+	if got < 0 {
+		t.Errorf("净到账 %v < 0：负结清是假事实，TOCTOU 修复失效", got)
+	}
+	if got != 20 {
+		t.Errorf("净到账 %v ≠ 20（100 − 一笔 80）", got)
+	}
+}
+
+// TestPaymentRepository_GuardErrorRollsBackWholeTx guard 报错必须回滚整个事务：
+// 库里不剩半行、错误原样透传给调用方（service 靠它把入参错误与存储错误分开）。
+func TestPaymentRepository_GuardErrorRollsBackWholeTx(t *testing.T) {
+	db := setupPaymentTestDB(t)
+	if db == nil {
+		t.Fatal("测试库不可达")
+	}
+	repo := NewPaymentRepositoryWithDB(db)
+	ctx := context.Background()
+
+	seed := newPaymentRow("p_g_seed", "b_guard", "ref-g-seed", 10)
+	if err := repo.Create(ctx, seed); err != nil {
+		t.Fatalf("落种子行失败: %v", err)
+	}
+	wantErr := fmt.Errorf("守卫的哨兵错误")
+	row := newPaymentRow("p_g_1", "b_guard", "ref-g-1", 5)
+	row.Status = model.PaymentStatusRefunded
+	if err := repo.CreateRefundGuarded(ctx, row, func(float64) error { return wantErr }); !errors.Is(err, wantErr) {
+		t.Fatalf("guard 错误没有透传：%v", err)
+	}
+	var n int64
+	if err := db.Model(&model.Payment{}).Where("id = ?", "p_g_1").Count(&n).Error; err != nil {
+		t.Fatalf("清点失败: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("guard 报错后库里剩了 %d 行：事务没回滚", n)
+	}
+	// 反向：guard 放行后同账单插入正常成功（守卫不是永久门闩）。
+	if err := repo.CreateRefundGuarded(ctx, row, func(float64) error { return nil }); err != nil {
+		t.Fatalf("guard 放行后插入失败: %v", err)
+	}
+	// 同 channel_ref、不同行号 ⇒ 幂等键自己的 sentinel。
+	sameRef := newPaymentRow("p_g_2", "b_guard", "ref-g-1", 5)
+	sameRef.Status = model.PaymentStatusRefunded
+	if err := repo.CreateRefundGuarded(ctx, sameRef, func(float64) error { return nil }); !errors.Is(err, ErrPaymentAlreadyRecorded) {
+		t.Fatalf("同 channel_ref 第二笔没有报幂等键：%v", err)
+	}
+	// 同主键、不同 channel_ref ⇒ 主键撞车，**不许**被认成"这笔已入账"
+	// （认错的坏法是把一次坏写入吞成一次成功复用；判据同 Create 那条）。
+	sameID := newPaymentRow("p_g_1", "b_guard", "ref-g-other", 5)
+	sameID.Status = model.PaymentStatusRefunded
+	if err := repo.CreateRefundGuarded(ctx, sameID, func(float64) error { return nil }); err == nil || errors.Is(err, ErrPaymentAlreadyRecorded) {
+		t.Fatalf("主键撞车被认成幂等键（或没报错）：%v", err)
+	}
 }

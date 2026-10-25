@@ -24,7 +24,7 @@ func TestDispatchWhatsApp_OutOfOrderArrivalsAreNotHeld(t *testing.T) {
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	// 时间戳严格递减：后两条相对已投递的消息都是"迟到者"。

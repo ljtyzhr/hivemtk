@@ -27,8 +27,8 @@ import (
 func newKBTypeFilterRouter(t *testing.T) (*gin.Engine, uint, uint) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	database := testutil.NewTestDB(t, &model.KnowledgeBase{})
-	ctrl := &KnowledgeBaseController{svc: service.NewKnowledgeBaseService(database)}
+	testutil.NewTestDB(t, &model.KnowledgeBase{})
+	ctrl := &KnowledgeBaseController{svc: service.NewKnowledgeBaseService()}
 	router := gin.New()
 	ctrl.RegisterRoutes(router.Group("/api"))
 

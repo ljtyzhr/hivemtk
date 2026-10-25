@@ -605,8 +605,8 @@ func (d *Dispatcher) dispatchFanOut(ctx context.Context, req DispatchRequest, ro
 		}
 		return results[0], nil
 	default:
-	// 正常走不到：上面的准入校验用同一份名单先挡过。留着是为了「往 fanOutStrategies
-	// 里加了新名字却忘了实现分支」时报错，而不是静默按 vote 执行。
+		// 正常走不到：上面的准入校验用同一份名单先挡过。留着是为了「往 fanOutStrategies
+		// 里加了新名字却忘了实现分支」时报错，而不是静默按 vote 执行。
 		return nil, fmt.Errorf("fan-out strategy %q 在名单内但未实现分派分支", strategy)
 	}
 }

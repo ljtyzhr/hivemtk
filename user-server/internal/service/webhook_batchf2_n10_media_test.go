@@ -84,7 +84,7 @@ func TestN10_WhatsAppInboundMediaBackfillsEveryHubRow(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("create wa account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	calls, downloaded := f2InstallMediaStubs(t)

@@ -86,12 +86,16 @@ func NewIntegrationReachAdapterFromDB(db *gorm.DB) *IntegrationReachAdapter {
 		return &IntegrationReachAdapter{}
 	}
 	return &IntegrationReachAdapter{
-		db:       db,
-		tg:       service.NewTelegramIntegrationService(db),
-		wa:       service.NewWhatsAppCloudIntegrationService(db),
-		feishu:   service.NewFeishuIntegrationService(db),
+		db: db,
+		// 仓储在装配点构造（service 层不再接收 DB 句柄，见五层架构 §3.2）
+		tg: service.NewTelegramIntegrationService(repository.NewTelegramAccountRepositoryWithDB(db)),
+		wa: service.NewWhatsAppCloudIntegrationService(repository.NewWhatsAppCloudAccountRepositoryWithDB(db)),
+		feishu: service.NewFeishuIntegrationService(
+			repository.NewFeishuAccountRepositoryWithDB(db),
+			repository.NewFeishuMessageRepositoryWithDB(db),
+		),
 		web:      service.NewCustomerSessionService(),
-		wecom:    service.NewWeComIntegrationService(db),
+		wecom:    service.NewWeComIntegrationService(),
 		dingtalk: service.NewDingTalkService(),
 		sms:      service.NewSmsService(repository.NewSmsRepository()),
 		email:    email.NewEmailSendService(),

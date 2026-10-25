@@ -15,7 +15,7 @@ func TestSendOutbound_BridgeChannel_ExtraMetadata_P1_4(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &model.InboxConversation{})
 	// -count=N 隔离：释放上一轮固定 EventID 的出站认领
 	releaseReplyClaimForTest(t, "evt-p14-1")
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const (
@@ -98,7 +98,7 @@ func TestSendOutbound_PlaceholderAccount_Undeliverable_P1_4(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &model.InboxConversation{})
 	// -count=N 隔离：释放上一轮固定 EventID 的出站认领
 	releaseReplyClaimForTest(t, "evt-p14-undel")
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const (
@@ -154,7 +154,7 @@ func TestSendOutbound_NoCtxResult_StillFillsStableFields_P1_4(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &model.InboxConversation{})
 	// -count=N 隔离：释放上一轮固定 EventID 的出站认领
 	releaseReplyClaimForTest(t, "evt-p14-noctx")
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const (
@@ -224,7 +224,7 @@ func TestIsAIReplyQuietHours_Boundaries(t *testing.T) {
 // TestEnqueueDelayedOutbound 命中入队：落库 pending 记录且 SendAt 为次日 07:00 CST 首发
 func TestEnqueueDelayedOutbound(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 
 	p := &ParsedPayload{EventID: "evt-h3-1", Sender: "sender-h3", Content: "原始消息"}
 	hub := &model.MessageHub{ConversationID: "conv-h3-1"}
@@ -256,7 +256,7 @@ func TestEnqueueDelayedOutbound(t *testing.T) {
 // TestDispatchDueDelayedOutbound 到期记录被抢占重放并标记 sent；重放路径不再二次入队
 func TestDispatchDueDelayedOutbound(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 
 	rec := &DelayedOutboundReply{
 		Platform:       "unsupported-channel-x",
@@ -316,7 +316,7 @@ func init() {
 // TestSendOutbound_QuietHoursDefersToQueue H-3 端到端：窗口内 AI 回复不直发，入延迟队列
 func TestSendOutbound_QuietHoursDefersToQueue(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	orig := loadAIReplyQuietHoursFn()

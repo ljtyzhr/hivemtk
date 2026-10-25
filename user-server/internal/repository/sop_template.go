@@ -17,6 +17,14 @@ type SOPTemplateRepository struct {
 	db *gorm.DB
 }
 
+// NewSOPTemplateRepositoryDefault 默认构造（全局句柄；未装配时返回 nil，调用方按「repo 未装配」处理）。
+func NewSOPTemplateRepositoryDefault() *SOPTemplateRepository {
+	if db := GetDB(); db != nil {
+		return NewSOPTemplateRepository(db)
+	}
+	return nil
+}
+
 func NewSOPTemplateRepository(db *gorm.DB) *SOPTemplateRepository {
 	return &SOPTemplateRepository{db: db}
 }

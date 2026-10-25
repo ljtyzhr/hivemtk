@@ -283,4 +283,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.84.0（退款行"原因"格）：payments 加可空 reason 列——
 	// 退款行四格（金额/原因/渠道引用/状态）的第四格补齐，refunded 行填渠道退款原因
 	register(NewPaymentReasonMigration(db))
+	// v3.85.0（P0-2/P0-3/D-8 方案 A）：kb_item_bindings 成员表——知识库与内容
+	// （FAQ/SOP/文档）的多对多绑定，UNIQUE(kb_id,item_type,item_id) 租户内唯一。
+	// 无回填：存量内容与 KB 的 owner agent 交集≈0，绑定由管理端点显式登记。
+	register(NewKBItemBindingMigration(db))
 }

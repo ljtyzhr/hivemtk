@@ -85,7 +85,7 @@ func bf6ChannelErr(t *testing.T, conv string, sent bool, sendErr error) *Channel
 func TestSendOutbound_BF6_DingTalkMissingWebhookLeavesTrace(t *testing.T) {
 	quietHoursOffForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-bf6-dt-missing"
@@ -148,7 +148,7 @@ func TestSendOutbound_BF6_DingTalkMissingWebhookLeavesTrace(t *testing.T) {
 func TestSendOutbound_BF6_DingTalkExpiredWebhookReasonCarriesDeadline(t *testing.T) {
 	quietHoursOffForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-bf6-dt-expired"
@@ -191,7 +191,7 @@ func TestSendOutbound_BF6_DingTalkIllegalHostNeverTouchesNetwork(t *testing.T) {
 	defer srv.Close()
 
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-bf6-dt-host"
@@ -218,7 +218,7 @@ func TestSendOutbound_BF6_DingTalkIllegalHostNeverTouchesNetwork(t *testing.T) {
 func TestSendOutbound_BF6_TelegramNonNumericChatIDLeavesTrace(t *testing.T) {
 	quietHoursOffForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-bf6-tg-chatid"
@@ -245,7 +245,7 @@ func TestSendOutbound_BF6_WhatsAppWindowClosedWithoutTemplateLeavesTrace(t *test
 	quietHoursOffForTest(t)
 	t.Setenv("WHATSAPP_FALLBACK_TEMPLATE", "")
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-bf6-wa-window"
@@ -277,7 +277,7 @@ func TestSendOutbound_BF6_WhatsAppWindowClosedWithoutTemplateLeavesTrace(t *test
 func TestSendOutbound_BF6_UnsupportedChannelErrorsWithoutTraceRow(t *testing.T) {
 	quietHoursOffForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-bf6-unknown-chan"
@@ -308,7 +308,7 @@ func TestSendOutbound_BF6_RetryableFailureWritesNoTraceButKeepsRetryLane(t *test
 	quietHoursOffForTest(t)
 	allowAnyDingtalkHostForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -357,7 +357,7 @@ func TestSendOutbound_BF6_RetryableFailureWritesNoTraceButKeepsRetryLane(t *test
 // 才就地改状态：不得另造第二行，也不得把原行的方向/正文改掉。
 func TestOutboundSendFailed_BF6_PersistedOutboundMarksInPlace(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	if svc.messageHubRepo == nil {
 		t.Fatal("前置不成立：messageHubRepo 未接线")
@@ -405,7 +405,7 @@ func TestOutboundSendFailed_BF6_PersistedOutboundMarksInPlace(t *testing.T) {
 // direction=inbound）下必须另造恰好一行轨迹，且原入站行不受影响。
 func TestOutboundSendFailed_BF6_InboundCopyCreatesExactlyOneRow(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	if svc.messageHubRepo == nil {
 		t.Fatal("前置不成立：messageHubRepo 未接线")
@@ -446,7 +446,7 @@ func TestOutboundSendFailed_BF6_InboundCopyCreatesExactlyOneRow(t *testing.T) {
 // 后 return —— 又一次"库里无痕"。没落库过的出站副本必须退回另造一行。
 func TestOutboundSendFailed_BF6_OutboundShapeNeverPersistedStillCreatesRow(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	if svc.messageHubRepo == nil {
 		t.Fatal("前置不成立：messageHubRepo 未接线")
@@ -485,7 +485,7 @@ func TestOutboundSendFailed_BF6_OutboundShapeNeverPersistedStillCreatesRow(t *te
 // 不凭空造一行没有归属的出站。
 func TestOutboundSendFailed_BF6_NoTraceTargetOnlyLogs(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	if svc.messageHubRepo == nil {
 		t.Fatal("前置不成立：messageHubRepo 未接线")
@@ -519,7 +519,7 @@ func TestOutboundSendFailed_BF6_NoTraceTargetOnlyLogs(t *testing.T) {
 func TestSendOutbound_BF6_BridgeUndeliverableKeepsSingleOutboundRow(t *testing.T) {
 	quietHoursOffForTest(t)
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &model.InboxConversation{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	const eventID = "evt-bf6-bridge-undel"

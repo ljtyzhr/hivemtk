@@ -1,12 +1,11 @@
 // Package tenancyidx 提供租户唯一索引规范化：把已租户化表上的单列/多列唯一索引
 // 原位重建为 (tenant_id, 原列...)，使业务唯一性升级为租户维度。
 //
-// 设计依据: specs/001-saas-multi-tenant（T008 框架层实现）
 //   - 唯一事实源：AutoMigrate 后与迁移执行后各调用一次 Normalize，幂等
 //   - 排除主键（*_pkey）与约束型 UNIQUE（可能被 ON CONFLICT 显式引用，留人工审计）
 //   - 原位重建（不改名）：基线索引名保持稳定，GORM AutoMigrate 仅按名判存在不会回退
 //   - 豁免命名约定 global_uniq_*：刻意要求「跨租户全局唯一」的索引（如登录邮箱），
-//     复合化会摧毁该语义，故按前缀排除（T029/T031 开户与邮箱登录通道依赖）
+//     复合化会摧毁该语义，故按前缀排除
 package tenancyidx
 
 import (
@@ -261,9 +260,9 @@ func compositeIndexDef(def, table, name string) (string, error) {
 		name, table, cols, where), nil
 }
 
-// ---- 租户表登记表（T006）：唯一事实源 = 数据库内省 ----
+// ---- 租户表登记表：唯一事实源 = 数据库内省 ----
 //
-// 凡有 tenant_id 列的 BASE TABLE 即租户表，与 T007 动态加列迁移同构——
+// 凡有 tenant_id 列的 BASE TABLE 即租户表，与动态加列迁移同构——
 // AutoMigrate 路径与迁移路径最终都落到"表上有无 tenant_id 列"。
 
 var (

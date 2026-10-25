@@ -15,6 +15,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 const (
@@ -37,7 +39,7 @@ func communityServiceSetup(t *testing.T) *CommunityService {
 	if db == nil {
 		t.Fatal("测试库不可达：community service 的租户契约判不了（不 Skip，跳过等于没锁）")
 	}
-	return NewCommunityService(db)
+	return NewCommunityService(repository.NewCommunityRepository(db))
 }
 
 func TestCommunityService_AddMemberRequiresVisibleGroup(t *testing.T) {

@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/repository"
 )
 
@@ -43,12 +41,13 @@ type RagHealthService struct {
 //
 // 私域部署: 已移除外部告警通道 (RagAlertService 已删除), alert 维度不再纳入评分
 // metric 为 nil 时内部新建；db 为 nil 时返回错误响应
-func NewRagHealthService(db *gorm.DB, metric *RagMetricsService) *RagHealthService {
+func NewRagHealthService(repo repository.RagHealthRepository, metric *RagMetricsService) *RagHealthService {
 	if metric == nil {
-		metric = NewRagMetricsService(db)
+		// 未显式注入时用全局连接建一份指标服务（与装配层同源：repository.GetDB()）。
+		metric = NewRagMetricsService(repository.NewRagMetricsRepositoryDefault())
 	}
 	return &RagHealthService{
-		repo:   repository.NewRagHealthRepository(db),
+		repo:   repo,
 		metric: metric,
 	}
 }

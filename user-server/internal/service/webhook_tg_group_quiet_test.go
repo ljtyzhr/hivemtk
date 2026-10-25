@@ -53,7 +53,7 @@ func r49TGSetup(t *testing.T, token, botUsername string) (*WebhookService, *gorm
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("种 TG 账号: %v", err)
 	}
-	ws := NewWebhookService(db)
+	ws := NewWebhookService()
 	t.Cleanup(func() { ws.Stop(context.Background()) })
 	return ws, db
 }
@@ -317,7 +317,7 @@ func TestTGGroupCreatorSpeakerIsNotInterlocked(t *testing.T) {
 // 非门控群 / 已授权成员都必须让 MemberLacksLedger 闭嘴，否则会给他们也补发验证。
 func TestMemberLacksLedgerScopes(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.TelegramGroupGate{}, &model.TelegramGroupMember{})
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	ctx := context.Background()
 
 	if svc.MemberLacksLedger(ctx, 1, "-900", "1") {

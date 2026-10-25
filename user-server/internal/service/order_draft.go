@@ -10,8 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -177,8 +175,8 @@ func NewOrderDraftServiceWithRepo(cfg *OrderDraftConfig, repo repository.OrderDr
 // 读走内存、写镜像到 DB：对调用方零行为变化，但库里会攒出真实行，
 // 于是"换 DB 底座前后读到的东西对不对得上"这件事有对照可看。
 // 注意 Durable() 在这一档是 false（权威那份仍是内存）。
-func NewOrderDraftServiceShadow(cfg *OrderDraftConfig, db *gorm.DB) *OrderDraftService {
-	return newOrderDraftService(cfg, newShadowDraftStoreForDB(db))
+func NewOrderDraftServiceShadow(cfg *OrderDraftConfig) *OrderDraftService {
+	return newOrderDraftService(cfg, newShadowDraftStoreForDB(repository.NewOrderDraftRepository()))
 }
 
 // StoreKind 当前用的是哪副底座："memory" / "db" / "shadow"。

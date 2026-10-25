@@ -13,6 +13,8 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 // setupKuaishouCardStatsTestDB 复用仓库既有的 testutil 建库手法（见 kuaishou_card_test.go）。
@@ -44,7 +46,7 @@ func seedKuaishouCard(t *testing.T, database *gorm.DB, title string) uint {
 // 于是那张表连同 12 处 el-tag 全是死代码。
 func TestKuaishouCardStats_GetCardStats_RecentActivityPresent(t *testing.T) {
 	database := setupKuaishouCardStatsTestDB(t)
-	svc := NewKuaishouCardStatsService(database)
+	svc := NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(database))
 	cardID := seedKuaishouCard(t, database, "audit-card")
 
 	// 播一条 view 活动（activity_type='view' 才是仓储认的类型）
@@ -113,7 +115,7 @@ func TestKuaishouCardStats_GetCardStats_RecentActivityPresent(t *testing.T) {
 // 与抖音/小红书单卡响应的形状保持一致（前端 el-table 绑 null 会直接抛错）。
 func TestKuaishouCardStats_GetCardStats_RecentActivityEmptyIsArray(t *testing.T) {
 	database := setupKuaishouCardStatsTestDB(t)
-	svc := NewKuaishouCardStatsService(database)
+	svc := NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(database))
 	cardID := seedKuaishouCard(t, database, "audit-card-no-activity")
 
 	resp, err := svc.GetCardStats(context.Background(), &dto.KuaishouCardStatsRequest{CardID: cardID})
@@ -136,7 +138,7 @@ func TestKuaishouCardStats_GetCardStats_RecentActivityEmptyIsArray(t *testing.T)
 // A 卡的 view 活动不应出现在 B 卡的响应里（这正是修复前的语义缺口）。
 func TestKuaishouCardStats_GetCardStats_RecentActivityScopedToCard(t *testing.T) {
 	database := setupKuaishouCardStatsTestDB(t)
-	svc := NewKuaishouCardStatsService(database)
+	svc := NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(database))
 	cardA := seedKuaishouCard(t, database, "audit-card-A")
 	cardB := seedKuaishouCard(t, database, "audit-card-B")
 

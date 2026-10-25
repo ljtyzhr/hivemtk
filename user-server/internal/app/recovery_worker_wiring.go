@@ -14,6 +14,7 @@ import (
 	"context"
 
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"gorm.io/gorm"
@@ -39,8 +40,21 @@ func InitRecoveryWorker(db *gorm.DB) *service.RecoveryQueueWorker {
 		logger.Warn("[RecoveryWorker] ⚠️ db 为 nil，挽回队列消费者未装配（入队照常，到期项无人消费）")
 		return nil
 	}
-	reach := service.NewProactiveReachService(db, nil)
-	service.BindProactiveReachSenders(reach, db)
+	reach := service.NewProactiveReachService(
+		repository.NewProactiveReachRepository(db),
+		repository.NewCustomerDoNotContactRepository(db),
+		nil,
+	)
+	service.BindProactiveReachSenders(reach, service.ProactiveReachSenderSet{
+		Telegram: service.NewTelegramIntegrationService(repository.NewTelegramAccountRepositoryWithDB(db)),
+		WhatsApp: service.NewWhatsAppCloudIntegrationService(repository.NewWhatsAppCloudAccountRepositoryWithDB(db)),
+		Feishu: service.NewFeishuIntegrationService(
+			repository.NewFeishuAccountRepositoryWithDB(db),
+			repository.NewFeishuMessageRepositoryWithDB(db),
+		),
+		WeCom:  service.NewWeComIntegrationService(),
+		Wechat: service.NewWechatService(),
+	})
 	gated := AttachReachGate(reach)
 
 	worker := service.NewRecoveryQueueWorker(service.NewRecoveryQueueService(), reach)

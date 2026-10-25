@@ -28,10 +28,10 @@ func l1WindowFixture(t *testing.T) (*gorm.DB, *MemorySystem) {
 		t.Skip("no DB")
 	}
 	ctx := context.Background()
-	if err := SeedConfigParams(ctx, db); err != nil {
+	if err := SeedConfigParams(ctx); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	SetGlobalForTest(NewConfigParamService(db))
+	SetGlobalForTest(NewConfigParamService())
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	return db, &MemorySystem{memoryRepo: repository.NewMemoryRepositoryWithDB(db)}
 }
@@ -46,7 +46,7 @@ func setL1Window(t *testing.T, db *gorm.DB, raw string) {
 		t.Fatalf("直写 memory.l1_window_size=%s 失败：%v", raw, err)
 	}
 	// 参数服务按 group.key 缓存 60s，换一个冷缓存实例才能立刻读到新值。
-	SetGlobalForTest(NewConfigParamService(db))
+	SetGlobalForTest(NewConfigParamService())
 }
 
 func TestRuntimeL1WindowSizeFallsBackToConst(t *testing.T) {

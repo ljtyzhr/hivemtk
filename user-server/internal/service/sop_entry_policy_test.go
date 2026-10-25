@@ -73,8 +73,8 @@ func TestGoalExitAchieved(t *testing.T) {
 }
 
 func newS1TestService(t *testing.T) *SOPService {
-	db := testutil.NewTestDB(t, &model.SOPAgent{}, &model.SOPExecution{})
-	return NewSOPService(db, nil)
+	testutil.NewTestDB(t, &model.SOPAgent{}, &model.SOPExecution{})
+	return NewSOPService(nil)
 }
 
 func createS1Agent(t *testing.T, svc *SOPService, trigger model.JSONMap) uint {
@@ -138,7 +138,7 @@ func TestS1_1_EntryPolicy_Modes(t *testing.T) {
 // TestS1_1_CooldownBoundary cooldown 边界：恰好 N 天放行（>= 窗口），N 天内拦截
 func TestS1_1_CooldownBoundary(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.SOPAgent{}, &model.SOPExecution{})
-	svc := NewSOPService(db, nil)
+	svc := NewSOPService(nil)
 	ctx := context.Background()
 	sopID := createS1Agent(t, svc, model.JSONMap{"entry_policy": map[string]any{"mode": "cooldown", "cooldown_days": 7}})
 	policy := ParseSOPEntryPolicy(model.JSONMap{
@@ -240,7 +240,7 @@ func TestS1_2_MaxWaitExceeded_TimerSkipped(t *testing.T) {
 func TestWaitExecutor_WritesExpiresAndMaxWait(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.SOPTimer{})
 
-	e := NewWaitExecutor(&SOPNodeExecutorDeps{DB: db})
+	e := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 	start := time.Now()
 	result, err := e.Execute(context.Background(), &ExecutionContext{
 		Execution:  &model.SOPExecution{ID: 9},

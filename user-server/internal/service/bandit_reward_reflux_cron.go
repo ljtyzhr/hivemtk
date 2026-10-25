@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 	feedbackloop "hivemtk-user/internal/service/feedback_loop"
 )
 
@@ -17,7 +16,7 @@ import (
 // 游标按租户分别保存。早期实现把游标放在外层、在 Fanout 回调里再套一个永久
 // 循环，导致只有第一个租户被处理且 Fanout 永不返回；游标也全局共享，租户
 // 之间会互相推进时间窗。
-func (c *FeedbackLoopCron) runBanditRewardReflux(ctx context.Context, db *gorm.DB) {
+func (c *FeedbackLoopCron) runBanditRewardReflux(ctx context.Context) {
 	defer c.wg.Done()
 	cursors := make(map[uint]time.Time)
 	for {
@@ -28,7 +27,7 @@ func (c *FeedbackLoopCron) runBanditRewardReflux(ctx context.Context, db *gorm.D
 		}
 		now := time.Now()
 		runTenant := func(tctx context.Context, tenantID uint) {
-			if c.components == nil || c.components.Bandit == nil || db == nil {
+			if c.components == nil || c.components.Bandit == nil || !repository.DBReady() {
 				return
 			}
 			since, ok := cursors[tenantID]
@@ -36,7 +35,7 @@ func (c *FeedbackLoopCron) runBanditRewardReflux(ctx context.Context, db *gorm.D
 				since = now.Add(-time.Hour)
 			}
 			wctx, cancel := context.WithTimeout(tctx, utils.CronShortTimeout)
-			stats, err := feedbackloop.NewBanditRewardReflux(db, c.components.Bandit).RefluxOnce(wctx, since, now)
+			stats, err := feedbackloop.NewBanditRewardRefluxDefault(c.components.Bandit).RefluxOnce(wctx, since, now)
 			cancel()
 			if err != nil {
 				logger.Ctx(tctx).Error().Err(err).Msg("[cron] bandit reward reflux failed")
@@ -53,7 +52,7 @@ func (c *FeedbackLoopCron) runBanditRewardReflux(ctx context.Context, db *gorm.D
 				Msg("[cron] bandit reward reflux done")
 		}
 		if tenant.IsMultiTenant() {
-			_, _ = tenant.Fanout(ctx, db, func(tctx context.Context, tenantID uint) (int64, error) {
+			_, _ = tenant.Fanout(ctx, nil, func(tctx context.Context, tenantID uint) (int64, error) {
 				runTenant(tctx, tenantID)
 				return 0, nil
 			})

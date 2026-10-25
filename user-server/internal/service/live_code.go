@@ -11,7 +11,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 // LiveCodeService 活码服务接口
@@ -42,14 +41,14 @@ type liveCodeService struct {
 	domainRepo   repository.DomainPoolRepository
 }
 
-// NewLiveCodeService 创建活码服务实例
-func NewLiveCodeService(db *gorm.DB) LiveCodeService {
+// NewLiveCodeService 创建活码服务实例（句柄由 repository 自取全局库）
+func NewLiveCodeService() LiveCodeService {
 	return &liveCodeService{
-		liveCodeRepo: repository.NewLiveCodeRepository(db),
-		qrCodeRepo:   repository.NewLiveCodeQRRepository(db),
-		qrStatRepo:   repository.NewLiveCodeQRRepository(db),
-		clickLogRepo: repository.NewLiveCodeClickLogRepository(db),
-		domainRepo:   repository.NewDomainPoolRepository(db),
+		liveCodeRepo: repository.NewLiveCodeRepositoryDefault(),
+		qrCodeRepo:   repository.NewLiveCodeQRRepositoryDefault(),
+		qrStatRepo:   repository.NewLiveCodeQRRepositoryDefault(),
+		clickLogRepo: repository.NewLiveCodeClickLogRepositoryDefault(),
+		domainRepo:   repository.NewDomainPoolRepositoryDefault(),
 	}
 }
 

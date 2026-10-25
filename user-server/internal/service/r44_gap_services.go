@@ -17,8 +17,6 @@ import (
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // BackupGapService backup 页面契约适配（复用既有 BackupService 存储能力 + KV 策略）
@@ -28,17 +26,19 @@ type BackupGapService struct {
 	now  func() time.Time
 }
 
-// NewBackupGapService 构造（ARC-01：gdb 为 nil 时 repo 为 nil，查询类方法返回错误）
-func NewBackupGapService(gdb *gorm.DB) *BackupGapService {
-	// backup.strategy 是平台键（v3.65.0 已迁至 platform_config_kv）：整库备份是
-	// 实例运维动作，不是租户自己的设置。用租户级仓储会在迁移后读不到原值，
-	// 并且把新写入落回 system_config_kv，形成两份互不相干的策略。
-	return &BackupGapService{repo: repository.NewBackupGapRepoWithDB(gdb), kv: repository.NewPlatformConfigKVRepositoryWithDB(gdb), now: time.Now}
+// NewBackupGapService 构造（五层边界 §3.2：本服务只持仓储；句柄→仓储的转换在装配点完成）
+//
+// backup.strategy 是平台键（v3.65.0 已迁至 platform_config_kv）：整库备份是
+// 实例运维动作，不是租户自己的设置。用租户级仓储会在迁移后读不到原值，
+// 并且把新写入落回 system_config_kv，形成两份互不相干的策略。
+// repo 为 nil（装配点没拿到 DB）时查询类方法返回错误。
+func NewBackupGapService(repo *repository.BackupGapRepo, kv repository.PlatformConfigKVRepository) *BackupGapService {
+	return &BackupGapService{repo: repo, kv: kv, now: time.Now}
 }
 
 // NewBackupGapServiceFromGlobal 便捷构造
 func NewBackupGapServiceFromGlobal() *BackupGapService {
-	return NewBackupGapService(repository.GetDB())
+	return NewBackupGapService(repository.NewBackupGapRepo(), repository.NewPlatformConfigKVRepository())
 }
 
 // BackupStatsRow backup 页统计契约
@@ -140,18 +140,19 @@ type RagEvalGapService struct {
 
 // NewRagEvalGapService 构造（searchFn: 复用既有 RagSearcher 混合检索，由装配处注入）
 //
-// ARC-01：gdb 为 nil 时两个仓储均为 nil，查询/写库类方法返回错误。
-func NewRagEvalGapService(gdb *gorm.DB, searchFn func(ctx context.Context, productID, query string) ([]string, error)) *RagEvalGapService {
+// 五层边界 §3.2：只持仓储；句柄→仓储的转换在装配点完成。
+// 两个仓储为 nil（装配点没拿到 DB）时查询/写库类方法返回错误。
+func NewRagEvalGapService(gapRepo *repository.RagEvalGapRepo, evalRepo *repository.RagEvalRepository, searchFn func(ctx context.Context, productID, query string) ([]string, error)) *RagEvalGapService {
 	return &RagEvalGapService{
-		gapRepo:  repository.NewRagEvalGapRepoWithDB(gdb),
-		evalRepo: repository.NewRagEvalRepositoryWithDB(gdb),
+		gapRepo:  gapRepo,
+		evalRepo: evalRepo,
 		searchFn: searchFn,
 	}
 }
 
 // NewRagEvalGapServiceFromGlobal 便捷构造
 func NewRagEvalGapServiceFromGlobal(searchFn func(ctx context.Context, productID, query string) ([]string, error)) *RagEvalGapService {
-	return NewRagEvalGapService(repository.GetDB(), searchFn)
+	return NewRagEvalGapService(repository.NewRagEvalGapRepo(), repository.NewRagEvalRepository(), searchFn)
 }
 
 func (s *RagEvalGapService) searchTop5(ctx context.Context, productID, question string) ([]string, error) {
@@ -358,14 +359,14 @@ type CohortGapService struct {
 	repo *repository.CohortGapRepo
 }
 
-// NewCohortGapService 构造（ARC-01：gdb 为 nil 时 repo 为 nil，查询类方法返回错误）
-func NewCohortGapService(gdb *gorm.DB) *CohortGapService {
-	return &CohortGapService{repo: repository.NewCohortGapRepoWithDB(gdb)}
+// NewCohortGapService 构造（五层边界 §3.2：只持仓储；repo 为 nil 时查询类方法返回错误）
+func NewCohortGapService(repo *repository.CohortGapRepo) *CohortGapService {
+	return &CohortGapService{repo: repo}
 }
 
 // NewCohortGapServiceFromGlobal 便捷构造
 func NewCohortGapServiceFromGlobal() *CohortGapService {
-	return NewCohortGapService(repository.GetDB())
+	return NewCohortGapService(repository.NewCohortGapRepo())
 }
 
 // CohortResult 周留存矩阵
@@ -509,21 +510,22 @@ func (s *CohortGapService) Path(ctx context.Context, limit int) (*PathResult, er
 }
 
 // EmailGapService 邮件送达分析
+//
+// 五层边界 §3.2：只持仓储；句柄→仓储的转换在装配点完成（见 NewEmailGapService）。
 type EmailGapService struct {
 	repo   *repository.EmailGapRepo
 	aiRepo *repository.AIPerformanceRepository
 }
 
-// NewEmailGapService 构造（ARC-01：gdb 为 nil 时 repo 为 nil，查询类方法返回错误）
-func NewEmailGapService(gdb *gorm.DB) *EmailGapService {
-	return &EmailGapService{
-		repo:   repository.NewEmailGapRepoWithDB(gdb),
-		aiRepo: repository.NewAIPerformanceRepository(gdb),
-	}
+// NewEmailGapService 构造（两个仓储均为 nil 时查询类方法返回错误）
+func NewEmailGapService(repo *repository.EmailGapRepo, aiRepo *repository.AIPerformanceRepository) *EmailGapService {
+	return &EmailGapService{repo: repo, aiRepo: aiRepo}
 }
 
 // NewEmailGapServiceFromGlobal 便捷构造
-func NewEmailGapServiceFromGlobal() *EmailGapService { return NewEmailGapService(repository.GetDB()) }
+func NewEmailGapServiceFromGlobal() *EmailGapService {
+	return NewEmailGapService(repository.NewEmailGapRepo(), repository.NewAIPerformanceRepositoryFromGlobal())
+}
 
 // DeliverabilityStats 页面顶部指标
 type DeliverabilityStats struct {

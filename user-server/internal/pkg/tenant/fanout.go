@@ -41,7 +41,12 @@ func loadActiveTenants(ctx context.Context) ([]uint, bool) {
 //
 // 返回值语义：fn 的第一个返回值跨租户求和；任一租户失败记录后继续，
 // 全部失败时返回最后一个错误。off 模式退化为单默认租户。
+//
+// ⚠️ db 参数已废弃（历史遗留）：函数体不使用它——租户枚举走装配层注入的
+// loader（见 activeTenantLoader 注释），回调内各服务自持仓储。调用方一律传
+// nil（2026-10-25 实测 44 个调用方中 41 个已传 nil）；择期改签名删除该参。
 func Fanout(ctx context.Context, db *gorm.DB, fn func(ctx context.Context, tenantID uint) (int64, error)) (int64, error) {
+	_ = db
 	if fn == nil {
 		return 0, nil
 	}

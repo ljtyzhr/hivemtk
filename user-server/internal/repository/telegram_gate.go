@@ -32,9 +32,20 @@ type TelegramGroupGateRepository struct {
 	db *gorm.DB
 }
 
+// NewTelegramGroupGateRepository 用全局连接构造（无参服务构造器走这一扇门）。
+func NewTelegramGroupGateRepository() *TelegramGroupGateRepository {
+	return &TelegramGroupGateRepository{db: _db.GetDB()}
+}
+
 func NewTelegramGroupGateRepositoryWithDB(db *gorm.DB) *TelegramGroupGateRepository {
 	return &TelegramGroupGateRepository{db: db}
 }
+
+// Bound 报告是否已绑定连接。
+//
+// 无参构造时全局 DB 可能尚未初始化（单测/嵌入式），此时 service 层要保持
+// "仓储未装配"的旧语义（各 nil 守卫原样生效），而判据在这里给出——service 不自己去读全局句柄。
+func (r *TelegramGroupGateRepository) Bound() bool { return r != nil && r.db != nil }
 
 func (r *TelegramGroupGateRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
@@ -116,6 +127,11 @@ func (r *TelegramGroupGateRepository) ListEnabled(ctx context.Context) ([]*model
 // TelegramGroupMemberRepository TG 群成员验证台账仓库
 type TelegramGroupMemberRepository struct {
 	db *gorm.DB
+}
+
+// NewTelegramGroupMemberRepository 用全局连接构造（无参服务构造器走这一扇门）。
+func NewTelegramGroupMemberRepository() *TelegramGroupMemberRepository {
+	return &TelegramGroupMemberRepository{db: _db.GetDB()}
 }
 
 func NewTelegramGroupMemberRepositoryWithDB(db *gorm.DB) *TelegramGroupMemberRepository {

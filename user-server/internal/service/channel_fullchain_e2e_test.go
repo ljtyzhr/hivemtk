@@ -22,6 +22,7 @@ import (
 
 	"hivemtk-user/internal/pkg/httpclient"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 
@@ -46,7 +47,7 @@ func setupChannelFullDB(t *testing.T) *gorm.DB {
 
 func TestE2E_Feishu_AccountCreateAndList(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewFeishuService(db)
+	svc := NewFeishuService(repository.NewFeishuAccountRepositoryWithDB(db))
 
 	acc := &model.FeishuAccount{
 		AccountName:       "飞书主账号",
@@ -84,7 +85,7 @@ func TestE2E_Feishu_AccountCreateAndList(t *testing.T) {
 
 func TestE2E_Feishu_IngestMessage(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewFeishuIntegrationService(db)
+	svc := NewFeishuIntegrationService(repository.NewFeishuAccountRepositoryWithDB(db), repository.NewFeishuMessageRepositoryWithDB(db))
 
 	acc := &model.FeishuAccount{
 		AccountName: "测试飞书账号",
@@ -135,7 +136,7 @@ func TestE2E_Feishu_IngestMessage(t *testing.T) {
 
 func TestE2E_Feishu_IngestMessage_GroupChat(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewFeishuIntegrationService(db)
+	svc := NewFeishuIntegrationService(repository.NewFeishuAccountRepositoryWithDB(db), repository.NewFeishuMessageRepositoryWithDB(db))
 	acc := &model.FeishuAccount{AccountName: "G", AppID: "a", AppSecret: "b", Status: 1}
 	acc.ID = 200
 	db.Create(acc)
@@ -207,7 +208,7 @@ func encryptFeishuForTest(t *testing.T, key, plaintext string) string {
 
 func TestE2E_Telegram_AccountCreateAndGet(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewTelegramService(db)
+	svc := NewTelegramService(repository.NewTelegramAccountRepositoryWithDB(db))
 
 	// CreateAccount 名下有两条真实出站的腿：取 bot_username 的 getMe、注册回调的 setWebhook。
 	// 本用例断言的只有"账号落库、取回、密钥读得出来"，两条腿一律换成报错替身。
@@ -290,7 +291,7 @@ func TestE2E_Telegram_AccountCreateAndGet(t *testing.T) {
 
 func TestE2E_Telegram_IngestMessage(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewTelegramIntegrationService(db)
+	svc := NewTelegramIntegrationService(repository.NewTelegramAccountRepositoryWithDB(db))
 	acc := &model.TelegramAccount{AccountName: "TG", BotToken: "tok", Status: 1}
 	acc.ID = 50
 	db.Create(acc)
@@ -319,7 +320,7 @@ func TestE2E_Telegram_IngestMessage(t *testing.T) {
 
 func TestE2E_Telegram_IngestMessage_Group(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewTelegramIntegrationService(db)
+	svc := NewTelegramIntegrationService(repository.NewTelegramAccountRepositoryWithDB(db))
 	acc := &model.TelegramAccount{AccountName: "TG2", BotToken: "tok2", Status: 1}
 	acc.ID = 51
 	db.Create(acc)
@@ -339,7 +340,7 @@ func TestE2E_Telegram_IngestMessage_Group(t *testing.T) {
 
 func TestE2E_WhatsApp_AccountCreate(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewWhatsAppCloudService(db)
+	svc := NewWhatsAppCloudService(repository.NewWhatsAppCloudAccountRepositoryWithDB(db))
 
 	acc := &model.WhatsAppCloudAccount{
 		AccountName:        "WA主",
@@ -370,7 +371,7 @@ func TestE2E_WhatsApp_AccountCreate(t *testing.T) {
 
 func TestE2E_WhatsApp_IngestMessage(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewWhatsAppCloudIntegrationService(db)
+	svc := NewWhatsAppCloudIntegrationService(repository.NewWhatsAppCloudAccountRepositoryWithDB(db))
 	acc := &model.WhatsAppCloudAccount{
 		AccountName: "WA", PhoneNumberID: "111", WhatsAppBusinessID: "W1",
 		AccessToken: "tk", Status: 1,
@@ -436,7 +437,7 @@ func TestE2E_WebhookService_DispatchWhatsApp(t *testing.T) {
 		AccessToken: "tk", WebhookEnabled: true, AIAgentEnabled: false, Status: 1,
 	}
 	db.Create(acc)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	body := []byte(`{"object":"whatsapp_business_account","entry":[{"id":"W","changes":[{"value":{"messages":[{"from":"+8613800000001","id":"w1","timestamp":"1700000000","type":"text","text":{"body":"hi"}}],"contacts":[{"profile":{"name":"Alice"},"wa_id":"+8613800000001"}]},"field":"messages"}]}]}`)
@@ -462,7 +463,7 @@ func TestE2E_WebhookService_DispatchTelegram(t *testing.T) {
 		AccountName: "TG", BotToken: "tok", WebhookEnabled: true, AIAgentEnabled: false, Status: 1,
 	}
 	db.Create(acc)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	body := []byte(`{"update_id":1,"message":{"message_id":100,"from":{"id":67890,"first_name":"Bob"},"chat":{"id":12345,"type":"private"},"date":1700000000,"text":"hello"}}`)
@@ -489,7 +490,7 @@ func TestE2E_WebhookService_DispatchFeishu(t *testing.T) {
 		WebhookEnabled: true, AIAgentEnabled: false, Status: 1,
 	}
 	db.Create(acc)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	body := []byte(`{"schema":"2.0","header":{"event_type":"im.message.receive_v1","app_id":"a","event_id":"e1","token":"v"},"event":{"sender":{"sender_id":{"open_id":"ou_001"}},"message":{"message_id":"om_1","chat_id":"oc_1","chat_type":"p2p","message_type":"text","content":"{\"text\":\"hi\"}"}}}`)
@@ -511,7 +512,7 @@ func TestE2E_WebhookService_DispatchFeishu(t *testing.T) {
 
 func TestE2E_WebhookService_DispatchFeishu_Challenge(t *testing.T) {
 	db := setupChannelFullDB(t)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	body := []byte(`{"challenge":"abc123","type":"url_verification"}`)
@@ -551,7 +552,7 @@ func TestE2E_WebhookService_ShouldTriggerAI_FourChannels(t *testing.T) {
 		WebhookEnabled: true, AIAgentEnabled: true, Status: 1,
 	})
 
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	svc.SetSalesEngine(context.Background(), &SalesEngine{})
 	defer svc.Stop(context.Background())
 
@@ -682,7 +683,7 @@ func TestE2E_SendOutbound_Feishu_RealPath(t *testing.T) {
 	}
 	db.Create(acc)
 
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	hub := &model.MessageHub{
@@ -749,7 +750,7 @@ func TestE2E_SendOutbound_Telegram_RealPath(t *testing.T) {
 		Status:         1,
 	}
 	db.Create(acc)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	hub := &model.MessageHub{
@@ -808,7 +809,7 @@ func TestE2E_SendOutbound_WhatsApp_RealPath(t *testing.T) {
 		Status:             1,
 	}
 	db.Create(acc)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	hub := &model.MessageHub{
@@ -945,7 +946,7 @@ func TestE2E_HandleJob_FourChannels_AIDisabled(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			db := setupChannelFullDB(t)
 			accountID := c.setup(db)
-			svc := NewWebhookService(db)
+			svc := NewWebhookService()
 			defer svc.Stop(context.Background())
 
 			payload, err := svc.ParsePayload(context.Background(), c.channel, c.body)
@@ -973,8 +974,8 @@ func TestE2E_HandleJob_FourChannels_AIDisabled(t *testing.T) {
 }
 
 func TestE2E_WebhookService_ToUnifiedMessage_4Channels(t *testing.T) {
-	db := setupChannelFullDB(t)
-	svc := NewWebhookService(db)
+	setupChannelFullDB(t)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	cases := []struct {

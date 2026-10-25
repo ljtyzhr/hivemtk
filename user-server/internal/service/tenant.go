@@ -193,7 +193,7 @@ func (s *TenantService) RegisterTenant(ctx context.Context, req RegisterTenantRe
 		}
 
 		// 003 T013 开户赠送：失败仅 Warn 不阻断注册（赠送可后补，开户不可逆）
-		provisionTenantStarterKit(ctx, t.ID, t.Name, s.tenantRepo.GetDB())
+		provisionTenantStarterKit(ctx, t.ID, t.Name, repository.NewStarterKitRepository(s.tenantRepo.GetDB()))
 		ProvisionTenantModules(ctx, t.ID)
 
 		return &RegisterTenantResponse{

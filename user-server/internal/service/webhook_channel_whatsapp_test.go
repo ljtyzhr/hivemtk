@@ -19,7 +19,7 @@ func TestDispatchWhatsApp_MultiMessageBatch(t *testing.T) {
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	body := waBatchBody(
@@ -72,11 +72,11 @@ func TestDispatchWhatsApp_MultiMessageBatch(t *testing.T) {
 
 // TestDispatchWhatsApp_EmptyBatch 无消息事件返回 nil 不报错
 func TestDispatchWhatsApp_EmptyBatch(t *testing.T) {
-	db := testutil.NewTestDB(t,
+	testutil.NewTestDB(t,
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	hub, err := svc.dispatchWhatsApp(context.Background(), "1", &ParsedPayload{EventID: "evt-wa-empty"},

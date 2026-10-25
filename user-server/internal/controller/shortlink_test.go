@@ -18,6 +18,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupShortLinkControllerTestDB(t *testing.T) *gorm.DB {
@@ -42,7 +44,7 @@ func TestShortLinkController_Create_BasicSuccess(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -68,7 +70,7 @@ func TestShortLinkController_Create_BasicSuccess(t *testing.T) {
 // TestShortLinkController_Create_InvalidJSON 测试无效 JSON 请求
 func TestShortLinkController_Create_InvalidJSON(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -85,7 +87,7 @@ func TestShortLinkController_Create_InvalidJSON(t *testing.T) {
 // TestShortLinkController_Create_EmptyShortCode 测试空短码
 func TestShortLinkController_Create_EmptyShortCode(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -108,7 +110,7 @@ func TestShortLinkController_Create_EmptyShortCode(t *testing.T) {
 // TestShortLinkController_Create_EmptyOriginalURL 测试空原始链接
 func TestShortLinkController_Create_EmptyOriginalURL(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -131,7 +133,7 @@ func TestShortLinkController_Create_EmptyOriginalURL(t *testing.T) {
 // TestShortLinkController_Create_InvalidURL 测试无效 URL 格式
 func TestShortLinkController_Create_InvalidURL(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -160,7 +162,7 @@ func TestShortLinkController_Create_DuplicateShortCode(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
@@ -192,7 +194,7 @@ func TestShortLinkController_Create_DuplicateShortCode(t *testing.T) {
 // TestShortLinkController_Create_InvalidDomain 测试无效域名 ID
 func TestShortLinkController_Create_InvalidDomain(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -222,7 +224,7 @@ func TestShortLinkController_Create_WithPassword(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -254,7 +256,7 @@ func TestShortLinkController_Create_WithExpireTime(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -281,7 +283,7 @@ func TestShortLinkController_Create_WithExpireTime(t *testing.T) {
 // TestShortLinkController_Create_WithoutDomain 测试创建不带域名的短链
 func TestShortLinkController_Create_WithoutDomain(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -311,7 +313,7 @@ func TestShortLinkController_Create_LongURL(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -344,7 +346,7 @@ func TestShortLinkController_Create_SpecialCharacters(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -376,7 +378,7 @@ func TestShortLinkController_Create_UnicodeCharacters(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -408,7 +410,7 @@ func TestShortLinkController_Create_VeryLongTitle(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks", ctrl.Create)
 
@@ -439,7 +441,7 @@ func TestShortLinkController_Update_BasicSuccess(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -484,7 +486,7 @@ func TestShortLinkController_Update_BasicSuccess(t *testing.T) {
 // TestShortLinkController_Update_InvalidJSON 测试无效 JSON
 func TestShortLinkController_Update_InvalidJSON(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.PUT("/shortlinks/:id", ctrl.Update)
 
@@ -501,7 +503,7 @@ func TestShortLinkController_Update_InvalidJSON(t *testing.T) {
 // TestShortLinkController_Update_IDMismatch 测试 ID 不匹配
 func TestShortLinkController_Update_IDMismatch(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.PUT("/shortlinks/:id", ctrl.Update)
 
@@ -525,7 +527,7 @@ func TestShortLinkController_Update_IDMismatch(t *testing.T) {
 // TestShortLinkController_Update_NotFound 测试短链不存在
 func TestShortLinkController_Update_NotFound(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.PUT("/shortlinks/:id", ctrl.Update)
 
@@ -549,7 +551,7 @@ func TestShortLinkController_Update_NotFound(t *testing.T) {
 // TestShortLinkController_Update_InvalidIDFormat 测试无效 ID 格式
 func TestShortLinkController_Update_InvalidIDFormat(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.PUT("/shortlinks/:id", ctrl.Update)
 
@@ -573,7 +575,7 @@ func TestShortLinkController_Update_InvalidIDFormat(t *testing.T) {
 // TestShortLinkController_Update_EmptyID 测试空 ID
 func TestShortLinkController_Update_EmptyID(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.PUT("/shortlinks/:id", ctrl.Update)
 
@@ -597,7 +599,7 @@ func TestShortLinkController_Update_EmptyID(t *testing.T) {
 // TestShortLinkController_Update_InvalidURL 测试无效 URL
 func TestShortLinkController_Update_InvalidURL(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -636,7 +638,7 @@ func TestShortLinkController_Update_DisabledStatus(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -684,7 +686,7 @@ func TestShortLinkController_Delete_BasicSuccess(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -718,7 +720,7 @@ func TestShortLinkController_Delete_BasicSuccess(t *testing.T) {
 // TestShortLinkController_Delete_InvalidID 测试无效 ID
 func TestShortLinkController_Delete_InvalidID(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.DELETE("/shortlinks/:id", ctrl.Delete)
 
@@ -734,7 +736,7 @@ func TestShortLinkController_Delete_InvalidID(t *testing.T) {
 // TestShortLinkController_Delete_NotFound 测试短链不存在
 func TestShortLinkController_Delete_NotFound(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.DELETE("/shortlinks/:id", ctrl.Delete)
 
@@ -750,7 +752,7 @@ func TestShortLinkController_Delete_NotFound(t *testing.T) {
 // TestShortLinkController_Delete_ZeroID 测试 ID 为 0
 func TestShortLinkController_Delete_ZeroID(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.DELETE("/shortlinks/:id", ctrl.Delete)
 
@@ -766,7 +768,7 @@ func TestShortLinkController_Delete_ZeroID(t *testing.T) {
 // TestShortLinkController_Delete_NegativeID 测试负数 ID（字符串形式）
 func TestShortLinkController_Delete_NegativeID(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.DELETE("/shortlinks/:id", ctrl.Delete)
 
@@ -788,7 +790,7 @@ func TestShortLinkController_GetByID_BasicSuccess(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -822,7 +824,7 @@ func TestShortLinkController_GetByID_BasicSuccess(t *testing.T) {
 // TestShortLinkController_GetByID_NotFound 测试短链不存在
 func TestShortLinkController_GetByID_NotFound(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.GET("/shortlinks/:id", ctrl.GetByID)
 
@@ -838,7 +840,7 @@ func TestShortLinkController_GetByID_NotFound(t *testing.T) {
 // TestShortLinkController_GetByID_InvalidID 测试无效 ID 格式
 func TestShortLinkController_GetByID_InvalidID(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.GET("/shortlinks/:id", ctrl.GetByID)
 
@@ -854,7 +856,7 @@ func TestShortLinkController_GetByID_InvalidID(t *testing.T) {
 // TestShortLinkController_GetByID_ZeroID 测试 ID 为 0
 func TestShortLinkController_GetByID_ZeroID(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.GET("/shortlinks/:id", ctrl.GetByID)
 
@@ -876,7 +878,7 @@ func TestShortLinkController_GetByID_WithAllFields(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -914,7 +916,7 @@ func TestShortLinkController_GetByID_WithAllFields(t *testing.T) {
 // TestShortLinkController_GetList_BasicSuccess 测试获取短链列表基本成功
 func TestShortLinkController_GetList_BasicSuccess(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -941,7 +943,7 @@ func TestShortLinkController_GetList_BasicSuccess(t *testing.T) {
 // TestShortLinkController_GetList_DefaultPagination 测试默认分页参数
 func TestShortLinkController_GetList_DefaultPagination(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 	router.GET("/shortlinks", ctrl.GetList)
@@ -958,7 +960,7 @@ func TestShortLinkController_GetList_DefaultPagination(t *testing.T) {
 // TestShortLinkController_GetList_WithShortCodeFilter 测试按短码过滤
 func TestShortLinkController_GetList_WithShortCodeFilter(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -989,7 +991,7 @@ func TestShortLinkController_GetList_WithShortCodeFilter(t *testing.T) {
 // TestShortLinkController_GetList_WithStatusFilter 测试按状态过滤
 func TestShortLinkController_GetList_WithStatusFilter(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1020,7 +1022,7 @@ func TestShortLinkController_GetList_WithStatusFilter(t *testing.T) {
 // TestShortLinkController_GetList_WithOriginalURLFilter 测试按原始 URL 过滤
 func TestShortLinkController_GetList_WithOriginalURLFilter(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1045,7 +1047,7 @@ func TestShortLinkController_GetList_WithOriginalURLFilter(t *testing.T) {
 // TestShortLinkController_GetList_EmptyList 测试空列表
 func TestShortLinkController_GetList_EmptyList(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 	router.GET("/shortlinks", ctrl.GetList)
@@ -1062,7 +1064,7 @@ func TestShortLinkController_GetList_EmptyList(t *testing.T) {
 // TestShortLinkController_GetList_LargePageSize 测试大页码
 func TestShortLinkController_GetList_LargePageSize(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1089,7 +1091,7 @@ func TestShortLinkController_GetList_LargePageSize(t *testing.T) {
 // TestShortLinkController_GetList_NegativePage 测试负数页码
 func TestShortLinkController_GetList_NegativePage(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 	router.GET("/shortlinks", ctrl.GetList)
@@ -1106,7 +1108,7 @@ func TestShortLinkController_GetList_NegativePage(t *testing.T) {
 // TestShortLinkController_GetList_NegativePageSize 测试负数页大小
 func TestShortLinkController_GetList_NegativePageSize(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 	router.GET("/shortlinks", ctrl.GetList)
@@ -1129,7 +1131,7 @@ func TestShortLinkController_AccessShortLink_BasicSuccess(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1160,7 +1162,7 @@ func TestShortLinkController_AccessShortLink_BasicSuccess(t *testing.T) {
 // TestShortLinkController_AccessShortLink_InvalidJSON 测试无效 JSON
 func TestShortLinkController_AccessShortLink_InvalidJSON(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/access", ctrl.AccessShortLink)
 
@@ -1177,7 +1179,7 @@ func TestShortLinkController_AccessShortLink_InvalidJSON(t *testing.T) {
 // TestShortLinkController_AccessShortLink_NotFound 测试短链不存在
 func TestShortLinkController_AccessShortLink_NotFound(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/access", ctrl.AccessShortLink)
 
@@ -1199,7 +1201,7 @@ func TestShortLinkController_AccessShortLink_NotFound(t *testing.T) {
 // TestShortLinkController_AccessShortLink_EmptyShortCode 测试空短码
 func TestShortLinkController_AccessShortLink_EmptyShortCode(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/access", ctrl.AccessShortLink)
 
@@ -1227,7 +1229,7 @@ func TestShortLinkController_AccessShortLink_WithPassword(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1266,7 +1268,7 @@ func TestShortLinkController_AccessShortLink_WrongPassword(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1305,7 +1307,7 @@ func TestShortLinkController_AccessShortLink_WithMetadata(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1339,7 +1341,7 @@ func TestShortLinkController_AccessShortLink_WithMetadata(t *testing.T) {
 // TestShortLinkController_AccessShortLink_DisabledLink 测试访问禁用的短链
 func TestShortLinkController_AccessShortLink_DisabledLink(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1378,7 +1380,7 @@ func TestShortLinkController_AccessShortLink_ExpiredLink(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewShortLinkService(database)
+	svc := service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	ctrl := NewShortLinkController(svc)
 	router := setupGinEngineForShortLink()
 
@@ -1411,7 +1413,7 @@ func TestShortLinkController_AccessShortLink_ExpiredLink(t *testing.T) {
 // TestShortLinkController_GenerateShortCode_BasicSuccess 测试生成短码基本成功
 func TestShortLinkController_GenerateShortCode_BasicSuccess(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/generate-code", ctrl.GenerateShortCode)
 
@@ -1433,7 +1435,7 @@ func TestShortLinkController_GenerateShortCode_BasicSuccess(t *testing.T) {
 // TestShortLinkController_GenerateShortCode_InvalidJSON 测试无效 JSON
 func TestShortLinkController_GenerateShortCode_InvalidJSON(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/generate-code", ctrl.GenerateShortCode)
 
@@ -1450,7 +1452,7 @@ func TestShortLinkController_GenerateShortCode_InvalidJSON(t *testing.T) {
 // TestShortLinkController_GenerateShortCode_MinLength 测试最小长度
 func TestShortLinkController_GenerateShortCode_MinLength(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/generate-code", ctrl.GenerateShortCode)
 
@@ -1472,7 +1474,7 @@ func TestShortLinkController_GenerateShortCode_MinLength(t *testing.T) {
 // TestShortLinkController_GenerateShortCode_MaxLength 测试最大长度
 func TestShortLinkController_GenerateShortCode_MaxLength(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/generate-code", ctrl.GenerateShortCode)
 
@@ -1494,7 +1496,7 @@ func TestShortLinkController_GenerateShortCode_MaxLength(t *testing.T) {
 // TestShortLinkController_GenerateShortCode_TooShortLength 测试长度太短
 func TestShortLinkController_GenerateShortCode_TooShortLength(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/generate-code", ctrl.GenerateShortCode)
 
@@ -1516,7 +1518,7 @@ func TestShortLinkController_GenerateShortCode_TooShortLength(t *testing.T) {
 // TestShortLinkController_GenerateShortCode_TooLongLength 测试长度太长
 func TestShortLinkController_GenerateShortCode_TooLongLength(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/generate-code", ctrl.GenerateShortCode)
 
@@ -1538,7 +1540,7 @@ func TestShortLinkController_GenerateShortCode_TooLongLength(t *testing.T) {
 // TestShortLinkController_GenerateShortCode_MultipleGenerations 测试多次生成唯一性
 func TestShortLinkController_GenerateShortCode_MultipleGenerations(t *testing.T) {
 	database := setupShortLinkControllerTestDB(t)
-	ctrl := NewShortLinkController(service.NewShortLinkService(database))
+	ctrl := NewShortLinkController(service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)))
 	router := setupGinEngineForShortLink()
 	router.POST("/shortlinks/generate-code", ctrl.GenerateShortCode)
 

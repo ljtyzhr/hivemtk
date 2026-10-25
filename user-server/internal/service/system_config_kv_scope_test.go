@@ -13,6 +13,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 )
 
 func TestBackupGapService_StrategyLivesInPlatformKV(t *testing.T) {
@@ -28,7 +29,7 @@ func TestBackupGapService_StrategyLivesInPlatformKV(t *testing.T) {
 	ctx := tenant.WithTenantID(context.Background(), 91)
 	sysCtx := tenant.WithSystemScope(context.Background())
 
-	svc := NewBackupGapService(db)
+	svc := NewBackupGapService(repository.NewBackupGapRepoWithDB(db), repository.NewPlatformConfigKVRepositoryWithDB(db))
 	if err := svc.SaveStrategy(ctx, &BackupStrategy{Enabled: true, RetentionDays: 30}); err != nil {
 		t.Fatalf("保存备份策略失败: %v", err)
 	}

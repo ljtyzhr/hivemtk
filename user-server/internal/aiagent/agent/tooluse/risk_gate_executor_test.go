@@ -177,7 +177,7 @@ func TestBuildRiskReport_ReflectsRegistryGrantsAndCounts(t *testing.T) {
 		ToolName: "reach.sms.send", Level: RiskHighWrite, Declared: true, WouldDeny: true, Allowed: true, Reason: RiskReasonWhitelistAbsent,
 	})
 
-	rep := BuildRiskReport(registry, grants, obs, "shadow", false, "FF_TOOL_PERMISSION_ENFORCE")
+	rep := BuildRiskReport(registry, grants, obs, "shadow", false, "FF_TOOL_PERMISSION_ENFORCE", false)
 	if rep.Total != 4 {
 		t.Errorf("total=%d，期望 4", rep.Total)
 	}
@@ -232,7 +232,7 @@ func TestBuildRiskReport_NilGrantsSaysSo(t *testing.T) {
 	if err := registry.Register(&countingTool{BaseTool: BaseTool{NameVal: "reach.sms.send", CategoryVal: CategoryReach, RiskVal: RiskHighWrite}}); err != nil {
 		t.Fatal(err)
 	}
-	rep := BuildRiskReport(registry, nil, NewMemoryRiskObserver(10), "off", false, "FF_TOOL_PERMISSION_ENFORCE")
+	rep := BuildRiskReport(registry, nil, NewMemoryRiskObserver(10), "off", false, "FF_TOOL_PERMISSION_ENFORCE", false)
 	if rep.AgentWhitelistConfig != 0 {
 		t.Errorf("configured=%d，期望 0", rep.AgentWhitelistConfig)
 	}

@@ -16,17 +16,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// DB 的跨包存取只走 GetDB／SetTestDB／InitDB 这三扇门，对它的每次读和每次写都在 dbMu 下。
-// 要收口的理由是这些访问跨 goroutine：写方是测试里 296 处 `SetTestDB(`（180 个文件，全在
-// `*_test.go` 里，用例各自换库；生产路径 0 处），读方
-// 除请求协程外还有 cron 的 tick 体与 fire-and-forget 的异步体——裸读同一个地址就是数据竞争，
-// -race 已在这条上红过三处站点（TriggerCSATOnClose／fallbackVersionOf／DispatchSessionEventAsync），
-// 前两处靠"把句柄解析挪到 spawning 之前"回避，但 cron 与循环体没法挪，第四处（MaybeSendAwayReply
-// 的异步体在 GetConfig 里逐次 new 仓储）连挪都挪不动（见其 sync.Once 单例），故竞争本身在 accessor
-// 里收口。包外对 DB 的直读 0 处（四个导入别名 dbutil／dbUtil／_db／pdb 一并核过，命中的
-// 3 行全是 gorm 的 `(*gorm.DB).DB()` 方法与注释）。本包内仍直读直写的只剩
-// migrate.go 的建表路径与本包测试的自恢复赋值：前者只由 cmd/* 在起协程之前走一次，后者都排在
-// 任何 spawn 之前，同一 goroutine 内不构成并发访问。
+// DB 的跨包存取只走 GetDB／SetTestDB／InitDB 三扇门，对它的每次读和每次写都在 dbMu 下。
+// 这些访问跨 goroutine（cron tick 体、fire-and-forget 异步体、测试里的 SetTestDB），
+// 裸读同一地址是数据竞争，故在 accessor 收口。包内仍直读直写的只剩
+// migrate.go 的建表路径（只由 cmd 启动时走一次）与本包测试的自恢复赋值。
 var (
 	dbMu sync.RWMutex
 	DB   *gorm.DB
@@ -47,8 +40,7 @@ func InitDB() {
 	}
 
 	// libpq keyword/value 格式：含空格/引号的口令必须单引号包裹（' 转义为 \'），
-	// 否则 DSN 解析错位导致 SASL 认证失败（宿主机 PGPASSWORD 走 libpq 直连不受影响，
-	// 故只在容器内复现——排查时极易误判为“口令漂移”）。
+	// 否则 DSN 解析错位导致 SASL 认证失败（宿主机 PGPASSWORD 走 libpq 直连不受影响）。
 	dsn := fmt.Sprintf("host=%s user=%s password='%s' dbname=%s port=%d sslmode=%s TimeZone=Asia/Shanghai",
 		appConfig.Database.Postgres.Host,
 		appConfig.Database.Postgres.User,
@@ -86,11 +78,7 @@ func InitDB() {
 	dbMu.Unlock()
 }
 
-// normalizePool 把配置里留空的池参数补成兜底值。
-//
-// 单独成函数的唯一理由：这一段原先只能在 `InitDB` 里跑，而 `InitDB` 要 DSN、要真库、
-// 还要两条 panic 路径 ⇒ 没有任何用例经过它，兜底值写错（比如 MaxOpenConns 补成 0＝不限）
-// 也不会红。拆出来后由 db_pool_bound_test.go 逐格点名补出来的数。
+// normalizePool 把配置里留空的池参数补成兜底值（MaxOpenConns 补 0 会被当作"不限"，故必须补兜底值）。
 func normalizePool(poolConfig config.PoolConfig) config.PoolConfig {
 	if poolConfig.MaxIdleConns == 0 {
 		poolConfig = config.DefaultPoolConfig
@@ -106,10 +94,8 @@ func normalizePool(poolConfig config.PoolConfig) config.PoolConfig {
 }
 
 // applyPool 把池参数写进 database/sql 句柄。
-//
-// "配置文件里写着 200"与"句柄上真正生效的是 200"是两件事：CI 名额门
-// （scripts/check-ci-pg-capacity.py 的 C5）拿前者当连接数下限，所以这四行一旦被挪走或包进
-// 条件里，门仍绿、吞吐却掉到 Go 默认的 2。故上界那一行由用例现读 Stats() 断言。
+// 这几行不可挪走或包进条件：配置文件写的值与真正生效的值是两件事，漏设会让
+// 连接数回落到 Go 默认的 2 而无任何报错。
 func applyPool(sqlDB *sql.DB, poolConfig config.PoolConfig) {
 	sqlDB.SetMaxIdleConns(poolConfig.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(poolConfig.MaxOpenConns)
@@ -121,7 +107,6 @@ func GetDB() *gorm.DB {
 	// 跨包只认 dbstate：testutil.NewTestDB 写它；InitDB 也写它。
 	// 不回落到本包 DB —— 那条回落曾让 NewTestDB cleanup 关掉连接后，
 	// 包级 DB 仍指向已关闭句柄，后续 NilDB 用例拿到 "sql: database is closed"。
-	// 本包 migrate.go 内部仍直读 DB（只在 cmd 启动、连接未关时走一次）。
 	return dbstate.Get()
 }
 

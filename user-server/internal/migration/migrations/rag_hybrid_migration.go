@@ -300,7 +300,6 @@ func (m *RagHybridMigration) enhanceKnowledgeSearchLogs(ctx context.Context) err
 	return nil
 }
 
-//
 // 注意:
 //   - 不删除 knowledge_chunks 表（业务数据，仅删除新增列）
 //   - 删除 query_rewrite_cache / embedding_cache 缓存表（仅缓存数据，可重建）

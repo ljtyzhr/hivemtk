@@ -172,3 +172,34 @@ func TestAdminOnlyRoutePatterns_WellFormed(t *testing.T) {
 		}
 	}
 }
+
+// TestIsAdminOnlyRoute_ObservabilityDashboard 钉住 007 看板路由的收紧决定。
+//
+// 选型理由（specs/007/delivery.md §4.2）：看板回的是整个租户的 LLM 成本、送达率、
+// 渠道健康与封禁域名，属「全局共享态」而不是调用者自己的数据；前端消费点只有
+// admin 菜单节点 observabilityDashboard。两个判据都指向仅超管档，是这张表里
+// 权限最小且不破坏界面的取值——退到 public/登录档会让任何坐席读到全租户经营成本。
+//
+// 这里同时断「精确命中」而不只是「被判成 adminOnly」：宽泛的 `**` 规则也会让
+// IsAdminOnlyRoute 回 true，那种情况下这行路径写错了也查不出来。
+func TestIsAdminOnlyRoute_ObservabilityDashboard(t *testing.T) {
+	const path = "/api/observability/dashboard"
+	if !IsAdminOnlyRoute(http.MethodGet, path) {
+		t.Fatalf("GET %s 必须命中仅超管表（当前任何登录角色都能读全租户成本/渠道健康）", path)
+	}
+
+	exact := false
+	for _, r := range adminOnlyRoutes {
+		if r.Pattern == path {
+			exact = true
+			if len(r.Methods) != 0 {
+				t.Errorf("规则 %s 的方法应留空（该路由只有 GET，写成方法白名单反而给了后人"+
+					"「再加一个 method 就绕过」的错觉），实际 %v", path, r.Methods)
+			}
+		}
+	}
+	if !exact {
+		t.Errorf("仅超管表里没有 %s 这一行：当前的 true 只可能来自别的通配规则误命中，"+
+			"路径一旦改名这条收紧就静默失效", path)
+	}
+}

@@ -46,7 +46,7 @@ func approvalResumeFixture(t *testing.T, policy AutoApprovalPolicy) (*ApprovalRe
 		&model.SOPExecEvent{},
 	)
 	svc := NewApprovalRequestService(repository.NewApprovalRequestRepositoryWithDB(db), policy)
-	b := NewApprovalResumeBridge(svc, db)
+	b := NewApprovalResumeBridge(svc)
 	if b == nil {
 		t.Fatal("NewApprovalResumeBridge 传了服务却返回 nil")
 	}
@@ -170,7 +170,7 @@ func TestApprovalSubjectEncodeDecode(t *testing.T) {
 func TestWaitExecutor_ApprovalSuspendNeverBlocks(t *testing.T) {
 	_, _, db := approvalResumeFixture(t, nil)
 	ctx := context.Background()
-	e := NewWaitExecutor(&SOPNodeExecutorDeps{DB: db})
+	e := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 
 	const n = 32
 	const ttl = 3600.0 // 1 小时：任何"在进程内等条件满足"的写法都会立刻体现在耗时上
@@ -255,7 +255,7 @@ func TestWaitExecutor_ApprovalSuspendNeverBlocks(t *testing.T) {
 func TestWaitExecutor_ApprovalWaitUntilEqualsApprovalExpiry(t *testing.T) {
 	_, _, db := approvalResumeFixture(t, nil)
 	ctx := context.Background()
-	e := NewWaitExecutor(&SOPNodeExecutorDeps{DB: db})
+	e := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 
 	exec := newSOPExecution(t, db, 1, "ac-source", "w1")
 	res, err := e.Execute(ctx, execCtxFor(exec, approvalWaitNode("w1", "quote.send", 600)))
@@ -304,7 +304,7 @@ func TestWaitExecutor_ApprovalWaitUntilEqualsApprovalExpiry(t *testing.T) {
 func TestWaitExecutor_ApprovalResuspendReplacesPendingTimer(t *testing.T) {
 	_, _, db := approvalResumeFixture(t, nil)
 	ctx := context.Background()
-	e := NewWaitExecutor(&SOPNodeExecutorDeps{DB: db})
+	e := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 
 	exec := newSOPExecution(t, db, 1, "ac-resuspend", "w1")
 	node := approvalWaitNode("w1", "quote.send", 600)
@@ -345,7 +345,7 @@ func TestWaitExecutor_ApprovalAutoApproveCompletesInline(t *testing.T) {
 	pol := &recordingPolicy{allow: true, reason: "低风险账号"}
 	_, _, db := approvalResumeFixture(t, pol)
 	ctx := context.Background()
-	e := NewWaitExecutor(&SOPNodeExecutorDeps{DB: db})
+	e := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 
 	exec := newSOPExecution(t, db, 1, "ac-auto", "w1")
 	res, err := e.Execute(ctx, execCtxFor(exec, approvalWaitNode("w1", "quote.send", 600)))
@@ -383,7 +383,7 @@ func TestWaitExecutor_ApprovalFailsClosedWhenNotWired(t *testing.T) {
 	_, _, db := approvalResumeFixture(t, nil)
 	SetApprovalResumeBridge(nil) // 刻意撤桥：图里用了审批等待节点，而运行时没装配
 	ctx := context.Background()
-	e := NewWaitExecutor(&SOPNodeExecutorDeps{DB: db})
+	e := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 
 	exec := newSOPExecution(t, db, 1, "ac-nowire", "w1")
 	res, err := e.Execute(ctx, execCtxFor(exec, approvalWaitNode("w1", "quote.send", 600)))
@@ -407,7 +407,7 @@ func TestWaitExecutor_ApprovalFailsClosedWhenNotWired(t *testing.T) {
 func TestWaitExecutor_ApprovalRejectsBadNodeConfig(t *testing.T) {
 	_, _, db := approvalResumeFixture(t, nil)
 	ctx := context.Background()
-	e := NewWaitExecutor(&SOPNodeExecutorDeps{DB: db})
+	e := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(db), TimerRepo: repository.NewSOPTimerRepository(db)})
 
 	// 缺 policy_key：不能默认一个策略名（默认哪个都等于替图作者做了一次授权决定）。
 	node := &dto.SOPNode{ID: "w1", Type: SOPNodeTypeWait, Config: map[string]any{"wait_event": WaitEventApproval}}
@@ -510,7 +510,7 @@ func newApprovalE2E(t *testing.T, ttlSeconds float64) *approvalE2E {
 // registry 必须是**空的**：NewSOPExecutionDispatcher 自己会 RegisterAllNodeExecutors，
 // 而 Register 在重复注册时 panic（启动期错误语义）——先注册再传等于自己撞自己。
 func (e *approvalE2E) newDispatcher() *SOPExecutionDispatcher {
-	return NewSOPExecutionDispatcher(e.db, NewSOPService(e.db, nil), NewNodeExecutorRegistry(), nil)
+	return NewSOPExecutionDispatcher(NewSOPService(nil), NewNodeExecutorRegistry(), nil)
 }
 
 func (e *approvalE2E) loadGraph() *dto.SOPGraph {
@@ -535,7 +535,7 @@ func (e *approvalE2E) node(id string) *dto.SOPNode {
 func (e *approvalE2E) suspend(customerID string) *model.SOPExecution {
 	e.t.Helper()
 	exec := newSOPExecution(e.t, e.db, e.agentID, customerID, "w1")
-	res, err := NewWaitExecutor(&SOPNodeExecutorDeps{DB: e.db}).Execute(context.Background(), execCtxFor(exec, e.node("w1")))
+	res, err := NewWaitExecutor(&SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(e.db), TimerRepo: repository.NewSOPTimerRepository(e.db)}).Execute(context.Background(), execCtxFor(exec, e.node("w1")))
 	if err != nil || res == nil {
 		e.t.Fatalf("挂起失败：%v %+v", err, res)
 	}
@@ -555,7 +555,7 @@ func (e *approvalE2E) suspend(customerID string) *model.SOPExecution {
 // 证明不了"按结论分支"—— 后者才是卡面要的。
 func (e *approvalE2E) fireOnce(disp *SOPExecutionDispatcher) {
 	e.t.Helper()
-	outbox := NewSOPOutboxDispatcher(e.db, senderFunc(func(task *dispatchTask) {
+	outbox := NewSOPOutboxDispatcher(senderFunc(func(task *dispatchTask) {
 		disp.processTask(context.Background(), 0, task)
 	}))
 	outbox.processDueTimers(context.Background())
@@ -919,7 +919,7 @@ func TestOutboxFiredTaskCarriesWaitEventAndPayload(t *testing.T) {
 	}
 
 	var got *dispatchTask
-	outbox := NewSOPOutboxDispatcher(db, senderFunc(func(task *dispatchTask) { got = task }))
+	outbox := NewSOPOutboxDispatcher(senderFunc(func(task *dispatchTask) { got = task }))
 	outbox.processDueTimers(context.Background())
 
 	if got == nil {

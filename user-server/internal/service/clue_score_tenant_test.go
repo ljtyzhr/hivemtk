@@ -31,7 +31,7 @@ func TestClueScoreService_ScoringIsTenantScoped(t *testing.T) {
 	})
 	database := testutil.NewTestDB(t, &model.Clue{}, &model.ClueScore{}, &model.ClueEngagementEvent{})
 	clueRepo := repository.NewClueRepositoryWithDB(database)
-	svc := NewClueScoreService(database)
+	svc := NewClueScoreService()
 	ctxA := tenant.WithTenantID(context.Background(), clueScoreSvcTenantA)
 	ctxB := tenant.WithTenantID(context.Background(), clueScoreSvcTenantB)
 
@@ -112,8 +112,8 @@ func TestClueScoreService_GetByClueIDTranslatesNotFound(t *testing.T) {
 		tenant.ResetRegistryForTest()
 		tenant.SetMode(tenant.ModeOff)
 	})
-	database := testutil.NewTestDB(t, &model.Clue{}, &model.ClueScore{}, &model.ClueEngagementEvent{})
-	svc := NewClueScoreService(database)
+	testutil.NewTestDB(t, &model.Clue{}, &model.ClueScore{}, &model.ClueEngagementEvent{})
+	svc := NewClueScoreService()
 	ctx := tenant.WithTenantID(context.Background(), clueScoreSvcTenantA)
 
 	if _, err := svc.GetByClueID(ctx, "missing-clue"); !errors.Is(err, ErrClueScoreNotFound) {

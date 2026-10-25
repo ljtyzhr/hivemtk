@@ -15,6 +15,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupCustomer360TestDB(t *testing.T) *gorm.DB {
@@ -34,7 +36,7 @@ func setupCustomer360TestDB(t *testing.T) *gorm.DB {
 func setupCustomer360Router(t *testing.T, db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
-	customer360Service := service.NewCustomer360Service(db)
+	customer360Service := service.NewCustomer360Service(repository.NewClueRepositoryWithDB(db))
 
 	controller := &Customer360Controller{
 		customer360Service: customer360Service,

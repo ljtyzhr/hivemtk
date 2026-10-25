@@ -17,7 +17,7 @@ func setupIntentTestDB(t *testing.T) *gorm.DB {
 	// ⚠️ 只迁移 IntentRecord，**不得**把 &model.IntentLog{} 加进来。
 	//
 	// IntentLog 是 intent_records 的列映射视图（见 model/intent_log.go 顶部注释，
-	// OPT-DB-10：intent_logs 已并入统一意图表 intent_records，source='fine_grained'），
+	// intent_logs 已并入统一意图表 intent_records，source='fine_grained'），
 	// 其列结构由迁移 v3.22.3 保证，明确「禁止加入 automigrate 清单」。
 	//
 	// 违反后果：两个结构体都声明 TableName()="intent_records"，AutoMigrate 先 DROP
@@ -33,7 +33,7 @@ func setupIntentTestDB(t *testing.T) *gorm.DB {
 
 func newIntentRecognizer(t *testing.T) (*IntentRecognizer, *gorm.DB) {
 	db := setupIntentTestDB(t)
-	return NewIntentRecognizer(db, nil, nil), db
+	return NewIntentRecognizer(nil, nil), db
 }
 
 func waitForIntentCount(t *testing.T, rec *IntentRecognizer, customerID string, want int, timeout time.Duration) []model.IntentRecord {
@@ -936,8 +936,8 @@ func TestRecognize_LLMUnavailableFallback(t *testing.T) {
 
 // 89. 初始化
 func TestInitIntentRecognizer(t *testing.T) {
-	db := setupIntentTestDB(t)
-	rec1 := InitIntentRecognizer(db, nil, nil)
+	setupIntentTestDB(t)
+	rec1 := InitIntentRecognizer(nil, nil)
 	rec2 := GetIntentRecognizer()
 	if rec1 != rec2 {
 		t.Error("expected same instance")

@@ -17,11 +17,14 @@ package repository
 import (
 	"context"
 	"errors"
+	"hash/fnv"
 	"strconv"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
+
+	dbutil "hivemtk-user/internal/pkg/db"
 
 	"hivemtk-user/internal/model"
 )
@@ -50,6 +53,11 @@ const paymentChannelRefConstraint = "uq_payments_channel_ref"
 // 刻意**不校验字符集**：这里只是幂等键，渠道给什么形状的单号都有，
 // 自造白名单等于替所有平台赌一次它们的编号格式（回显进日志时由调用方用 %q 兜住）。
 const paymentChannelRefMaxLen = 128
+
+// refundLockWait 同账单退款入账等锁的上限。取 10s：正常路径是毫秒级（锁键
+// 按 bill_id 隔离，同账单并发退款本来就该串行）；10s 还没拿到说明有事务卡住，
+// 让它以"等锁超时"报出来，而不是把请求线程挂死。
+const refundLockWait = 10 * time.Second
 
 // PaymentRepository payments 读写接口。方法集由 payment_test.go 的
 // TestPaymentRepository_MethodSetIsExactlyTheDocumentedSix 逐字钉住。
@@ -80,6 +88,14 @@ type PaymentRepository interface {
 
 	// ListByBillID 某一应收名下的全部回款行，按 paid_at 升序（对账读的是流水顺序）。
 	ListByBillID(ctx context.Context, billID string) ([]*model.Payment, error)
+
+	// CreateRefundGuarded 在**单个事务**里完成"锁账单 → 事务内求和 → 校验 → 记退款行"
+	// 四步，供退款入账腿用（A11 TOCTOU：求和与插入之间一旦换连接，两个并发退款都能
+	// 通过"不超过净到账"的前置校验）。guard 在锁内、写前执行：签名给事务内求和值，
+	// 返回非 nil 即整个事务回滚（校验语义归调用方，本层只保证求和与插入同锁同事务）。
+	// 锁是 pg_advisory_xact_lock(锁键=bill_id)，事务结束自动释放，不落任何表行；
+	// channel_ref 唯一索引的幂等语义与 Create 完全一致（撞键回 ErrPaymentAlreadyRecorded）。
+	CreateRefundGuarded(ctx context.Context, p *model.Payment, guard func(settledBefore float64) error) error
 }
 
 type paymentRepo struct {
@@ -142,6 +158,123 @@ func (r *paymentRepo) Create(ctx context.Context, p *model.Payment) error {
 		return err
 	}
 	return nil
+}
+
+// validatePaymentRow 与 Create 共用的行级校验（身份四格 + 金额/币种/状态值域）。
+// 抽出来是因为 CreateRefundGuarded 的插入腿必须跑同一套判据——两条写路径的守卫
+// 各写一份就会漂（将来加一列，一边判了一边漏）。
+func validatePaymentRow(p *model.Payment) error {
+	if p == nil || p.ID == "" {
+		return errors.New("payment repository: 空记录或空回款行号（它会进日志与对账导出，空串指不回任何一笔钱）")
+	}
+	if strings.TrimSpace(p.BillID) == "" {
+		return errors.New("payment repository: 空 bill_id 不是合法身份（结清判据按它求和，空串这笔钱永远算不到任何账单上）")
+	}
+	ref := strings.TrimSpace(p.ChannelRef)
+	if ref == "" {
+		return errors.New("payment repository: 空 channel_ref 不是合法身份（它是本表唯一的幂等键，空键等于每笔重投都能插进来）")
+	}
+	if len(ref) > paymentChannelRefMaxLen {
+		return errors.New("payment repository: channel_ref 超上限 " +
+			strconv.Itoa(paymentChannelRefMaxLen) + " 字符（外部可控文本必须有界）")
+	}
+	if !model.PaymentAmountInRange(p.Amount) {
+		return errors.New("payment repository: 金额不是「正数且不超过 numeric(14,2) 上界」（方向由 status 表达，符号不许进金额列）")
+	}
+	if strings.TrimSpace(p.Currency) == "" {
+		return errors.New("payment repository: 空币种：不带币种的钱与账单上的那个数不可比")
+	}
+	if strings.TrimSpace(p.Platform) == "" {
+		return errors.New("payment repository: 空平台：资金凭据不留来路，渠道问起这笔钱时无从答起")
+	}
+	if strings.TrimSpace(p.OrderID) == "" {
+		return errors.New("payment repository: 空外部订单号：同上，这一格是「哪条回调带来的这笔钱」的唯一线索")
+	}
+	if !model.PaymentStatusKnown(p.Status) {
+		return errors.New("payment repository: status 不在回款值域内（库里没有 CHECK，拼错的一格会静默改变结清金额）")
+	}
+	return nil
+}
+
+// refundLockKey 把 bill_id 压成 advisory lock 的 int64 键（fnv32a，同
+// service/trace_learning 的 traceLockKey 形状）。压撞的概率是 2^-32 每对
+// 账单号——压撞的后果只是"两张不相干账单的退款串行化"，不是错账，可接受。
+func refundLockKey(billID string) int64 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(billID))
+	return int64(h.Sum32())
+}
+
+// CreateRefundGuarded A11（2026-10-24）：退款入账的原子通路。
+//
+// RecordPartialRefund 原来是"连接 A 求和 → 连接 B 插入"两步：两步之间第二个
+// 并发退款把同一个净到账读了同一个值，两笔都过前置校验、都插入，结清和变负。
+// 修法把四步收进一个事务：pg_advisory_xact_lock(bill_id) 先串行化同账单的所有
+// 退款，再在**同一事务**里求和（复用 SumSettledByBill 的判据，传 tx 进去，不是
+// 另开连接）、跑调用方守卫、插入。guard 返回非 nil ⇒ 整个事务回滚，库里不剩行。
+//
+// 刻意不用 SELECT ... FOR UPDATE 锁 bills 行：账单行的写口还有结算折算
+// （applySettlement 走 UpdateStatus），行锁会把两条互不相干的腿互相堵出锁等待；
+// advisory xact lock 只锁"退款入账"这一条腿自己的临界区。
+func (r *paymentRepo) CreateRefundGuarded(ctx context.Context, p *model.Payment, guard func(settledBefore float64) error) error {
+	if err := r.require(); err != nil {
+		return err
+	}
+	if err := validatePaymentRow(p); err != nil {
+		return err
+	}
+	if guard == nil {
+		return errors.New("payment repository: 守卫为空（退款入账没有净到账校验等于没有前置，TOCTOU 修复形同虚设）")
+	}
+	billID := strings.TrimSpace(p.BillID)
+	txErr := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 事务级 advisory lock（走 internal/pkg/db 的 GORM 形态接缝）：
+		// 阻塞版 pg_advisory_xact_lock 返回 void，Scan 不了；Exec 被 GORM-only
+		// 门禁禁在业务包外 ⇒ 用 try 变体轮询，语义仍是"同账单退款串行化"。
+		if e := dbutil.AcquireAdvisoryXactLock(ctx, tx, refundLockKey(billID), refundLockWait); e != nil {
+			return e
+		}
+		settledBefore, err := sumSettledByBillOn(tx, billID)
+		if err != nil {
+			return err
+		}
+		if err := guard(settledBefore); err != nil {
+			return err
+		}
+		if err := tx.Create(p).Error; err != nil {
+			if isPaymentAlreadyRecorded(err) {
+				return ErrPaymentAlreadyRecorded
+			}
+			return err
+		}
+		return nil
+	})
+	return txErr
+}
+
+// sumSettledByBillOn 在**给定连接**上求净到账（SumSettledByBill 的连接参数化版本）。
+// 事务内求和必须用事务自己的 tx——用 r.db 就是把 TOCTOU 从门口请回屋里。
+// 判据与 SumSettledByBill 同源：状态集读 model.PaymentStatusesCounted，SQL 侧
+// SUM/ROUND，COALESCE 让"一张没有"回 0。
+func sumSettledByBillOn(tx *gorm.DB, billID string) (float64, error) {
+	statuses := model.PaymentStatusesCounted
+	if len(statuses) == 0 {
+		return 0, errors.New("payment repository: 计入结清的状态集为空（model.PaymentStatusesCounted 被改空了？）")
+	}
+	var settled, refunded float64
+	if err := tx.Table("payments").
+		Select("COALESCE(ROUND(SUM(amount), 2), 0)").
+		Where("bill_id = ? AND status IN ?", strings.TrimSpace(billID), statuses).
+		Scan(&settled).Error; err != nil {
+		return 0, err
+	}
+	if err := tx.Table("payments").
+		Select("COALESCE(ROUND(SUM(amount), 2), 0)").
+		Where("bill_id = ? AND status = ?", strings.TrimSpace(billID), model.PaymentStatusRefunded).
+		Scan(&refunded).Error; err != nil {
+		return 0, err
+	}
+	return settled - refunded, nil
 }
 
 // isPaymentAlreadyDerived 判定"撞的是幂等键还是别的约束"：SQLSTATE 与索引名都要命中。
@@ -225,26 +358,10 @@ func (r *paymentRepo) SumSettledByBill(ctx context.Context, billID string) (floa
 		// 而 `IN ()` 是 SQL 语法错。报一句人话比让 PG 报语法错便宜。
 		return 0, errors.New("payment repository: 计入结清的状态集为空（model.PaymentStatusesCounted 被改空了？）")
 	}
-	// 净到账 = Σ(confirmed) − Σ(refunded)，全部走 GORM 链式 API（两条条件聚合，各自
-	// COALESCE 让"一张没有"回 0）——`FILTER (WHERE ...)` 只能拼进 Raw，而 Raw 直连
-	// 是 gorm-only 门禁要清偿的债务；两条 Select 各自 SUM 后在 Go 侧相减，语义与
-	// 原 SQL 等价（同一 bill_id 的两次单列聚合），且保持参数绑定。
-	var settled, refunded float64
-	err := r.db.WithContext(ctx).Table("payments").
-		Select("COALESCE(ROUND(SUM(amount), 2), 0)").
-		Where("bill_id = ? AND status IN ?", strings.TrimSpace(billID), statuses).
-		Scan(&settled).Error
-	if err != nil {
-		return 0, err
-	}
-	err = r.db.WithContext(ctx).Table("payments").
-		Select("COALESCE(ROUND(SUM(amount), 2), 0)").
-		Where("bill_id = ? AND status = ?", strings.TrimSpace(billID), model.PaymentStatusRefunded).
-		Scan(&refunded).Error
-	if err != nil {
-		return 0, err
-	}
-	return settled - refunded, nil
+	// 实现下沉到 sumSettledByBillOn（连接参数化版本）：事务内求和
+	// （CreateRefundGuarded）必须复用同一条判据跑在事务自己的连接上，
+	// 两个实现各写一份就会漂。
+	return sumSettledByBillOn(r.db.WithContext(ctx), strings.TrimSpace(billID))
 }
 
 func (r *paymentRepo) GetByID(ctx context.Context, id string) (*model.Payment, error) {

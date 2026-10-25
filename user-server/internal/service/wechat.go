@@ -23,8 +23,6 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // WechatService 微信公众号服务
@@ -51,12 +49,15 @@ type wechatTokenClient struct {
 	mu          sync.Mutex
 }
 
-// NewWechatService 创建微信公众号服务
-func NewWechatService(db *gorm.DB) *WechatService {
+// NewWechatService 创建微信公众号服务。
+//
+// 五层架构 §3.2：构造器不接 DB 句柄——两个仓储都用 repository 的全局构造器装配
+// （公众号账号仓储 + 入站媒体回填用的 hub 仓储）。
+func NewWechatService() *WechatService {
 	return &WechatService{
-		repo:         repository.NewWechatAccountRepository(db),
+		repo:         repository.NewWechatAccountRepository(),
 		tokenClients: make(map[uint]*wechatTokenClient),
-		hubRepo:      repository.NewMessageHubRepositoryWithDB(db),
+		hubRepo:      repository.NewMessageHubRepository(),
 	}
 }
 

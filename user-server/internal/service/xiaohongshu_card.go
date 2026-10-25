@@ -6,8 +6,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/reach/card/template"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // XiaohongshuCardService 小红书卡片服务接口
@@ -29,12 +27,12 @@ type xiaohongshuCardService struct {
 }
 
 // NewXiaohongshuCardService 创建小红书卡片服务实例
-func NewXiaohongshuCardService(db *gorm.DB) XiaohongshuCardService {
+func NewXiaohongshuCardService(repo repository.XiaohongshuCardRepository, shortLinkService ShortLinkService, domainPoolService DomainPoolService) XiaohongshuCardService {
 	return &xiaohongshuCardService{
-		repo:              repository.NewXiaohongshuCardRepository(db),
+		repo:              repo,
 		templateService:   template.NewTemplateService("internal/template"),
-		shortLinkService:  NewShortLinkService(db),
-		domainPoolService: NewDomainPoolService(db),
+		shortLinkService:  shortLinkService,
+		domainPoolService: domainPoolService,
 	}
 }
 

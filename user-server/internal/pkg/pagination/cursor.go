@@ -137,8 +137,8 @@ func CursorQuery(ctx context.Context, db *gorm.DB, opts CursorQueryOpts) (*Curso
 	if orderBy == "" {
 		orderBy = "created_at DESC, id DESC"
 	} else if !orderClauseRe.MatchString(orderBy) {
-		// 结构白名单：CursorQuery 目前无生产调用方，但作为通用模板预拒
-		// "列名 + ASC/DESC"语法子集之外的一切输入（fail-closed，绝不带病执行）。
+		// 结构白名单：预拒"列名 + ASC/DESC"语法子集之外的一切输入
+		// （fail-closed，绝不带病执行）。
 		return nil, fmt.Errorf("invalid order_by: %s", opts.OrderBy)
 	}
 	q = q.Order(orderBy)

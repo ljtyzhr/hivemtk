@@ -39,13 +39,13 @@ func newWebhookRouteEnv(t *testing.T) (*gin.Engine, *service.WebhookService, *go
 	dbutil.SetTestDB(database)
 	t.Cleanup(func() { dbutil.SetTestDB(nil) })
 
-	webhookSvc := service.NewWebhookService(database)
+	webhookSvc := service.NewWebhookService()
 	t.Cleanup(func() { webhookSvc.Stop(context.Background()) })
 
 	gin.SetMode(gin.TestMode)
 	g := gin.New()
 	ctrl := NewWebhookController(webhookSvc)
-	ctrl.SetDingTalkAppService(service.NewDingTalkAppService(database, webhookSvc))
+	ctrl.SetDingTalkAppService(service.NewDingTalkAppService(webhookSvc))
 	ctrl.RegisterRoutes(g)
 	return g, webhookSvc, database
 }

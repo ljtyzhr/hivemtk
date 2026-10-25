@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"context"
 	"hivemtk-user/internal/model"
@@ -21,21 +20,10 @@ type MessageQueueService struct {
 	mu     sync.RWMutex
 }
 
-// NewMessageQueueService 构造消息队列服务
-//
-// 五层架构 §三.5：构造函数保留 db *gorm.DB 参数（调用方不变），
-// 内部创建 repository 实例，service 不再持有 db。
-//
-// 测试场景下 db 为 nil 时使用全局 DB（由 SetTestDB 设置）。
-func NewMessageQueueService(db *gorm.DB) *MessageQueueService {
-	var repo *repository.MessageQueueRepository
-	if db != nil {
-		repo = repository.NewMessageQueueRepositoryWithDB(db)
-	} else {
-		repo = repository.NewMessageQueueRepository()
-	}
+// NewMessageQueueService 构造消息队列服务（句柄由 repository 自取全局库）
+func NewMessageQueueService() *MessageQueueService {
 	return &MessageQueueService{
-		repo:   repo,
+		repo:   repository.NewMessageQueueRepository(),
 		queues: make(map[string][]model.QueuedMessage),
 		status: make(map[string]model.QueueStatus),
 	}

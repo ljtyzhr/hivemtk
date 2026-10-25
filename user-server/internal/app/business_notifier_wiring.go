@@ -29,6 +29,6 @@ func InitBusinessNotifier(db *gorm.DB) {
 			"（业务动作照常成功，只是收不到提醒）")
 		return
 	}
-	service.SetGlobalNotifier(service.NewNotificationService(db))
+	service.SetGlobalNotifier(service.NewNotificationService())
 	logger.Infof("[business-notify] ✅ 业务通知口已装配：新草稿待确认 → owner、新坏例待归因 / 知识库变更待审核 → 广播")
 }

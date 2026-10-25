@@ -21,10 +21,10 @@ func newSSERuntimeParamFixture(t *testing.T) (*ConfigParamService, *gorm.DB) {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	if err := SeedConfigParams(context.Background(), database); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := NewConfigParamService(database)
+	svc := NewConfigParamService()
 	SetGlobalForTest(svc)
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	return svc, database
@@ -118,7 +118,7 @@ func TestSSERuntimeParamsRejectNonPositive(t *testing.T) {
 	// 必须换一个**冷缓存**的 service：参数服务按 group.key 缓存 60s
 	// （configParamTTL），上一个 service 里 sse.max_conn_per_ip 还停在 0，
 	// 直接读只会拿到缓存的旧值。
-	SetGlobalForTest(NewConfigParamService(db))
+	SetGlobalForTest(NewConfigParamService())
 	if got := runtimeSSEMaxConnPerIP(ctx); got != 12 {
 		t.Errorf("坏值恢复后应读到 12, got %d", got)
 	}

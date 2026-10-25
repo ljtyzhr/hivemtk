@@ -15,6 +15,8 @@ import (
 	pkgdb "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 const (
@@ -34,7 +36,7 @@ func tuningServiceSetup(t *testing.T) TuningService {
 		t.Fatal("测试库不可达：tuning 的置信度契约判不了（不 Skip，跳过等于没锁）")
 	}
 	pkgdb.SetTestDB(db)
-	return NewTuningService(db)
+	return NewTuningService(repository.NewConfidenceSignalRepositoryWithDB(db), repository.NewConfidenceCalibrationRepositoryWithDB(db), repository.NewThresholdPolicyRepositoryWithDB(db))
 }
 
 func TestTuningService_UpsertThresholdPolicyIsVersionedAndTenantScoped(t *testing.T) {

@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupCardRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
@@ -41,7 +43,7 @@ func setupCardRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	auth.POST("/kuaishou/share/:id", kuaishouCardCtrl.ShareCard)
 	auth.POST("/kuaishou/:id/generate-short-link", middleware.RequirePermission("cards.write"), kuaishouCardCtrl.GenerateShortLink)
 
-	xiaohongshuCardCtrl := controller.NewXiaohongshuCardController(service.NewXiaohongshuCardService(gormDB))
+	xiaohongshuCardCtrl := controller.NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(gormDB), service.NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)), service.NewDomainPoolService(repository.NewDomainPoolRepository(gormDB), repository.NewDomainBlacklistRepository(gormDB))))
 	auth.GET("/xiaohongshu-card/list", xiaohongshuCardCtrl.GetList)
 	auth.POST("/xiaohongshu-card", xiaohongshuCardCtrl.Create)
 	auth.PUT("/xiaohongshu-card/:id", xiaohongshuCardCtrl.Update)
@@ -86,19 +88,19 @@ func setupXianyuCardTrackRoutes(public *gin.RouterGroup, gormDB *gorm.DB) {
 }
 
 func setupCardStatsRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	douyinStatsCtrl := controller.NewDouyinCardStatsController(service.NewDouyinCardStatsService(gormDB))
+	douyinStatsCtrl := controller.NewDouyinCardStatsController(service.NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(gormDB)))
 	auth.GET("/douyin-card/stats/:id", douyinStatsCtrl.GetCardStats)
 	auth.GET("/douyin-card/overall-stats", douyinStatsCtrl.GetOverallStats)
 	auth.GET("/douyin/stats/card/:id", douyinStatsCtrl.GetCardStats)
 	auth.GET("/douyin/stats/overall", douyinStatsCtrl.GetOverallStats)
 
-	kuaishouStatsCtrl := controller.NewKuaishouCardStatsController(service.NewKuaishouCardStatsService(gormDB))
+	kuaishouStatsCtrl := controller.NewKuaishouCardStatsController(service.NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(gormDB)))
 	auth.GET("/kuaishou-card/stats/:id", kuaishouStatsCtrl.GetCardStats)
 	auth.GET("/kuaishou-card/overall-stats", kuaishouStatsCtrl.GetOverallStats)
 	auth.GET("/kuaishou/stats/card/:id", kuaishouStatsCtrl.GetCardStats)
 	auth.GET("/kuaishou/stats/overall", kuaishouStatsCtrl.GetOverallStats)
 
-	xiaohongshuStatsCtrl := controller.NewXiaohongshuCardStatsController(service.NewXiaohongshuCardStatsService(gormDB))
+	xiaohongshuStatsCtrl := controller.NewXiaohongshuCardStatsController(service.NewXiaohongshuCardStatsService(repository.NewXiaohongshuCardStatsRepository(gormDB)))
 	auth.GET("/xiaohongshu-card/stats/:id", xiaohongshuStatsCtrl.GetCardStats)
 	auth.GET("/xiaohongshu-card/overall-stats", xiaohongshuStatsCtrl.GetOverallStats)
 	auth.GET("/xiaohongshu/stats/card/:id", xiaohongshuStatsCtrl.GetCardStats)
@@ -111,11 +113,11 @@ func setupCardStatsRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	auth.GET("/xianyu/stats/overall", xianyuStatsCtrl.GetOverallStats)
 
 	factory := controller.NewCardStatsFactoryController(
-		service.NewPlatformDouyinCardStatsAdapter(service.NewDouyinCardStatsService(gormDB)),
-		service.NewPlatformKuaishouCardStatsAdapter(service.NewKuaishouCardStatsService(gormDB)),
-		service.NewPlatformXiaohongshuCardStatsAdapter(service.NewXiaohongshuCardStatsService(gormDB)),
+		service.NewPlatformDouyinCardStatsAdapter(service.NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(gormDB))),
+		service.NewPlatformKuaishouCardStatsAdapter(service.NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(gormDB))),
+		service.NewPlatformXiaohongshuCardStatsAdapter(service.NewXiaohongshuCardStatsService(repository.NewXiaohongshuCardStatsRepository(gormDB))),
 		service.NewPlatformXianyuCardStatsAdapter(service.NewXianyuCardStatsService(gormDB)),
-		service.NewPlatformTiktokCardStatsAdapter(service.NewTikTokCardService(), gormDB),
+		service.NewPlatformTiktokCardStatsAdapter(service.NewTikTokCardService()),
 	)
 	auth.GET("/card-stats/:platform/stats/:id", factory.GetCardStats)
 	auth.GET("/card-stats/:platform/overall", factory.GetOverallStats)

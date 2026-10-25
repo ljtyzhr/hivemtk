@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
@@ -54,6 +55,14 @@ func (c *FAQController) RegisterRoutes(router *gin.RouterGroup) {
 // @Success      200  {object}  response.Response  "成功"
 // @Router       /api/faqs [get]
 func (c *FAQController) List(ctx *gin.Context) {
+	// P0-3：kb_id 不许被静默忽略。faq_entries 没有 kb_id 归属列（见 model/faq_entry.go），
+	// 本端点只能给全局列表；调用方传 kb_id 时期待的是"这个知识库的内容"，把参数
+	// 丢掉就变成"不报错但显示错数据"——比 404 更隐蔽。显式拒绝并指路。
+	if strings.TrimSpace(ctx.Query("kb_id")) != "" {
+		response.Error(ctx, http.StatusBadRequest,
+			"kb_id 过滤不支持：FAQ 列表是全局列表（faq_entries 无 kb_id 归属）；按知识库预览请用 GET /api/knowledge-bases/:id/items")
+		return
+	}
 	page, pageSize, err := pagination.Parse(ctx)
 	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())

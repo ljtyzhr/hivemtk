@@ -241,3 +241,36 @@ func TestGateSweeperPairedOnShutdown(t *testing.T) {
 		t.Fatalf("router.go 里 service.StartGateSweeper( 出现 %d 次，期望 1 次（0 次=清扫器根本不起，2 次=两台在扫同一批台账）", n)
 	}
 }
+
+// TestComplianceAuditLoggerWiredAfterDB 合规审计落库器必须真的装进启动路径，且晚于 db.InitDB、
+// 配对 Stop。
+//
+// 漏装的那一种编译照过、用例照绿：触达侧 recordComplianceDecision / LogComplianceReminder
+// 全是 nil-safe 退路（只打 WARN），reach_compliance_log 从此一行不落 —— 模型、仓储、
+// 刷盘协程在代码里齐全，唯独这条腿是死的。这正是 2026-10-24 gorm-todo 登记
+// 「InitComplianceAuditLogger 全仓零装配」的形态，本条防它复发。三条判据各拦一种漏法：
+//   - 整行消失/装两次（sync.Once 挡重入但两处调用说明口径漂移）；
+//   - 装了但早于 db.InitDB（repository.GetDB 返回 nil ⇒ 永久退化成"只 WARN 不落库"的那一路）；
+//   - 没登记 Stop（关停时缓冲里未刷盘的合规行直接丢）。
+func TestComplianceAuditLoggerWiredAfterDB(t *testing.T) {
+	src, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("读取 main.go: %v", err)
+	}
+	s := string(src)
+
+	const call = "service.InitComplianceAuditLogger()"
+	if n := strings.Count(s, call); n != 1 {
+		t.Fatalf("main.go 里 %s 出现 %d 次，期望 1 次（0 次=合规审计整条腿是死的）", call, n)
+	}
+	if !strings.Contains(s, "defer complianceAudit.Stop()") {
+		t.Error("main.go 里没有 defer complianceAudit.Stop()：优雅关停时缓冲中未刷盘的合规行直接丢失")
+	}
+	initDB := strings.Index(s, "db.InitDB()")
+	if initDB < 0 {
+		t.Fatal("main.go 里已找不到 db.InitDB()，先后判据失去参照物")
+	}
+	if at := strings.Index(s, call); at < initDB {
+		t.Errorf("合规审计装配(偏移 %d)早于 db.InitDB(偏移 %d) ⇒ GetDB 返回 nil，永久退化为只 WARN 不落库", at, initDB)
+	}
+}

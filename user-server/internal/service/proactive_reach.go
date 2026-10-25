@@ -7,13 +7,20 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
+)
+
+// ErrNoChannelIdentity / ErrNoActiveAccount 选不出渠道的两类根因哨兵。
+// recovery_queue_worker 按 errors.Is 分诊（2026-10-25 前是字符串匹配，CONVENTIONS §3.3 反模式）。
+var (
+	// ErrNoChannelIdentity 客户没有任何渠道身份
+	ErrNoChannelIdentity = errors.New("no channel identity")
+	// ErrNoActiveAccount 有渠道身份但无可用账号
+	ErrNoActiveAccount = errors.New("no active account")
 )
 
 // 外发被拦的两类原因用哨兵错误表达，供调用方分支判断。
@@ -200,20 +207,29 @@ type AccountLookup interface {
 	FindActiveAccount(ctx context.Context, channel string) (accountID string, err error)
 }
 
-// NewProactiveReachService 创建主动触达服务
-func NewProactiveReachService(db *gorm.DB, lookup AccountLookup) *ProactiveReachService {
+// NewProactiveReachService 创建主动触达服务。
+//
+// 依赖全部由装配点注入（仓库对象而非 DB 句柄，见五层架构 §3.2）：
+//   - repo：客户/偏好渠道/账号查找；
+//   - dncRepo：退订标志位。**必须与 repo 用同一句柄**——曾经这里靠"传 db 或不传"来表达
+//     同一件事，于是"注入式装配"名不副实：同一个服务读客户用参数库、读退订用全局库，
+//     两个库不是同一个句柄时退订检查会打到错的库。现在这件事由装配点显式决定（传 nil
+//     则退到 NewDoNotContactService 的默认路径）。
+//   - lookup：账号查找口（nil 时用默认实现）。
+func NewProactiveReachService(repo *repository.ProactiveReachRepository, dncRepo repository.CustomerDoNotContactRepository, lookup AccountLookup) *ProactiveReachService {
+	if repo == nil {
+		// 与"拿到 nil 句柄"的历史语义逐字一致：仓库在位但无连接，读到的是一条明确错误
+		// （或空结果）而不是 panic。
+		repo = repository.NewProactiveReachRepository(nil)
+	}
 	if lookup == nil {
-		lookup = &defaultAccountLookup{repo: repository.NewProactiveReachRepository(db)}
+		lookup = &defaultAccountLookup{repo: repo}
 	}
 	return &ProactiveReachService{
-		repo:          repository.NewProactiveReachRepository(db),
-		customerRepo:  newCustomerRepo(db),
+		repo:          repo,
+		customerRepo:  newCustomerRepo(repo),
 		accountLookup: lookup,
-		// 传 db 而不是 nil：NewCustomerDoNotContactRepository(nil) 会退到进程全局句柄，
-		// 于是"注入式装配"在本服务里名不副实——同一个服务读客户用参数库、读退订用全局库，
-		// 两个库不是同一个句柄时退订检查会打到错的库（单测里全局未初始化则直接 panic）。
-		// 传 db 后：db 为 nil 时行为与之前逐字一致，非 nil 时用调用方给的那个库。
-		dnc: NewDoNotContactService(repository.NewCustomerDoNotContactRepository(db)),
+		dnc:           NewDoNotContactService(dncRepo),
 	}
 }
 
@@ -345,8 +361,11 @@ type customerRepo struct {
 	repo *repository.ProactiveReachRepository
 }
 
-func newCustomerRepo(db *gorm.DB) *customerRepo {
-	return &customerRepo{repo: repository.NewProactiveReachRepository(db)}
+func newCustomerRepo(repo *repository.ProactiveReachRepository) *customerRepo {
+	if repo == nil {
+		repo = repository.NewProactiveReachRepository(nil)
+	}
+	return &customerRepo{repo: repo}
 }
 
 func (r *customerRepo) GetByID(ctx context.Context, id string) (*model.Customer, error) {
@@ -617,7 +636,7 @@ func (s *ProactiveReachService) pickChannelDryRun(candidates []string, ident *Cu
 		}
 		return ch, recipient, "dry_run_account", nil
 	}
-	return "", "", "", fmt.Errorf("no channel identity for customer %s", ident.cust.UnifiedID)
+	return "", "", "", fmt.Errorf("%w for customer %s", ErrNoChannelIdentity, ident.cust.UnifiedID)
 }
 
 func (s *ProactiveReachService) pickChannel(ctx context.Context, candidates []string, ident *CustomerIdentity) (channel, recipient, accountID string, err error) {
@@ -643,7 +662,7 @@ func (s *ProactiveReachService) pickChannel(ctx context.Context, candidates []st
 		}
 		return ch, recipient, acc, nil
 	}
-	return "", "", "", fmt.Errorf("no active account for customer %s, tried: %s", ident.cust.UnifiedID, strings.Join(tried, ","))
+	return "", "", "", fmt.Errorf("%w for customer %s, tried: %s", ErrNoActiveAccount, ident.cust.UnifiedID, strings.Join(tried, ","))
 }
 
 // reachCooldownWindow 同一客户两次外发的最小间隔。
@@ -906,10 +925,23 @@ func (l *defaultAccountLookup) FindActiveAccount(ctx context.Context, channel st
 	return l.repo.FindActiveAccountID(ctx, channel, int(BridgeOnlineGraceWindow(ctx).Seconds()))
 }
 
+// ProactiveReachSenderSet 主动触达用到的一组外发服务。
+//
+// 为什么交"造好的服务"而不是"一个 DB 句柄"：装配点（router / app）比服务层更清楚
+// 这些外发腿该连哪个库；把句柄传进来就意味着本文件也要握 GORM 句柄（五层架构 §3.2 阻断项），
+// 而且每个腿的仓储选择会重新散落成各写各的。字段留 nil 表示该渠道不装配。
+type ProactiveReachSenderSet struct {
+	Telegram *TelegramIntegrationService
+	WhatsApp *WhatsAppCloudIntegrationService
+	Feishu   *FeishuIntegrationService
+	WeCom    *WeComIntegrationService
+	Wechat   *WechatService
+}
+
 // BindProactiveReachSenders 把 Reach Sender 注册到 ProactiveReachService
 //
 //	在 router 启动时调用，把真实的 SMS/Email/TG/... 发送器注入。
-func BindProactiveReachSenders(svc *ProactiveReachService, db *gorm.DB) {
+func BindProactiveReachSenders(svc *ProactiveReachService, senders ProactiveReachSenderSet) {
 	if svc == nil {
 		return
 	}
@@ -925,42 +957,57 @@ func BindProactiveReachSenders(svc *ProactiveReachService, db *gorm.DB) {
 	})
 
 	svc.SetEmailRegistry(func(ctx context.Context, accountID uint, to, subject, content string, attachments []string) (string, error) {
-		emailSvc := NewEmailService(db)
+		emailSvc := NewEmailService()
 		return emailSvc.Send(ctx, accountID, to, subject, content, attachments)
 	})
 
-	svc.SetTelegramRegistry(func(ctx context.Context, accountID uint, chatID int64, content string) error {
-		return NewTelegramIntegrationService(db).SendMessage(ctx, accountID, chatID, content)
-	})
-
-	svc.SetWhatsAppRegistry(func(ctx context.Context, accountID uint, toPhone, content string) error {
-		return NewWhatsAppCloudIntegrationService(db).SendMessage(ctx, accountID, toPhone, content)
-	})
-
-	svc.SetWeComRegistry(func(ctx context.Context, accountID uint, externalUserID, msgType, content string, isAIReply bool, agent string) (string, error) {
-		_, err := NewWeComIntegrationService(db).SendMessage(ctx, &WeComSendRequest{
-			AccountID:      accountID,
-			ExternalUserID: externalUserID,
-			MsgType:        msgType,
-			Content:        content,
-			IsAIReply:      isAIReply,
-			AIAgent:        agent,
+	if senders.Telegram != nil {
+		tg := senders.Telegram
+		svc.SetTelegramRegistry(func(ctx context.Context, accountID uint, chatID int64, content string) error {
+			return tg.SendMessage(ctx, accountID, chatID, content)
 		})
-		if err != nil {
-			return "", err
-		}
-		return "wecom_out", nil
-	})
+	}
 
-	svc.SetFeishuRegistry(func(ctx context.Context, accountID uint, openID, content, receiveIDType string) error {
-		return NewFeishuIntegrationService(db).SendMessage(ctx, accountID, openID, content, receiveIDType, "")
-	})
+	if senders.WhatsApp != nil {
+		wa := senders.WhatsApp
+		svc.SetWhatsAppRegistry(func(ctx context.Context, accountID uint, toPhone, content string) error {
+			return wa.SendMessage(ctx, accountID, toPhone, content)
+		})
+	}
+
+	if senders.WeCom != nil {
+		wecom := senders.WeCom
+		svc.SetWeComRegistry(func(ctx context.Context, accountID uint, externalUserID, msgType, content string, isAIReply bool, agent string) (string, error) {
+			_, err := wecom.SendMessage(ctx, &WeComSendRequest{
+				AccountID:      accountID,
+				ExternalUserID: externalUserID,
+				MsgType:        msgType,
+				Content:        content,
+				IsAIReply:      isAIReply,
+				AIAgent:        agent,
+			})
+			if err != nil {
+				return "", err
+			}
+			return "wecom_out", nil
+		})
+	}
+
+	if senders.Feishu != nil {
+		feishu := senders.Feishu
+		svc.SetFeishuRegistry(func(ctx context.Context, accountID uint, openID, content, receiveIDType string) error {
+			return feishu.SendMessage(ctx, accountID, openID, content, receiveIDType, "")
+		})
+	}
 
 	svc.SetDingTalkRegistry(func(ctx context.Context, webhookOrToken, secret, msgType, content string) (string, error) {
 		return NewDingTalkService().SendRobot(ctx, webhookOrToken, secret, msgType, content)
 	})
 
-	svc.SetWechatRegistry(func(ctx context.Context, accountID uint, openID, msgType, content string) (string, error) {
-		return NewWechatService(db).SendCustomMessage(ctx, accountID, openID, msgType, content)
-	})
+	if senders.Wechat != nil {
+		wechat := senders.Wechat
+		svc.SetWechatRegistry(func(ctx context.Context, accountID uint, openID, msgType, content string) (string, error) {
+			return wechat.SendCustomMessage(ctx, accountID, openID, msgType, content)
+		})
+	}
 }

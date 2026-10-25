@@ -69,6 +69,11 @@ type dashboardStatsRepo struct {
 	summaryRepo MessageHubSummaryRepository
 }
 
+// NewDashboardStatsRepositoryDefault 默认构造（全局句柄）。
+func NewDashboardStatsRepositoryDefault() DashboardStatsRepository {
+	return NewDashboardStatsRepository(GetDB())
+}
+
 func NewDashboardStatsRepository(db *gorm.DB) DashboardStatsRepository {
 	return &dashboardStatsRepo{db: db, summaryRepo: NewMessageHubSummaryRepository(db)}
 }

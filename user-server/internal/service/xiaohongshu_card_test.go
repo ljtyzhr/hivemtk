@@ -11,6 +11,8 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupXiaohongshuCardServiceTestDB(t *testing.T) *gorm.DB {
@@ -37,7 +39,7 @@ func setupXiaohongshuCardServiceTestDB(t *testing.T) *gorm.DB {
 // TestNewXiaohongshuCardService 测试创建小红书卡片服务
 func TestNewXiaohongshuCardService(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	if service == nil {
 		t.Error("Expected non-nil service")
 	}
@@ -46,7 +48,7 @@ func TestNewXiaohongshuCardService(t *testing.T) {
 // TestXiaohongshuCardService_Create_Success 测试创建小红书卡片成功
 func TestXiaohongshuCardService_Create_Success(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	req := &dto.XiaohongshuCardCreateRequest{
 		Title:        "Test Card",
@@ -78,7 +80,7 @@ func TestXiaohongshuCardService_Create_Success(t *testing.T) {
 // TestXiaohongshuCardService_Create_EmptyTitle 测试创建空标题卡片
 func TestXiaohongshuCardService_Create_EmptyTitle(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	req := &dto.XiaohongshuCardCreateRequest{
 		Title:       "",
@@ -96,7 +98,7 @@ func TestXiaohongshuCardService_Create_EmptyTitle(t *testing.T) {
 // TestXiaohongshuCardService_Create_EmptyRedirectURL 测试创建无跳转链接卡片
 func TestXiaohongshuCardService_Create_EmptyRedirectURL(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	req := &dto.XiaohongshuCardCreateRequest{
 		Title:        "Test Card",
@@ -119,7 +121,7 @@ func TestXiaohongshuCardService_Create_EmptyRedirectURL(t *testing.T) {
 // TestXiaohongshuCardService_Update_Success 测试更新小红书卡片成功
 func TestXiaohongshuCardService_Update_Success(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	createReq := &dto.XiaohongshuCardCreateRequest{
 		Title:        "Original Card",
@@ -161,7 +163,7 @@ func TestXiaohongshuCardService_Update_Success(t *testing.T) {
 // TestXiaohongshuCardService_Update_NotFound 测试更新不存在的卡片
 func TestXiaohongshuCardService_Update_NotFound(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	updateReq := &dto.XiaohongshuCardUpdateRequest{
 		ID:    999,
@@ -177,7 +179,7 @@ func TestXiaohongshuCardService_Update_NotFound(t *testing.T) {
 // TestXiaohongshuCardService_Delete_Success 测试删除小红书卡片成功
 func TestXiaohongshuCardService_Delete_Success(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	createReq := &dto.XiaohongshuCardCreateRequest{
 		Title:        "Card to Delete",
@@ -205,7 +207,7 @@ func TestXiaohongshuCardService_Delete_Success(t *testing.T) {
 // TestXiaohongshuCardService_Delete_NotFound 测试删除不存在的卡片
 func TestXiaohongshuCardService_Delete_NotFound(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	err := service.Delete(context.Background(), 999)
 	if err == nil {
@@ -216,7 +218,7 @@ func TestXiaohongshuCardService_Delete_NotFound(t *testing.T) {
 // TestXiaohongshuCardService_GetByID_Success 测试根据 ID 获取卡片成功
 func TestXiaohongshuCardService_GetByID_Success(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	createReq := &dto.XiaohongshuCardCreateRequest{
 		Title:        "Test Card",
@@ -248,7 +250,7 @@ func TestXiaohongshuCardService_GetByID_Success(t *testing.T) {
 // TestXiaohongshuCardService_GetByID_NotFound 测试获取不存在的卡片
 func TestXiaohongshuCardService_GetByID_NotFound(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	_, err := service.GetByID(context.Background(), 999)
 	if err == nil {
@@ -259,7 +261,7 @@ func TestXiaohongshuCardService_GetByID_NotFound(t *testing.T) {
 // TestXiaohongshuCardService_GetList_Success 测试获取卡片列表成功
 func TestXiaohongshuCardService_GetList_Success(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	for i := 1; i <= 5; i++ {
 		createReq := &dto.XiaohongshuCardCreateRequest{
@@ -295,7 +297,7 @@ func TestXiaohongshuCardService_GetList_Success(t *testing.T) {
 // TestXiaohongshuCardService_GetList_Pagination 测试分页获取卡片列表
 func TestXiaohongshuCardService_GetList_Pagination(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	for i := 1; i <= 15; i++ {
 		createReq := &dto.XiaohongshuCardCreateRequest{
@@ -338,7 +340,7 @@ func TestXiaohongshuCardService_GetList_Pagination(t *testing.T) {
 // TestXiaohongshuCardService_GetList_EmptyList 测试获取空列表
 func TestXiaohongshuCardService_GetList_EmptyList(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	listReq := &dto.XiaohongshuCardListRequest{
 		Page:     1,
@@ -360,7 +362,7 @@ func TestXiaohongshuCardService_GetList_EmptyList(t *testing.T) {
 // TestXiaohongshuCardService_Create_WithTags 测试创建带标签的卡片
 func TestXiaohongshuCardService_Create_WithTags(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	req := &dto.XiaohongshuCardCreateRequest{
 		Title:        "Card with Tags",
@@ -384,7 +386,7 @@ func TestXiaohongshuCardService_Create_WithTags(t *testing.T) {
 // TestXiaohongshuCardService_Create_InactiveCard 测试创建非激活卡片
 func TestXiaohongshuCardService_Create_InactiveCard(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
+	service := NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 
 	req := &dto.XiaohongshuCardCreateRequest{
 		Title:        "Inactive Card",

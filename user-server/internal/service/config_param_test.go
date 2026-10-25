@@ -18,7 +18,7 @@ func TestSeedConfigParams(t *testing.T) {
 	if gdb == nil {
 		t.Skip("no DB")
 	}
-	if err := SeedConfigParams(context.Background(), gdb); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("Seed failed: %v", err)
 	}
 	var count int64
@@ -64,11 +64,11 @@ func TestConfigParamUpdateResetAudit(t *testing.T) {
 	if gdb == nil {
 		t.Skip("no DB")
 	}
-	if err := SeedConfigParams(context.Background(), gdb); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
 
-	svc := NewConfigParamService(gdb)
+	svc := NewConfigParamService()
 	ctx := context.Background()
 
 	// 样本参数从 bridge.polling_default_timeout 换成 bridge.online_grace_window：

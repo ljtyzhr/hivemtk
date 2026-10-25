@@ -328,7 +328,7 @@ func TestOrderDraftSweepWorker_EndToEndFlipsAndPurgesRealRows(t *testing.T) {
 
 	// ① 一张已到期的 pending：把默认到期时长设成极短，走的是生产同一条建草稿路径
 	expiring := newOrderDraftService(&OrderDraftConfig{DefaultExpiry: time.Millisecond},
-		newDraftStoreForDB(database))
+		newDraftStoreForDB(repository.NewOrderDraftRepositoryWithDB(database)))
 	created, err := expiring.CreateManual(ctx, &CreateDraftRequest{
 		CustomerID: "sweep_e2e_cust", OwnerID: "sweep_e2e_sales",
 		ProductName: "光子嫩肤", Quantity: 1, UnitPrice: 880,

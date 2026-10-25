@@ -13,6 +13,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -61,7 +62,7 @@ func TestClassifyErrorPriority(t *testing.T) {
 func TestAggregateDailyIdempotent(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.LLMRoutingLog{}, &model.LLMUsageDaily{})
 	addT3Columns(t, db)
-	svc := NewReportService(db)
+	svc := NewReportService(repository.NewLLMUsageReportRepository(db))
 
 	// 造明细：2 行成功 + 1 行失败（含 error_class 空待归类）
 	now := time.Now()
@@ -85,12 +86,12 @@ func TestAggregateDailyIdempotent(t *testing.T) {
 
 	ctx := context.Background()
 	win := DailyAggWindow{From: now.Add(-time.Hour), To: now.Add(time.Hour)}
-	if err := svc.aggregateWindow(ctx, win.From, win.To); err != nil {
+	if _, err := svc.repo.AggregateWindow(ctx, win.From, win.To); err != nil {
 		t.Fatalf("aggregate #1: %v", err)
 	}
 	snap1 := dumpDaily(t, db)
 	snap1 = stripUpdatedAt(snap1)
-	if err := svc.aggregateWindow(ctx, win.From, win.To); err != nil {
+	if _, err := svc.repo.AggregateWindow(ctx, win.From, win.To); err != nil {
 		t.Fatalf("aggregate #2 (idempotent rerun): %v", err)
 	}
 	snap2 := dumpDaily(t, db)
@@ -108,7 +109,7 @@ func TestAggregateDailyIdempotent(t *testing.T) {
 func TestAggregateErrorClassBackfill(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.LLMRoutingLog{}, &model.LLMUsageDaily{})
 	addT3Columns(t, db)
-	svc := NewReportService(db)
+	svc := NewReportService(repository.NewLLMUsageReportRepository(db))
 	now := time.Now()
 	if err := db.Table("llm_routing_logs").Create(map[string]any{
 		"tenant_id": 1, "trace_id": "t9", "scenario": "chat", "provider": "p1", "model": "m1",
@@ -118,7 +119,7 @@ func TestAggregateErrorClassBackfill(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 	ctx := context.Background()
-	if err := svc.aggregateWindow(ctx, now.Add(-time.Hour), now.Add(time.Hour)); err != nil {
+	if _, err := svc.repo.AggregateWindow(ctx, now.Add(-time.Hour), now.Add(time.Hour)); err != nil {
 		t.Fatalf("aggregate: %v", err)
 	}
 	var bucket map[string]any

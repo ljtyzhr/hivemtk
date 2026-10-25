@@ -29,7 +29,7 @@ func DefaultHyDEGeneratorConfig() *HyDEGeneratorConfig {
 }
 
 // NewHyDEGenerator 创建 HyDE 生成器，chatClient 为 nil 时自动 disabled
-//（保持构造不报错，调用方按需启用）。
+// （保持构造不报错，调用方按需启用）。
 func NewHyDEGenerator(chatClient LLMChatClient, cfg *HyDEGeneratorConfig) *HyDEGenerator {
 	if cfg == nil {
 		cfg = DefaultHyDEGeneratorConfig()

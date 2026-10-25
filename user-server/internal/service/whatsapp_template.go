@@ -17,10 +17,11 @@ type WhatsAppTemplateService struct {
 	repo *repository.WhatsappTemplateRepository
 }
 
-func NewWhatsAppTemplateService(db *gorm.DB) *WhatsAppTemplateService {
-	if db != nil {
-		return &WhatsAppTemplateService{repo: repository.NewWhatsappTemplateRepositoryWithDB(db)}
-	}
+// NewWhatsAppTemplateService 创建模板服务。
+//
+// 五层架构 §3.2：本构造器不接 DB 句柄——仓储自带全局构造器
+// （repository.NewWhatsappTemplateRepository），连接在 repository 层解析。
+func NewWhatsAppTemplateService() *WhatsAppTemplateService {
 	return &WhatsAppTemplateService{repo: repository.NewWhatsappTemplateRepository()}
 }
 

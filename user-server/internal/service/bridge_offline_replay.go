@@ -11,8 +11,6 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 type BridgeOfflineReplayService struct {
@@ -22,12 +20,6 @@ type BridgeOfflineReplayService struct {
 // NewBridgeOfflineReplayService 创建离线回扫服务
 func NewBridgeOfflineReplayService() *BridgeOfflineReplayService {
 	return &BridgeOfflineReplayService{repo: repository.NewBridgeOfflineReplayRepository()}
-}
-
-// NewBridgeOfflineReplayServiceWithDB 注入 DB（测试用）
-func (s *BridgeOfflineReplayService) WithDB(d *gorm.DB) *BridgeOfflineReplayService {
-	s.repo = repository.NewBridgeOfflineReplayRepositoryWithDB(d)
-	return s
 }
 
 // OfflineChannel 离线渠道快照

@@ -22,8 +22,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // draftStore 草稿存储接口（方法集合 = service 需要的能力，不是表结构）
@@ -312,16 +310,17 @@ func newDBDraftStore(repo repository.OrderDraftRepository) *dbDraftStore {
 	return &dbDraftStore{repo: repo}
 }
 
-// newDraftStoreForDB 按句柄选底座：拿到可用 DB 才走持久化，否则回内存并告警。
+// newDraftStoreForDB 按仓库可用性选底座：拿到可用仓库才走持久化，否则回内存并告警。
 //
+// 入参是仓储对象而不是 DB 句柄（五层架构 §3.2）：句柄的取得留在装配点。
 // 回退必须出声：静默回内存 = "以为重启后草稿还在、其实没了"，
 // 而这正是本处开工前整个功能的实际状态（一句话都不说过）。
-func newDraftStoreForDB(db *gorm.DB) draftStore { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
-	if db == nil {
-		logger.Warnf("[order-draft] ⚠️ 未拿到 DB 句柄 ⇒ 草稿退回内存态（重启即丢、多副本各看各的）")
+func newDraftStoreForDB(repo repository.OrderDraftRepository) draftStore { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
+	if repo == nil {
+		logger.Warnf("[order-draft] ⚠️ 未拿到草稿仓储 ⇒ 草稿退回内存态（重启即丢、多副本各看各的）")
 		return newMemoryDraftStore()
 	}
-	return newDBDraftStore(repository.NewOrderDraftRepositoryWithDB(db))
+	return newDBDraftStore(repo)
 }
 
 func (s *dbDraftStore) durable() bool { return s.repo.Available() }
@@ -457,10 +456,10 @@ type shadowDraftStore struct {
 	lastError string
 }
 
-func newShadowDraftStore(db *gorm.DB) *shadowDraftStore {
+func newShadowDraftStore(repo repository.OrderDraftRepository) *shadowDraftStore {
 	return &shadowDraftStore{
 		primary: newMemoryDraftStore(),
-		mirror:  repository.NewOrderDraftRepositoryWithDB(db),
+		mirror:  repo,
 	}
 }
 
@@ -581,16 +580,16 @@ func (s *shadowDraftStore) statusCounts(ctx context.Context) (map[string]int64, 
 	return s.primary.statusCounts(ctx)
 }
 
-// newShadowDraftStoreForDB 拿到句柄才起影子，否则退回纯内存并出声。
+// newShadowDraftStoreForDB 拿到仓储才起影子，否则退回纯内存并出声。
 //
 // 这里不退成"影子但没有镜像"：那会交付一副看起来在对照、实际什么都没记的底座，
 // 端点上 mirror_available=false 与"今天就是没写进库"两种情况再也分不开。
-func newShadowDraftStoreForDB(db *gorm.DB) draftStore {
-	if db == nil {
-		logger.Warnf("[order-draft] ⚠️ shadow 档未拿到 DB 句柄 ⇒ 退回纯内存（无镜像可对照）")
+func newShadowDraftStoreForDB(repo repository.OrderDraftRepository) draftStore {
+	if repo == nil {
+		logger.Warnf("[order-draft] ⚠️ shadow 档未拿到草稿仓储 ⇒ 退回纯内存（无镜像可对照）")
 		return newMemoryDraftStore()
 	}
-	return newShadowDraftStore(db)
+	return newShadowDraftStore(repo)
 }
 
 // ------------------------------------------------------------ 双向转换 -------

@@ -19,9 +19,8 @@ type SecurityAuditService struct {
 }
 
 // NewSecurityAuditService 构造安全审计服务
-func NewSecurityAuditService(gdb *gorm.DB) *SecurityAuditService {
-	repo := repository.NewSecurityAuditRepository()
-	repo.SetDB(context.Background(), gdb)
+// NewSecurityAuditService 仓储由装配点构造并已完成 SetDB —— service 不接句柄（五层 §3.2）。
+func NewSecurityAuditService(repo *repository.SecurityAuditRepository) *SecurityAuditService {
 	return &SecurityAuditService{repo: repo}
 }
 
@@ -30,10 +29,6 @@ func (s *SecurityAuditService) SetRepository(ctx context.Context, repo *reposito
 	if repo != nil {
 		s.repo = repo
 	}
-}
-
-func (s *SecurityAuditService) withDB(ctx context.Context) *gorm.DB {
-	return s.repo.GetDB(ctx)
 }
 
 type auditCheck struct {
@@ -105,7 +100,7 @@ func (s *SecurityAuditService) RunAudit(ctx context.Context, auditName string) (
 		Items:       items,
 	}
 
-	if err := s.withDB(ctx).Create(audit).Error; err != nil {
+	if err := s.repo.Create(ctx, audit); err != nil {
 		return nil, err
 	}
 	return audit, nil
@@ -113,16 +108,7 @@ func (s *SecurityAuditService) RunAudit(ctx context.Context, auditName string) (
 
 // ListAudits 分页列出审计记录（不含 items，减少载荷）。
 func (s *SecurityAuditService) ListAudits(ctx context.Context, page, pageSize int) ([]model.SecurityAudit, int64, error) {
-	var total int64
-	if err := s.withDB(ctx).Model(&model.SecurityAudit{}).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var list []model.SecurityAudit
-	offset := (page - 1) * pageSize
-	if err := s.withDB(ctx).Order("id DESC").Offset(offset).Limit(pageSize).Find(&list).Error; err != nil {
-		return nil, 0, err
-	}
-	return list, total, nil
+	return s.repo.List(ctx, page, pageSize)
 }
 
 // ListAuditsKeyset 使用 keyset 分页列出审计记录（不含 items，减少载荷）。
@@ -133,11 +119,7 @@ func (s *SecurityAuditService) ListAuditsKeyset(ctx context.Context, cursor stri
 
 // GetAuditDetail 获取审计明细（含 items）。
 func (s *SecurityAuditService) GetAuditDetail(ctx context.Context, id uint) (*model.SecurityAudit, error) {
-	var a model.SecurityAudit
-	if err := s.withDB(ctx).Preload("Items").First(&a, id).Error; err != nil {
-		return nil, err
-	}
-	return &a, nil
+	return s.repo.GetByID(ctx, id)
 }
 
 func (s *SecurityAuditService) buildChecks(ctx context.Context) []auditCheck {

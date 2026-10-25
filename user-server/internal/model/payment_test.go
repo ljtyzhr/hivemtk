@@ -89,14 +89,16 @@ func TestPaymentCountsTowardSettlement(t *testing.T) {
 //     一笔 USD 回款会被计进一张 CNY 账单的结清判据里；
 //   - platform + order_id：这笔钱由哪条回调带来的。回款是**财务凭据**，
 //     凭据不留来路就没法回答渠道方与运营那句"这笔是哪单的钱"；
-//   - created_at / updated_at：与冲销动作的时点。
+//   - created_at / updated_at：与冲销动作的时点；
+//   - reason：E-10 退款行四格之一（金额/原因/渠道引用/状态）——退款行填渠道给的
+//     原因，回款行恒空。没有它，"这笔为什么退了"只能去翻渠道后台。
 //
 // ID 命名偏离卡面的 payment_id 而随仓内五张同类表统一为 id：判据见 payment.go 那一格注释。
 func TestPaymentSchemaShape(t *testing.T) {
 	st := reflect.TypeOf(Payment{})
 	wantFields := []string{
 		"ID", "TenantID", "BillID", "Amount", "Currency", "PaidAt",
-		"ChannelRef", "Status", "Platform", "OrderID", "CreatedAt", "UpdatedAt",
+		"ChannelRef", "Status", "Reason", "Platform", "OrderID", "CreatedAt", "UpdatedAt",
 	}
 	for _, name := range wantFields {
 		if _, ok := st.FieldByName(name); !ok {

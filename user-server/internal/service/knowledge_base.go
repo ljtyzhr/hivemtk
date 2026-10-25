@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
-	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/repository"
 )
@@ -34,15 +33,14 @@ func IsValidKBType(t string) bool {
 
 // NewKnowledgeBaseServiceDefault 使用全局 DB 创建知识库服务（controller 层入口，避免 controller 持有 gorm.DB）。
 func NewKnowledgeBaseServiceDefault() *KnowledgeBaseService {
-	return NewKnowledgeBaseService(dbUtil.GetDB())
+	return NewKnowledgeBaseService()
 }
 
-// NewKnowledgeBaseService 创建知识库服务。
+// NewKnowledgeBaseService 创建知识库服务（句柄由 repository 自取全局库）。
 //
-// E-4（2026-10-24）：本构造仍是 db 进 service 的入口之一，但**域内不再新增**——
-// 三个 repo 的注入构造见 NewKnowledgeBaseServiceWithRepos（装配方逐域迁移用）。
-// 按域下沉是长期债（规划 §4.4），棘轮见 arch_gorm_guard_test.go（只许降）。
-func NewKnowledgeBaseService(db *gorm.DB) *KnowledgeBaseService {
+// 三个 repo 的显式注入构造见 NewKnowledgeBaseServiceWithRepos（装配方逐域迁移用）。
+func NewKnowledgeBaseService() *KnowledgeBaseService {
+	db := repository.GetDB()
 	return &KnowledgeBaseService{
 		repo:        repository.NewKnowledgeBaseRepository(db),
 		bindingRepo: repository.NewAgentKBBindingRepository(db),

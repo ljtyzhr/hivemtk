@@ -16,8 +16,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // ShortLinkService 短链服务接口
@@ -55,11 +53,11 @@ type shortLinkService struct {
 }
 
 // NewShortLinkService 创建短链服务实例
-func NewShortLinkService(db *gorm.DB) ShortLinkService {
+func NewShortLinkService(shortLinkRepo repository.ShortLinkRepository, domainRepo repository.DomainPoolRepository, accessRepo repository.ShortLinkAccessRepository) ShortLinkService {
 	return &shortLinkService{
-		shortLinkRepo: repository.NewShortLinkRepository(db),
-		domainRepo:    repository.NewDomainPoolRepository(db),
-		accessRepo:    repository.NewShortLinkAccessRepository(db),
+		shortLinkRepo: shortLinkRepo,
+		domainRepo:    domainRepo,
+		accessRepo:    accessRepo,
 	}
 }
 

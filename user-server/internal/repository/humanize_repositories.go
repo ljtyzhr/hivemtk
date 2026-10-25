@@ -147,7 +147,7 @@ type BaselineMetricAggregate struct {
 }
 
 // AggregateBaselineMetrics 聚合指定时间窗口内 humanize_scores 的 5 维均值 + 标准差 + 计数
-//（供 FeedbackLoopCron 月度刷新 ChampionBaseline；聚合字段是 total_score 不是 final_score）。
+// （供 FeedbackLoopCron 月度刷新 ChampionBaseline；聚合字段是 total_score 不是 final_score）。
 func (r *HumanizeScoreRepository) AggregateBaselineMetrics(
 	ctx context.Context, start, end time.Time,
 ) (*BaselineMetricAggregate, error) {

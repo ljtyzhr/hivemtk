@@ -43,7 +43,7 @@ func TestM02_WhatsAppMultiMessageBatchFeedsEveryMessageToAI(t *testing.T) {
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	nonce := fmt.Sprintf("-m02-%d", time.Now().UnixNano())
@@ -83,11 +83,11 @@ func TestM02_WhatsAppMultiMessageBatchFeedsEveryMessageToAI(t *testing.T) {
 
 // TestM02_SingleMessagePayloadUnchanged 反向边界：单条推送不得被合成逻辑加进多余换行。
 func TestM02_SingleMessagePayloadUnchanged(t *testing.T) {
-	db := testutil.NewTestDB(t,
+	testutil.NewTestDB(t,
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	nonce := fmt.Sprintf("-m02s-%d", time.Now().UnixNano())

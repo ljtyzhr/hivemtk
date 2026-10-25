@@ -39,8 +39,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // ApprovalSubjectTypeSOPNode 审批挂在 SOP 节点上时用的 subject_type。
@@ -147,13 +145,13 @@ type ApprovalResumeBridge struct {
 // NewApprovalResumeBridge 构造。svc 为 nil 时返回 nil（本桥不做"没有审批服务也能跑"的降级：
 // 那等于让闸门变成一个安静的直通管道）。db 为 nil 时 timerRepo 为 nil，
 // 于是只保留回读能力、失去提前唤醒（结论仍会由自然到期送达，只是慢）。
-func NewApprovalResumeBridge(svc *ApprovalRequestService, db *gorm.DB) *ApprovalResumeBridge {
+func NewApprovalResumeBridge(svc *ApprovalRequestService) *ApprovalResumeBridge {
 	if svc == nil {
 		return nil
 	}
 	b := &ApprovalResumeBridge{svc: svc}
-	if db != nil {
-		b.timerRepo = repository.NewSOPTimerRepository(db)
+	if repository.DBReady() {
+		b.timerRepo = repository.NewSOPTimerRepositoryDefault()
 	}
 	return b
 }

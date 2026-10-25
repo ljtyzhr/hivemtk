@@ -49,7 +49,7 @@ func createTestDomains(t *testing.T, db *gorm.DB) (shortDomain, entryDomain, lan
 }
 
 func newTestLiveCodeService(database *gorm.DB) LiveCodeService {
-	return NewLiveCodeService(database)
+	return NewLiveCodeService()
 }
 
 // TestNewLiveCodeService 测试创建活码服务

@@ -12,13 +12,10 @@ import (
 	"path/filepath"
 
 	"hivemtk-user/internal/model"
-	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/httpclient"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/storage"
-
-	"gorm.io/gorm"
 )
 
 // 媒体下载与转存：入站媒体原先只落占位符文本，
@@ -67,7 +64,7 @@ func channelMediaPersist(ctx context.Context, channel, mediaID string, data []by
 const maxInboundMediaBytes = 64 << 20
 
 func storeInboundMedia(ctx context.Context, data []byte, contentType, channel, mediaID, filenameHint string) (*mediaPersistRecord, error) {
-	cfgRepo := repository.NewObsConfigRepositoryWithDB(dbForStorage(ctx))
+	cfgRepo := repository.NewObsConfigRepository()
 	cfg, err := cfgRepo.GetDefault(ctx)
 	if err != nil || cfg == nil {
 		// 兜底：无 obs_config 记录时按本地默认目录构造（与 router /files 静态目录一致）
@@ -102,9 +99,6 @@ func storeInboundMedia(ctx context.Context, data []byte, contentType, channel, m
 	}
 	return &mediaPersistRecord{PublicURL: publicURL, MimeType: contentType, Size: int64(len(data))}, nil
 }
-
-// dbForStorage 媒体转存路径没有统一 ctx-carried db，退回全局 DB（与 repository.NewObsConfigRepository 同源）。
-func dbForStorage(_ context.Context) *gorm.DB { return dbutil.GetDB() }
 
 // extFromContentType 由 MIME 反推扩展名；推不出即 .bin（驱动只取扩展名，文件名主体是 uuid）。
 func extFromContentType(ct string) string {

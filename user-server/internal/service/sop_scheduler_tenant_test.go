@@ -49,7 +49,7 @@ func TestSOPScheduler_Tick_FansOutPerTenant(t *testing.T) {
 		t.Fatalf("以租户 11 seed agent 失败: %v", err)
 	}
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	// 关键：tick 收到的是**无租户** ctx；Fanout 必须把它扩成租户 11 的 ctx，
 	// 否则 dispatchAutoSOPs 里的 ListActiveByTriggerType 会被 fail-closed 吞掉。
 	s.tick(context.Background())
@@ -90,7 +90,7 @@ func TestSOPScheduler_Tick_OffModeFanoutDefault(t *testing.T) {
 		t.Fatalf("seed agent 失败: %v", err)
 	}
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.tick(context.Background())
 
 	var execs []model.SOPExecution

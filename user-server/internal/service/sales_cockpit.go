@@ -38,7 +38,7 @@ func (s *SalesCockpitService) GetCockpit(ctx context.Context) (map[string]any, e
 
 	channelHealth := s.repo.ChannelHealth(ctx)
 
-	// OPT-DB-10：intent_logs 已并入 intent_records（source='fine_grained'）
+	// intent_logs 已并入 intent_records（source='fine_grained'）
 	intentDist := s.repo.IntentDistribution(ctx, weekAgo)
 
 	// topTools 原表 tool_audit_logs 不存在，降级用 message_trace 按 node 分组统计调用次数

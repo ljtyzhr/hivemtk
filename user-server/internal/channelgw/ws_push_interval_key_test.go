@@ -21,9 +21,9 @@ import (
 //
 // 真库 + 改值才能区分 key 对错：key 写错时这个用例会读到兜底值 2s 而非库里改的 7s。
 func TestRuntimeWSPushIntervalReadsSeededKey(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{})
-	require.NoError(t, appsvc.SeedConfigParams(t.Context(), db))
-	svc := appsvc.NewConfigParamService(db)
+	testutil.NewTestDBOrSkip(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{})
+	require.NoError(t, appsvc.SeedConfigParams(t.Context()))
+	svc := appsvc.NewConfigParamService()
 	appsvc.SetGlobalForTest(svc)
 	t.Cleanup(func() { appsvc.SetGlobalForTest(nil) })
 

@@ -162,7 +162,7 @@ func TestWeCom_Dispatch_Ingest(t *testing.T) {
 	}
 	db.Create(acc)
 
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hub, conv, err := integ.IngestMessage(context.Background(), &IngestRequest{
 		AccountID:      acc.ID,
 		ExternalUserID: "external_user_1",
@@ -209,7 +209,7 @@ func TestWeCom_Dispatch_GroupMsg(t *testing.T) {
 	}
 	db.Create(acc)
 
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hub, _, err := integ.IngestMessage(context.Background(), &IngestRequest{
 		AccountID:      acc.ID,
 		ExternalUserID: "user_2",
@@ -244,7 +244,7 @@ func TestWeCom_GetWeComSecrets_FromDB(t *testing.T) {
 	}
 	db.Create(acc)
 
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	token, aesKey, err := svc.GetWeComSecrets(context.Background(), fmt.Sprintf("%d", acc.ID))
 	if err != nil {
 		t.Fatalf("getWeComSecrets: %v", err)
@@ -277,7 +277,7 @@ func TestWeCom_ReceiveCallback(t *testing.T) {
 	}
 	db.Create(acc)
 
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hub, _, err := integ.ReceiveCallback(context.Background(), &ReceiveCallbackRequest{
 		AccountID: acc.ID,
 		FromUser:  "from_user_x",
@@ -298,7 +298,7 @@ func TestWeCom_ReceiveCallback(t *testing.T) {
 
 // TestSalesEngine_ProcessIncomingMessage_AllChannels 4 渠道统一入口
 func TestSalesEngine_ProcessIncomingMessage_AllChannels(t *testing.T) {
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	if engine == nil {
 		t.Fatal("engine nil")
 	}
@@ -333,7 +333,7 @@ func TestSalesEngine_ProcessIncomingMessage_AllChannels(t *testing.T) {
 
 // TestSalesEngine_ProcessIncomingMessage_Empty 空内容跳过
 func TestSalesEngine_ProcessIncomingMessage_Empty(t *testing.T) {
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	resp, err := engine.ProcessIncomingMessage(context.Background(), &ChannelMessage{
 		Channel: "wecom",
 		Content: "",
@@ -348,7 +348,7 @@ func TestSalesEngine_ProcessIncomingMessage_Empty(t *testing.T) {
 
 // TestSalesEngine_ProcessIncomingMessage_Nil nil 入参
 func TestSalesEngine_ProcessIncomingMessage_Nil(t *testing.T) {
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	_, err := engine.ProcessIncomingMessage(context.Background(), nil)
 	if err == nil {
 		t.Error("expected err on nil")
@@ -357,7 +357,7 @@ func TestSalesEngine_ProcessIncomingMessage_Nil(t *testing.T) {
 
 // TestSalesEngine_ProcessIncomingMessage_Media 媒体消息
 func TestSalesEngine_ProcessIncomingMessage_Media(t *testing.T) {
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	for _, mt := range []string{"image", "voice", "video", "file"} {
 		t.Run(mt, func(t *testing.T) {
 			resp, _ := engine.ProcessIncomingMessage(context.Background(), &ChannelMessage{
@@ -375,7 +375,7 @@ func TestSalesEngine_ProcessIncomingMessage_Media(t *testing.T) {
 
 // TestSalesEngine_ProcessIncomingMessage_Group 群消息
 func TestSalesEngine_ProcessIncomingMessage_Group(t *testing.T) {
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	resp, _ := engine.ProcessIncomingMessage(context.Background(), &ChannelMessage{
 		Channel:      "wecom",
 		Content:      "群消息测试",
@@ -391,7 +391,7 @@ func TestSalesEngine_ProcessIncomingMessage_Group(t *testing.T) {
 
 // TestNormalizeChannelMessage 验证渠道清洗
 func TestNormalizeChannelMessage(t *testing.T) {
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	m := &ChannelMessage{
 		Channel:      "wecom",
 		AccountID:    "1",
@@ -414,7 +414,7 @@ func TestNormalizeChannelMessage(t *testing.T) {
 
 // TestNormalizeChannelMessage_Image 图片消息清洗
 func TestNormalizeChannelMessage_Image(t *testing.T) {
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	m := &ChannelMessage{
 		Channel:  "wecom",
 		Content:  "我的图片",
@@ -429,7 +429,7 @@ func TestNormalizeChannelMessage_Image(t *testing.T) {
 
 // TestWebhook_EmptyBody 拒绝空 body
 func TestWebhook_EmptyBody(t *testing.T) {
-	svc := NewWebhookService(nil)
+	svc := NewWebhookService()
 	res, _ := svc.Receive(context.Background(), &ReceiveRequest{
 		Channel:   ChannelWeCom,
 		AccountID: "1",
@@ -442,7 +442,7 @@ func TestWebhook_EmptyBody(t *testing.T) {
 
 // TestWebhook_NoAccountID 拒绝无 accountID
 func TestWebhook_NoAccountID(t *testing.T) {
-	svc := NewWebhookService(nil)
+	svc := NewWebhookService()
 	res, _ := svc.Receive(context.Background(), &ReceiveRequest{
 		Channel:   ChannelWeCom,
 		AccountID: "",
@@ -460,8 +460,8 @@ func TestWebhook_NoAccountID(t *testing.T) {
 func TestWebhook_DuplicateEvent(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
 	t.Setenv("ALLOW_INSECURE_TELEGRAM_WEBHOOK", "true")
-	db := setupTestDB(t)
-	svc := NewWebhookService(db)
+	setupTestDB(t)
+	svc := NewWebhookService()
 	body := []byte(`{"FromUserName":"u1","MsgType":"text","Content":"hi","MsgId":"m1"}`)
 	req := &ReceiveRequest{
 		Channel:   ChannelDouyin,
@@ -480,7 +480,7 @@ func TestWebhook_DuplicateEvent(t *testing.T) {
 
 // TestWebhook_MultiChannelConcurrent 多渠道并发
 func TestWebhook_MultiChannelConcurrent(t *testing.T) {
-	svc := NewWebhookService(nil)
+	svc := NewWebhookService()
 	svc.accountRepo = nil
 	var wg sync.WaitGroup
 	channels := []WebhookChannel{ChannelWeCom, ChannelWhatsapp, ChannelTelegram, ChannelFeishu}
@@ -503,7 +503,7 @@ func TestWebhook_MultiChannelConcurrent(t *testing.T) {
 
 // TestParsePayload_Common 解析通用 payload
 func TestParsePayload_Common(t *testing.T) {
-	svc := NewWebhookService(nil)
+	svc := NewWebhookService()
 	body := []byte(`{"FromUserName":"u1","MsgType":"text","Content":"hi","MsgId":"m1"}`)
 	p, err := svc.ParsePayload(context.Background(), ChannelWeCom, body)
 	if err != nil {
@@ -522,7 +522,7 @@ func TestParsePayload_Common(t *testing.T) {
 
 // TestParsePayload_Invalid 无效 JSON
 func TestParsePayload_Invalid(t *testing.T) {
-	svc := NewWebhookService(nil)
+	svc := NewWebhookService()
 	_, err := svc.ParsePayload(context.Background(), ChannelWeCom, []byte(`not json`))
 	if err == nil {
 		t.Error("expected err on invalid JSON")
@@ -539,7 +539,7 @@ func TestDispatchToUnified_Integration(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
 	t.Setenv("ALLOW_INSECURE_TELEGRAM_WEBHOOK", "true")
 	db := setupTestDB(t)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	body := []byte(`{"update_id":"not-a-number","from":"u_d03_unified","content":"hi"}`)
 	r, _ := svc.Receive(context.Background(), &ReceiveRequest{
@@ -563,7 +563,7 @@ func TestDispatchToUnified_Integration(t *testing.T) {
 
 // TestWebhookStats 统计
 func TestWebhookStats(t *testing.T) {
-	svc := NewWebhookService(nil)
+	svc := NewWebhookService()
 	if svc.QueueLen(context.Background()) < 0 {
 		t.Error("queue len error")
 	}

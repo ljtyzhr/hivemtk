@@ -14,7 +14,7 @@ func TestAssetStoreFlow(t *testing.T) {
 		&model.AssetListing{}, &model.AssetVersion{}, &model.AssetReport{},
 		&model.AssetRating{}, &model.ExtensionUsageMonthly{}, &model.LocalAsset{},
 	)
-	svc := NewAssetStoreService(db)
+	svc := NewAssetStoreService()
 
 	l, err := svc.CreateListing(1, 100, "ext_demo_001", "extension", "演示扩展", "通用", "用于冒烟", nil, nil)
 	if err != nil {
@@ -112,8 +112,8 @@ func TestAssetStoreFlow(t *testing.T) {
 
 // TestSubmitListingLimit 提审限额：7 天内提审数超限被拦。
 func TestSubmitListingLimit(t *testing.T) {
-	db := testutil.NewTestDB(t, &model.AssetListing{}, &model.AssetVersion{})
-	svc := NewAssetStoreService(db)
+	testutil.NewTestDB(t, &model.AssetListing{}, &model.AssetVersion{})
+	svc := NewAssetStoreService()
 	for i := 0; i < AssetStoreSubmitLimit; i++ {
 		l, err := svc.CreateListing(1, 7, "code_"+string(rune('a'+i)), "prompt", "n", "", "", []byte(`{}`), nil)
 		if err != nil {

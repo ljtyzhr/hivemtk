@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/metrics"
@@ -65,7 +63,8 @@ type MemoryFacade struct {
 }
 
 // NewMemoryFacade 从已存在对象注入构造（不重复初始化底层系统）
-func NewMemoryFacade(db *gorm.DB, ms *MemorySystem, dm *DialogueMemoryService) *MemoryFacade {
+// NewMemoryFacade 只组装两个门面，不需要数据库句柄（五层架构 §3.2：Service 不握句柄）。
+func NewMemoryFacade(ms *MemorySystem, dm *DialogueMemoryService) *MemoryFacade {
 	return &MemoryFacade{ms: ms, dm: dm}
 }
 

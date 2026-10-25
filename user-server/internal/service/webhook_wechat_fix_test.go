@@ -91,7 +91,7 @@ func TestSendOutbound_WechatChannel_DeliversCustomerServiceMessage(t *testing.T)
 		t.Fatalf("pre-create inbound failed: %v", err)
 	}
 
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	p := &ParsedPayload{EventID: "evt-wx-fix-a", Sender: openID, Content: "你好"}

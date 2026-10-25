@@ -10,8 +10,6 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // NoticeSyncService 平台消息 → 用户端通知中心的投递服务。
@@ -41,9 +39,9 @@ func NewNoticeSyncService() *NoticeSyncService {
 }
 
 // NewNoticeSyncServiceWithDB 构造指定 db 的投递服务（测试注入）。
-func NewNoticeSyncServiceWithDB(db *gorm.DB) *NoticeSyncService {
+func NewNoticeSyncServiceWithDB() *NoticeSyncService {
 	return &NoticeSyncService{
-		notifRepo: repository.NewNotificationRepositoryWithDB(db),
+		notifRepo: repository.NewNotificationRepository(),
 		tenantRep: repository.NewTenantRepository(),
 		client:    platform.NewNoticeClient(),
 	}

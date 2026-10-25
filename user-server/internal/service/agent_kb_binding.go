@@ -19,9 +19,9 @@ type AgentKBBindingService struct {
 	bindingRepo *repository.AgentKBBindingRepository
 }
 
-// NewAgentKBBindingService 创建绑定服务
-func NewAgentKBBindingService(db *gorm.DB) *AgentKBBindingService {
-	return &AgentKBBindingService{bindingRepo: repository.NewAgentKBBindingRepository(db)}
+// NewAgentKBBindingService 创建绑定服务（句柄由 repository 自取全局库）
+func NewAgentKBBindingService() *AgentKBBindingService {
+	return &AgentKBBindingService{bindingRepo: repository.NewAgentKBBindingRepositoryDefault()}
 }
 
 // NewAgentKBBindingServiceWithRepos 通过 repo 注入 (供测试和知识库 service 内部调用)

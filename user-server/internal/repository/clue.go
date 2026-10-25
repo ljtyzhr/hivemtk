@@ -37,6 +37,11 @@ type clueRepo struct {
 const clueDedupChunkSize = 200
 
 // NewClueRepositoryWithDB 用调用方注入的连接构造仓储（DI 装配点：router / app wiring）。
+// NewClueRepositoryDefault 默认构造（全局句柄）。
+func NewClueRepositoryDefault() ClueRepository {
+	return NewClueRepositoryWithDB(GetDB())
+}
+
 func NewClueRepositoryWithDB(db *gorm.DB) ClueRepository {
 	return &clueRepo{db: db}
 }

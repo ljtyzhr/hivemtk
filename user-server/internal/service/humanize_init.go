@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/dto"
@@ -62,9 +60,8 @@ var HumanizeEvaluatorEnabled = true
 // InitHumanizeEvalService 初始化拟人度评估器（启动时调用一次）
 //
 // 依赖：
-//   - db:         GORM DB（销冠基线 / 评分持久化）
 //   - dispatcher: LLM 调度器
-func InitHumanizeEvalService(db *gorm.DB, dispatcher *llm.Dispatcher) *humanizesvc.HumanizeEvalService {
+func InitHumanizeEvalService(dispatcher *llm.Dispatcher) *humanizesvc.HumanizeEvalService {
 	humanizeEvalServiceOnce.Do(func() {
 		if v := os.Getenv("MTK_HUMANIZE_EVAL_DISABLED"); v != "" {
 			if disabled, _ := strconv.ParseBool(v); disabled {

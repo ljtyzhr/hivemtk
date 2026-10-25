@@ -32,14 +32,14 @@ import (
 func BuildSalesEngine(gormDB *gorm.DB) *service.SalesEngine {
 	dispatcher := llm.GetGlobalDispatcher()
 
-	memorySvc := service.NewDialogueMemoryService(gormDB, dispatcher)
+	memorySvc := service.NewDialogueMemoryService(dispatcher)
 
 	intentSvc := service.GetIntentRecognizer()
 	if intentSvc == nil {
-		intentSvc = service.NewIntentRecognizer(gormDB, dispatcher, nil)
+		intentSvc = service.NewIntentRecognizer(dispatcher, nil)
 	}
 
-	sopSvc := service.NewSOPService(gormDB, dispatcher)
+	sopSvc := service.NewSOPService(dispatcher)
 
 	ragSearcher := knowledgesvc.NewRagSearcher()
 
@@ -47,7 +47,6 @@ func BuildSalesEngine(gormDB *gorm.DB) *service.SalesEngine {
 	customerLookup := service.NewCustomerLookupAdapter(repository.NewCustomerRepository())
 
 	engine := service.NewSalesEngine(
-		db.GetDB(),
 		dispatcher,
 		intentSvc,
 		memorySvc,
@@ -65,13 +64,13 @@ func BuildSalesEngine(gormDB *gorm.DB) *service.SalesEngine {
 	// SalesEngine.Handle，而它早先从不查 FAQ —— FAQ 里明明有「HiveMTK 是什么？」
 	// 这类标准答案，却因为整条 FAQ 通道没装配而一次都没被用上；问题只能落到
 	// RAG 弱召回上 → 置信度不足 → 转人工 → 「暂无坐席在线」。
-	faqSvc := service.NewFAQService(gormDB, nil)
+	faqSvc := service.NewFAQService()
 	engine.SetFAQService(faqSvc)
 	logger.Info("[agent] ✅ SalesEngine 已注入 FAQ 快速通道（命中标准答案直答）")
 
 	confidenceAgg := service.GetConfidenceAggregator()
 	if confidenceAgg == nil {
-		confidenceAgg = service.InitConfidenceAggregator(gormDB, service.NewLocalConfidenceEmbedder())
+		confidenceAgg = service.InitConfidenceAggregator(repository.NewThresholdPolicyRepositoryWithDB(gormDB), repository.NewConfidenceSignalRepositoryWithDB(gormDB), repository.NewConfidenceCalibrationRepositoryWithDB(gormDB), service.NewLocalConfidenceEmbedder())
 	}
 
 	engine.SetConfidenceAggregator(context.Background(), confidenceAgg)
@@ -84,7 +83,7 @@ func BuildSalesEngine(gormDB *gorm.DB) *service.SalesEngine {
 
 	humanizeSvc := service.GetHumanizeEvalService()
 	if humanizeSvc == nil {
-		humanizeSvc = service.InitHumanizeEvalService(gormDB, dispatcher)
+		humanizeSvc = service.InitHumanizeEvalService(dispatcher)
 	}
 	engine.SetHumanizeEvaluator(context.Background(), humanizeSvc)
 	service.SetHumanizeRegenerateDispatcher(dispatcher)

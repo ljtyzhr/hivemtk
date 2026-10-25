@@ -19,10 +19,10 @@ func newHealthWeightParamFixture(t *testing.T) (*ConfigParamService, *gorm.DB) {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	if err := SeedConfigParams(context.Background(), database); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := NewConfigParamService(database)
+	svc := NewConfigParamService()
 	SetGlobalForTest(svc)
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	return svc, database
@@ -41,7 +41,7 @@ func setDHParam(t *testing.T, svc *ConfigParamService, group, key, val string) {
 // 这正是 service.UpdateValue 有 min/max 守卫、而守卫要防的"库里已有坏值"那类来路。
 func refreshParamCache(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	SetGlobalForTest(NewConfigParamService(db))
+	SetGlobalForTest(NewConfigParamService())
 }
 
 func setDHRaw(t *testing.T, db *gorm.DB, group, key, val string) {

@@ -45,6 +45,11 @@ func (r *ragMetricsRepo) GetDB(ctx context.Context) *gorm.DB {
 }
 
 // NewRagMetricsRepository db 为 nil 时返回 nil 接口，service 以 repo == nil 守卫。
+// NewRagMetricsRepositoryDefault 默认构造（全局句柄）。
+func NewRagMetricsRepositoryDefault() RagMetricsRepository {
+	return NewRagMetricsRepository(GetDB())
+}
+
 func NewRagMetricsRepository(db *gorm.DB) RagMetricsRepository {
 	if db == nil {
 		return nil

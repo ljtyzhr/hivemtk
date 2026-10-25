@@ -325,7 +325,7 @@ func TestNewShadowDraftStoreForDB_NilHandleIsPlainMemory(t *testing.T) {
 // 有句柄时才真是影子
 func TestNewShadowDraftStoreForDB_WithHandle(t *testing.T) {
 	database := draftSweepTestDB(t)
-	st := newShadowDraftStoreForDB(database)
+	st := newShadowDraftStoreForDB(repository.NewOrderDraftRepositoryWithDB(database))
 	shadow, ok := st.(*shadowDraftStore)
 	if !ok {
 		t.Fatalf("有句柄应是 shadowDraftStore，实际 %T", st)
@@ -342,7 +342,7 @@ func TestNewShadowDraftStoreForDB_WithHandle(t *testing.T) {
 func TestShadowDraftStore_EndToEndExpiresMemoryAndDB(t *testing.T) {
 	database := draftSweepTestDB(t)
 	ctx := context.Background()
-	svc := NewOrderDraftServiceShadow(&OrderDraftConfig{DefaultExpiry: time.Millisecond}, database)
+	svc := NewOrderDraftServiceShadow(&OrderDraftConfig{DefaultExpiry: time.Millisecond})
 	draft, err := svc.CreateManual(ctx, &CreateDraftRequest{
 		CustomerID: "shadow_e2e", OwnerID: "s", ProductName: "水光针", Quantity: 1, UnitPrice: 980,
 	})

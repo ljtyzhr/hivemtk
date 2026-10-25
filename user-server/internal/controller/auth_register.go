@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
@@ -86,13 +87,21 @@ func (c *AuthController) PublicConfig(ctx *gin.Context) {
 	if tenantMode {
 		edition = "saas"
 	}
+	// reg_mode 是 TENANT_MODE 的**注册口径**映射（003 T012）：与 edition 同源、
+	// 但回答的是另一个问题——"这个实例允许怎么开户"。缺这个键时
+	// scripts/api_verify_full.py 的 B1.3 会红，而前端只能用 tenant_mode 布尔值
+	// 自己推断（推断口径一旦与后端不一致，就会在云端实例上渲染出"离线部署"文案）。
+	regMode := model.TenantRegModeOffline
+	if tenantMode {
+		regMode = model.TenantRegModeSaaS
+	}
 	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
 	if err != nil {
 		// 租户未知（on 模式未带短码）按保守值返回：站点名空、注册关闭——
 		// 前端隐藏入口而非误开放，也绝不拿默认租户的配置冒充本租户。
 		response.Success(ctx, gin.H{
 			"site_name": "", "enable_register": false, "tenant_mode": tenantMode,
-			"edition": edition, "cloud_url": config.CloudURLFor(requestCtx),
+			"edition": edition, "reg_mode": regMode, "cloud_url": config.CloudURLFor(requestCtx),
 		}, "ok")
 		return
 	}
@@ -101,7 +110,7 @@ func (c *AuthController) PublicConfig(ctx *gin.Context) {
 		// 读失败按保守值返回：站点名空、注册关闭——前端隐藏入口而非误开放
 		response.Success(ctx, gin.H{
 			"site_name": "", "enable_register": false, "tenant_mode": tenantMode,
-			"edition": edition, "cloud_url": config.CloudURLFor(requestCtx),
+			"edition": edition, "reg_mode": regMode, "cloud_url": config.CloudURLFor(requestCtx),
 		}, "ok")
 		return
 	}
@@ -110,6 +119,7 @@ func (c *AuthController) PublicConfig(ctx *gin.Context) {
 		"enable_register": cfg.EnableRegister,
 		"tenant_mode":     tenantMode,
 		"edition":         edition,
+		"reg_mode":        regMode,
 		"cloud_url":       config.CloudURLFor(requestCtx),
 	}, "ok")
 }

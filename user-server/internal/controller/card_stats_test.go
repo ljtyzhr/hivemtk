@@ -13,6 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupCardStatsTestDB(t *testing.T) *gorm.DB {
@@ -47,7 +49,7 @@ func TestDouyinCardStatsController_GetCardStats_InvalidID(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	statsService := service.NewDouyinCardStatsService(db.GetDB())
+	statsService := service.NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(db.GetDB()))
 	ctrl := NewDouyinCardStatsController(statsService)
 	router.GET("/douyin-card/stats/:id", ctrl.GetCardStats)
 
@@ -64,7 +66,7 @@ func TestDouyinCardStatsController_GetCardStats_Success(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	statsService := service.NewDouyinCardStatsService(db.GetDB())
+	statsService := service.NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(db.GetDB()))
 	ctrl := NewDouyinCardStatsController(statsService)
 	router.GET("/douyin-card/stats/:id", ctrl.GetCardStats)
 
@@ -81,7 +83,7 @@ func TestDouyinCardStatsController_GetOverallStats_Success(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	statsService := service.NewDouyinCardStatsService(db.GetDB())
+	statsService := service.NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(db.GetDB()))
 	ctrl := NewDouyinCardStatsController(statsService)
 	router.GET("/douyin-card/overall-stats", ctrl.GetOverallStats)
 
@@ -98,7 +100,7 @@ func TestKuaishouCardStatsController_GetCardStats_InvalidID(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	statsService := service.NewKuaishouCardStatsService(db.GetDB())
+	statsService := service.NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(db.GetDB()))
 	ctrl := NewKuaishouCardStatsController(statsService)
 	router.GET("/kuaishou-card/stats/:id", ctrl.GetCardStats)
 
@@ -115,7 +117,7 @@ func TestKuaishouCardStatsController_GetCardStats_Success(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	statsService := service.NewKuaishouCardStatsService(db.GetDB())
+	statsService := service.NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(db.GetDB()))
 	ctrl := NewKuaishouCardStatsController(statsService)
 	router.GET("/kuaishou-card/stats/:id", ctrl.GetCardStats)
 
@@ -132,7 +134,7 @@ func TestKuaishouCardStatsController_GetOverallStats_Success(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	statsService := service.NewKuaishouCardStatsService(db.GetDB())
+	statsService := service.NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(db.GetDB()))
 	ctrl := NewKuaishouCardStatsController(statsService)
 	router.GET("/kuaishou-card/overall-stats", ctrl.GetOverallStats)
 
@@ -149,7 +151,7 @@ func TestShortLinkStatsController_GetStats_InvalidID(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	shortLinkService := service.NewShortLinkService(db.GetDB())
+	shortLinkService := service.NewShortLinkService(repository.NewShortLinkRepository(db.GetDB()), repository.NewDomainPoolRepository(db.GetDB()), repository.NewShortLinkAccessRepository(db.GetDB()))
 	ctrl := NewShortLinkStatsController(shortLinkService)
 	router.GET("/short-link/:id/stats", ctrl.GetStats)
 
@@ -166,7 +168,7 @@ func TestShortLinkStatsController_GetStats_Success(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	shortLinkService := service.NewShortLinkService(db.GetDB())
+	shortLinkService := service.NewShortLinkService(repository.NewShortLinkRepository(db.GetDB()), repository.NewDomainPoolRepository(db.GetDB()), repository.NewShortLinkAccessRepository(db.GetDB()))
 	ctrl := NewShortLinkStatsController(shortLinkService)
 	router.GET("/short-link/:id/stats", ctrl.GetStats)
 
@@ -183,7 +185,7 @@ func TestShortLinkStatsController_GetAllStats_Success(t *testing.T) {
 	setupCardStatsTestDB(t)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	shortLinkService := service.NewShortLinkService(db.GetDB())
+	shortLinkService := service.NewShortLinkService(repository.NewShortLinkRepository(db.GetDB()), repository.NewDomainPoolRepository(db.GetDB()), repository.NewShortLinkAccessRepository(db.GetDB()))
 	ctrl := NewShortLinkStatsController(shortLinkService)
 	router.GET("/short-link/all-stats", ctrl.GetAllStats)
 

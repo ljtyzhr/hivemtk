@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// customer_id 类型收敛守卫（OPT-DB-04）
+// customer_id 类型收敛守卫
 //
 // 背景：DB 列已由 v3_22_0 迁移统一为 varchar(64)，但 Go model 层的 tag 存在
 // uint / varchar(36) / varchar(100) / size:128 等混杂声明。本测试用 AST 静态

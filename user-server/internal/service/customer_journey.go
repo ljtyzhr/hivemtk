@@ -799,7 +799,13 @@ func (s *CustomerJourneyService) Funnel(ctx context.Context) *JourneyFunnel {
 		})
 	}
 	for i := range funnel.Stages {
-		funnel.Stages[i].StageRate = float64(funnel.Stages[i].Customers) / float64(funnel.TotalEntered) * 100
+		// StageRate 必须与同函数里 EndToEndRate/AvgDwellDays/StepRate 同口径守卫：
+		// TotalEntered=0（窗口内零进入，新建租户的常态）时 0/0 会算出 NaN，
+		// json.Marshal 对 NaN 直接报 "unsupported value"；而 gin 的 c.JSON 先写
+		// 200 再序列化，于是端点只剩一个空 body —— 客户端读到的是一次"成功"的空响应。
+		if funnel.TotalEntered > 0 {
+			funnel.Stages[i].StageRate = float64(funnel.Stages[i].Customers) / float64(funnel.TotalEntered) * 100
+		}
 		if i == 0 {
 			funnel.Stages[i].StepRate = 100
 		} else if funnel.Stages[i-1].Customers > 0 {

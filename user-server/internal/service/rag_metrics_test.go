@@ -11,6 +11,8 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupRagMetricsTestDB(t *testing.T) *gorm.DB {
@@ -24,7 +26,7 @@ func setupRagMetricsTestDB(t *testing.T) *gorm.DB {
 // TestRagMetrics_NewService 测试服务构造
 func TestRagMetrics_NewService(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	if svc == nil {
 		t.Fatal("Expected non-nil service")
 	}
@@ -70,7 +72,7 @@ func TestRagMetrics_NewService_NilReceiver(t *testing.T) {
 // TestRagMetrics_RecordQuerySync_Basic 测试同步写入基础
 func TestRagMetrics_RecordQuerySync_Basic(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	req := &RecordQueryRequest{
 		Query:           "如何申请退款",
@@ -119,7 +121,7 @@ func TestRagMetrics_RecordQuerySync_Basic(t *testing.T) {
 // TestRagMetrics_RecordQuerySync_TopKDefault 测试 TopK 默认值
 func TestRagMetrics_RecordQuerySync_TopKDefault(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	req := &RecordQueryRequest{
 		Query:           "test",
@@ -146,7 +148,7 @@ func TestRagMetrics_RecordQuerySync_TopKDefault(t *testing.T) {
 // TestRagMetrics_RecordQuerySync_NilReq 测试 nil request 防御
 func TestRagMetrics_RecordQuerySync_NilReq(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	err := svc.RecordQuerySync(context.Background(), nil)
 	if err == nil {
 		t.Error("Expected error for nil req")
@@ -156,7 +158,7 @@ func TestRagMetrics_RecordQuerySync_NilReq(t *testing.T) {
 // TestRagMetrics_GetRecallMetrics_Empty 测试空数据集
 func TestRagMetrics_GetRecallMetrics_Empty(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	now := time.Now()
 	m, err := svc.GetRecallMetrics(context.Background(), now.Add(-time.Hour), now)
 	if err != nil {
@@ -176,7 +178,7 @@ func TestRagMetrics_GetRecallMetrics_Empty(t *testing.T) {
 // TestRagMetrics_GetRecallMetrics_Aggregation 测试聚合计算（含）
 func TestRagMetrics_GetRecallMetrics_Aggregation(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	now := time.Now()
 
 	for i := 0; i < 10; i++ {
@@ -216,7 +218,7 @@ func TestRagMetrics_GetRecallMetrics_Aggregation(t *testing.T) {
 // TestRagMetrics_GetRecallMetrics_EndBeforeStart 测试 end < start 错误
 func TestRagMetrics_GetRecallMetrics_EndBeforeStart(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	now := time.Now()
 	_, err := svc.GetRecallMetrics(context.Background(), now, now.Add(-time.Hour))
 	if err == nil {
@@ -227,7 +229,7 @@ func TestRagMetrics_GetRecallMetrics_EndBeforeStart(t *testing.T) {
 // TestRagMetrics_GetRecallMetrics_ZeroHit 测试 zero_hit 统计
 func TestRagMetrics_GetRecallMetrics_ZeroHit(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	now := time.Now()
 
 	for i := 0; i < 5; i++ {
@@ -263,7 +265,7 @@ func TestRagMetrics_GetRecallMetrics_ZeroHit(t *testing.T) {
 // TestRagMetrics_GetLowRecallQueries_Basic 测试低召回样本查询
 func TestRagMetrics_GetLowRecallQueries_Basic(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	queries := []struct {
 		retrieved []string
@@ -303,7 +305,7 @@ func TestRagMetrics_GetLowRecallQueries_Basic(t *testing.T) {
 // TestRagMetrics_GetLowRecallQueries_DefaultThreshold 测试默认阈值
 func TestRagMetrics_GetLowRecallQueries_DefaultThreshold(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	req := &RecordQueryRequest{
 		Query:           "test",
@@ -327,7 +329,7 @@ func TestRagMetrics_GetLowRecallQueries_DefaultThreshold(t *testing.T) {
 // TestRagMetrics_GetLowRecallQueries_LimitClamp 测试 limit 边界
 func TestRagMetrics_GetLowRecallQueries_LimitClamp(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	for i := 0; i < 5; i++ {
 		req := &RecordQueryRequest{
@@ -350,7 +352,7 @@ func TestRagMetrics_GetLowRecallQueries_LimitClamp(t *testing.T) {
 // TestRagMetrics_AggregateWindow_Idempotent 测试幂等：重复调用应更新而非新建
 func TestRagMetrics_AggregateWindow_Idempotent(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	start := time.Now().Add(-time.Hour).Truncate(time.Minute)
 	end := start.Add(5 * time.Minute)
 
@@ -404,7 +406,7 @@ func TestRagMetrics_AggregateWindow_NilDB(t *testing.T) {
 // TestRagMetrics_AggregateLastWindow 测试最近窗口聚合
 func TestRagMetrics_AggregateLastWindow(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	now := time.Now()
 	req := &RecordQueryRequest{
@@ -434,7 +436,7 @@ func TestRagMetrics_AggregateLastWindow(t *testing.T) {
 // TestRagMetrics_GetLatestMetrics 测试最新指标查询（升序返回）
 func TestRagMetrics_GetLatestMetrics(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	base := time.Now().Truncate(time.Minute)
 	for i := 0; i < 3; i++ {
@@ -467,7 +469,7 @@ func TestRagMetrics_GetLatestMetrics(t *testing.T) {
 // TestRagMetrics_GetLatestMetrics_LimitClamp 测试 limit 边界
 func TestRagMetrics_GetLatestMetrics_LimitClamp(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	rows, err := svc.GetLatestMetrics(context.Background(), 0)
 	if err != nil {
@@ -484,7 +486,7 @@ func TestRagMetrics_GetLatestMetrics_LimitClamp(t *testing.T) {
 // TestRagMetrics_StartStop 测试 Start/Stop 后台 goroutine
 func TestRagMetrics_StartStop(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	svc.Start(context.Background())
 	svc.Start(context.Background())
@@ -521,7 +523,7 @@ func TestRagMetrics_StartStop(t *testing.T) {
 // TestRagMetrics_FlushBatchTrigger 测试批量阈值触发 flush
 func TestRagMetrics_FlushBatchTrigger(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	svc.Start(context.Background())
 	defer svc.Stop(context.Background())
 
@@ -553,7 +555,7 @@ func TestRagMetrics_FlushBatchTrigger(t *testing.T) {
 // TestRagMetrics_Cron_StartStop 测试 cron 启停
 func TestRagMetrics_Cron_StartStop(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	cron := NewRagMetricsCron(svc)
 	if cron == nil {
 		t.Fatal("Expected non-nil cron")
@@ -673,7 +675,7 @@ func TestRagMetrics_HashQueryShort(t *testing.T) {
 // TestRagMetrics_ConcurrentRecordQuery 测试并发 RecordQuery 不应 panic 或丢数据
 func TestRagMetrics_ConcurrentRecordQuery(t *testing.T) {
 	db := setupRagMetricsTestDB(t)
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 	svc.Start(context.Background())
 	defer svc.Stop(context.Background())
 

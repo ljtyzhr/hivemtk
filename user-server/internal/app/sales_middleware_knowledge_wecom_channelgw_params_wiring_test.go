@@ -70,9 +70,9 @@ func TestWiredSalesMiddlewareKnowledgeKeysExistInSeed(t *testing.T) {
 func newSalesMiddlewareKnowledgeParamFixture(t *testing.T) {
 	t.Helper()
 	resetSalesMiddlewareKnowledgeProviders(t)
-	db := testutil.NewTestDBOrSkip(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{})
-	require.NoError(t, appsvc.SeedConfigParams(t.Context(), db))
-	appsvc.SetGlobalForTest(appsvc.NewConfigParamService(db))
+	testutil.NewTestDBOrSkip(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{})
+	require.NoError(t, appsvc.SeedConfigParams(t.Context()))
+	appsvc.SetGlobalForTest(appsvc.NewConfigParamService())
 	t.Cleanup(func() { appsvc.SetGlobalForTest(nil) })
 }
 

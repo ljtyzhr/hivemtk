@@ -12,6 +12,8 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupDomainPoolServiceTestDB(t *testing.T) *gorm.DB {
@@ -25,7 +27,7 @@ func setupDomainPoolServiceTestDB(t *testing.T) *gorm.DB {
 // TestNewDomainPoolService 测试创建域名池服务
 func TestNewDomainPoolService(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 	if service == nil {
 		t.Error("Expected non-nil service")
 	}
@@ -34,7 +36,7 @@ func TestNewDomainPoolService(t *testing.T) {
 // TestDomainPoolService_Create 测试创建域名池记录
 func TestDomainPoolService_Create(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	domainPool, err := service.Create(context.Background(), "example.com", 8080, "API 服务")
 	if err != nil {
@@ -58,7 +60,7 @@ func TestDomainPoolService_Create(t *testing.T) {
 // TestDomainPoolService_Create_DefaultPort 测试创建时使用默认端口
 func TestDomainPoolService_Create_DefaultPort(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	domainPool, err := service.Create(context.Background(), "example.com", 0, "API 服务")
 	if err != nil {
@@ -73,7 +75,7 @@ func TestDomainPoolService_Create_DefaultPort(t *testing.T) {
 // TestDomainPoolService_Create_NegativePort 测试创建时使用负数端口
 func TestDomainPoolService_Create_NegativePort(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	domainPool, err := service.Create(context.Background(), "example.com", -1, "API 服务")
 	if err != nil {
@@ -88,7 +90,7 @@ func TestDomainPoolService_Create_NegativePort(t *testing.T) {
 // TestDomainPoolService_Create_DuplicateDomain 测试创建重复域名
 func TestDomainPoolService_Create_DuplicateDomain(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, err := service.Create(context.Background(), "example.com", 8080, "API 服务")
 	if err != nil {
@@ -107,7 +109,7 @@ func TestDomainPoolService_Create_DuplicateDomain(t *testing.T) {
 // TestDomainPoolService_Update 测试更新域名池记录
 func TestDomainPoolService_Update(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "example.com", 8080, "API 服务")
 
@@ -133,7 +135,7 @@ func TestDomainPoolService_Update(t *testing.T) {
 // TestDomainPoolService_Update_DefaultPort 测试更新时使用默认端口
 func TestDomainPoolService_Update_DefaultPort(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "example.com", 8080, "API 服务")
 	updated, err := service.Update(context.Background(), created.ID, "example.com", 0, "API 服务", 1)
@@ -149,7 +151,7 @@ func TestDomainPoolService_Update_DefaultPort(t *testing.T) {
 // TestDomainPoolService_Update_DuplicateDomain 测试更新为已被使用的域名
 func TestDomainPoolService_Update_DuplicateDomain(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, _ = service.Create(context.Background(), "example1.com", 8080, "服务 1")
 	created2, _ := service.Create(context.Background(), "example2.com", 9000, "服务 2")
@@ -166,7 +168,7 @@ func TestDomainPoolService_Update_DuplicateDomain(t *testing.T) {
 // TestDomainPoolService_Update_SameDomain 测试更新时域名不变
 func TestDomainPoolService_Update_SameDomain(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "example.com", 8080, "API 服务")
 	updated, err := service.Update(context.Background(), created.ID, "example.com", 9000, "新用途", 1)
@@ -182,7 +184,7 @@ func TestDomainPoolService_Update_SameDomain(t *testing.T) {
 // TestDomainPoolService_Update_NotFound 测试更新不存在的记录
 func TestDomainPoolService_Update_NotFound(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, err := service.Update(context.Background(), 99999, "example.com", 8080, "API 服务", 1)
 	if err == nil {
@@ -193,7 +195,7 @@ func TestDomainPoolService_Update_NotFound(t *testing.T) {
 // TestDomainPoolService_Delete 测试删除域名池记录
 func TestDomainPoolService_Delete(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "example.com", 8080, "API 服务")
 
@@ -215,7 +217,7 @@ func TestDomainPoolService_Delete(t *testing.T) {
 // 删不存在的行若是静默成功，调用方会把「ID 打错/行已被并发删掉」当成删干净了。
 func TestDomainPoolService_Delete_NotFound(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	err := service.Delete(context.Background(), 99999)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -226,7 +228,7 @@ func TestDomainPoolService_Delete_NotFound(t *testing.T) {
 // TestDomainPoolService_GetByID 测试根据 ID 获取域名池记录
 func TestDomainPoolService_GetByID(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "example.com", 8080, "API 服务")
 
@@ -249,7 +251,7 @@ func TestDomainPoolService_GetByID(t *testing.T) {
 // TestDomainPoolService_GetByID_NotFound 测试获取不存在的记录
 func TestDomainPoolService_GetByID_NotFound(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, err := service.GetByID(context.Background(), 99999)
 	if err == nil {
@@ -260,7 +262,7 @@ func TestDomainPoolService_GetByID_NotFound(t *testing.T) {
 // TestDomainPoolService_List 测试获取域名池列表
 func TestDomainPoolService_List(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	for i := 0; i < 5; i++ {
 		domain := "example" + string(rune('0'+i)) + ".com"
@@ -283,7 +285,7 @@ func TestDomainPoolService_List(t *testing.T) {
 // TestDomainPoolService_List_WithDomainFilter 测试带域名过滤的列表
 func TestDomainPoolService_List_WithDomainFilter(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, _ = service.Create(context.Background(), "test1.example.com", 8080, "服务 1")
 	_, _ = service.Create(context.Background(), "test2.example.com", 8080, "服务 2")
@@ -305,7 +307,7 @@ func TestDomainPoolService_List_WithDomainFilter(t *testing.T) {
 // TestDomainPoolService_List_WithStatusFilter 测试带状态过滤的列表
 func TestDomainPoolService_List_WithStatusFilter(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, _ = service.Create(context.Background(), "example1.com", 8080, "服务 1")
 	_, _ = service.Create(context.Background(), "example2.com", 8080, "服务 2")
@@ -328,7 +330,7 @@ func TestDomainPoolService_List_WithStatusFilter(t *testing.T) {
 // TestDomainPoolService_List_Pagination 测试分页
 func TestDomainPoolService_List_Pagination(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	for i := 0; i < 15; i++ {
 		domain := "example" + string(rune('0'+i%10)) + string(rune('0'+i/10)) + ".com"
@@ -359,7 +361,7 @@ func TestDomainPoolService_List_Pagination(t *testing.T) {
 // TestDomainPoolService_CheckDomain 测试检查单个域名
 func TestDomainPoolService_CheckDomain(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "nonexistent.invalid.domain", 80, "测试")
 
@@ -381,7 +383,7 @@ func TestDomainPoolService_CheckDomain(t *testing.T) {
 // TestDomainPoolService_CheckDomain_NotFound 测试检查不存在的域名
 func TestDomainPoolService_CheckDomain_NotFound(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, err := service.CheckDomain(context.Background(), 99999)
 	if err == nil {
@@ -392,7 +394,7 @@ func TestDomainPoolService_CheckDomain_NotFound(t *testing.T) {
 // TestDomainPoolService_CheckAllDomains 测试检查所有域名
 func TestDomainPoolService_CheckAllDomains(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, _ = service.Create(context.Background(), "example1.invalid", 80, "测试 1")
 	_, _ = service.Create(context.Background(), "example2.invalid", 8080, "测试 2")
@@ -416,7 +418,7 @@ func TestDomainPoolService_CheckAllDomains(t *testing.T) {
 // TestDomainPoolService_CheckAllDomains_EmptyList 测试检查空列表
 func TestDomainPoolService_CheckAllDomains_EmptyList(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	results, err := service.CheckAllDomains(context.Background())
 	if err != nil {
@@ -431,7 +433,7 @@ func TestDomainPoolService_CheckAllDomains_EmptyList(t *testing.T) {
 // TestDomainPoolService_Create_EmptyDomain 测试创建空域名
 func TestDomainPoolService_Create_EmptyDomain(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, err := service.Create(context.Background(), "", 8080, "API 服务")
 	if err != nil {
@@ -442,7 +444,7 @@ func TestDomainPoolService_Create_EmptyDomain(t *testing.T) {
 // TestDomainPoolService_Create_EmptyPurpose 测试创建空用途
 func TestDomainPoolService_Create_EmptyPurpose(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	domainPool, err := service.Create(context.Background(), "example.com", 8080, "")
 	if err != nil {
@@ -457,7 +459,7 @@ func TestDomainPoolService_Create_EmptyPurpose(t *testing.T) {
 // TestDomainPoolService_List_EmptyList 测试空列表
 func TestDomainPoolService_List_EmptyList(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	list, total, err := service.List(context.Background(), 1, 10, "", 0)
 	if err != nil {
@@ -475,7 +477,7 @@ func TestDomainPoolService_List_EmptyList(t *testing.T) {
 // TestDomainPoolService_List_LargePageSize 测试大分页尺寸
 func TestDomainPoolService_List_LargePageSize(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	for i := 0; i < 3; i++ {
 		domain := "example" + string(rune('0'+i)) + ".com"
@@ -498,7 +500,7 @@ func TestDomainPoolService_List_LargePageSize(t *testing.T) {
 // TestDomainPoolService_Update_LastCheck 测试更新时间戳
 func TestDomainPoolService_Update_LastCheck(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "example.com", 8080, "API 服务")
 
@@ -513,7 +515,7 @@ func TestDomainPoolService_Update_LastCheck(t *testing.T) {
 // TestDomainPoolService_CheckDomain_VerifyLastCheck 测试检查域名会更新最后检查时间
 func TestDomainPoolService_CheckDomain_VerifyLastCheck(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	created, _ := service.Create(context.Background(), "nonexistent.invalid", 80, "测试")
 
@@ -530,7 +532,7 @@ func TestDomainPoolService_CheckDomain_VerifyLastCheck(t *testing.T) {
 // TestDomainPoolService_CheckAllDomains_VerifyLastCheck 测试检查所有域名会更新最后检查时间
 func TestDomainPoolService_CheckAllDomains_VerifyLastCheck(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	_, _ = service.Create(context.Background(), "nonexistent1.invalid", 80, "测试 1")
 	_, _ = service.Create(context.Background(), "nonexistent2.invalid", 80, "测试 2")
@@ -552,7 +554,7 @@ func TestDomainPoolService_CheckAllDomains_VerifyLastCheck(t *testing.T) {
 // TestDomainPoolService_Create_LongDomain 测试创建长域名
 func TestDomainPoolService_Create_LongDomain(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	longDomain := "very-long-subdomain.example.very-long-domain-name-that-might-approach-limit.com"
 	domainPool, err := service.Create(context.Background(), longDomain, 8080, "测试")
@@ -568,7 +570,7 @@ func TestDomainPoolService_Create_LongDomain(t *testing.T) {
 // TestDomainPoolService_Create_SpecialCharactersInPurpose 测试用途中包含特殊字符
 func TestDomainPoolService_Create_SpecialCharactersInPurpose(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
-	service := NewDomainPoolService(database)
+	service := NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))
 
 	purpose := "测试服务 <>&\"' 特殊字符"
 	domainPool, err := service.Create(context.Background(), "example.com", 8080, purpose)

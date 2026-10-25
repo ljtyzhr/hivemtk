@@ -9,8 +9,6 @@ import (
 
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // KBDocumentChunk 文档切片（域内只读别名，gorm 行模型在 repository.KBDocumentChunkRow）
@@ -26,12 +24,6 @@ type KnowledgeUpdateService struct {
 // NewKnowledgeUpdateService 创建增量更新服务
 func NewKnowledgeUpdateService() *KnowledgeUpdateService {
 	return &KnowledgeUpdateService{repo: repository.NewKBDocumentChunkRepository()}
-}
-
-// NewKnowledgeUpdateServiceWithDB 注入 DB（测试用）
-func (s *KnowledgeUpdateService) WithDB(d *gorm.DB) *KnowledgeUpdateService {
-	s.repo = repository.NewKBDocumentChunkRepositoryWithDB(d)
-	return s
 }
 
 // UpdateDeltaResult 增量更新结果

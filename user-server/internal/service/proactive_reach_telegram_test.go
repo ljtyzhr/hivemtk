@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"hivemtk-user/internal/repository"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 
 // TestSendTelegram_NoRegistry 验证未注册 sender 时返回错误
 func TestSendTelegram_NoRegistry(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{})
 	req := &ProactiveReachRequest{Content: "hi"}
 	if _, err := svc.sendTelegram(context.Background(), req, "12345", "1"); err == nil {
 		t.Fatalf("未注册 sender 应返回错误")
@@ -20,7 +21,7 @@ func TestSendTelegram_NoRegistry(t *testing.T) {
 
 // TestSendTelegram_InvalidChatID 验证 chatID 解析失败
 func TestSendTelegram_InvalidChatID(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{})
 	called := false
 	svc.SetTelegramRegistry(func(_ context.Context, _ uint, _ int64, _ string) error {
 		called = true
@@ -40,7 +41,7 @@ func TestSendTelegram_InvalidChatID(t *testing.T) {
 
 // TestSendTelegram_SenderError 验证 sender 失败透传
 func TestSendTelegram_SenderError(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{})
 	wantErr := errors.New("telegram api timeout")
 	svc.SetTelegramRegistry(func(_ context.Context, _ uint, _ int64, _ string) error {
 		return wantErr
@@ -54,7 +55,7 @@ func TestSendTelegram_SenderError(t *testing.T) {
 
 // TestSendTelegram_Success 验证成功路径 response 字段
 func TestSendTelegram_Success(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{})
 	var gotAccID uint
 	var gotChatID int64
 	var gotContent string
@@ -86,7 +87,7 @@ func TestSendTelegram_Success(t *testing.T) {
 
 // TestSendTelegram_LargeChatID 验证大 chatID（负数群组）正确解析
 func TestSendTelegram_LargeChatID(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{})
 	var got int64
 	svc.SetTelegramRegistry(func(_ context.Context, _ uint, chatID int64, _ string) error {
 		got = chatID
@@ -104,7 +105,7 @@ func TestSendTelegram_LargeChatID(t *testing.T) {
 
 // TestSendTelegram_RegistriesIsolated 验证 TG registry 与其他渠道隔离
 func TestSendTelegram_RegistriesIsolated(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{})
 	tgCalled := false
 	svc.SetTelegramRegistry(func(_ context.Context, _ uint, _ int64, _ string) error {
 		tgCalled = true

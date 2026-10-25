@@ -95,10 +95,10 @@ func (AssetListing) TableName() string { return "asset_listings" }
 type AssetVersion struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID        int64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	ListingID int64  `gorm:"index;not null" json:"listing_id"`
-	Version   string `gorm:"size:32;not null" json:"version"`
-	Changelog string `gorm:"type:text" json:"changelog,omitempty"`
+	ID         int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	ListingID  int64  `gorm:"index;not null" json:"listing_id"`
+	Version    string `gorm:"size:32;not null" json:"version"`
+	Changelog  string `gorm:"type:text" json:"changelog,omitempty"`
 	BundleHash string `gorm:"size:128" json:"bundle_hash,omitempty"`
 	BundleRef  string `gorm:"size:256" json:"bundle_ref,omitempty"`
 	Status     string `gorm:"size:16;not null;default:draft" json:"status"`
@@ -118,14 +118,14 @@ func (AssetVersion) TableName() string { return "asset_versions" }
 type AssetReport struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID         int64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	ListingID  int64  `gorm:"index;not null" json:"listing_id"`
-	VersionID  int64  `json:"version_id,omitempty"`
-	ReporterID int64  `gorm:"index" json:"reporter_id"`
-	Category   string `gorm:"size:32;not null" json:"category"`
-	Detail     string `gorm:"type:text" json:"detail,omitempty"`
-	Status     string `gorm:"size:16;index;not null;default:open" json:"status"`
-	HandledBy  int64  `json:"handled_by,omitempty"`
+	ID         int64      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ListingID  int64      `gorm:"index;not null" json:"listing_id"`
+	VersionID  int64      `json:"version_id,omitempty"`
+	ReporterID int64      `gorm:"index" json:"reporter_id"`
+	Category   string     `gorm:"size:32;not null" json:"category"`
+	Detail     string     `gorm:"type:text" json:"detail,omitempty"`
+	Status     string     `gorm:"size:16;index;not null;default:open" json:"status"`
+	HandledBy  int64      `json:"handled_by,omitempty"`
 	HandledAt  *time.Time `json:"handled_at,omitempty"`
 
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
@@ -160,11 +160,11 @@ type ExtensionUsageMonthly struct {
 	VersionID    int64  `json:"version_id,omitempty"`
 	ExtensionKey string `gorm:"size:128;uniqueIndex:uk_ext_usage_dims,priority:2;not null" json:"extension_key"`
 	// Period 'YYYY-MM'
-	Period      string  `gorm:"size:7;uniqueIndex:uk_ext_usage_dims,priority:3;not null" json:"period"`
-	TenantCode  string  `gorm:"size:32" json:"tenant_code,omitempty"`
-	UsageCount  int64   `gorm:"not null;default:0" json:"usage_count"`
-	TokensIn    int64   `gorm:"not null;default:0" json:"tokens_in"`
-	TokensOut   int64   `gorm:"not null;default:0" json:"tokens_out"`
+	Period       string  `gorm:"size:7;uniqueIndex:uk_ext_usage_dims,priority:3;not null" json:"period"`
+	TenantCode   string  `gorm:"size:32" json:"tenant_code,omitempty"`
+	UsageCount   int64   `gorm:"not null;default:0" json:"usage_count"`
+	TokensIn     int64   `gorm:"not null;default:0" json:"tokens_in"`
+	TokensOut    int64   `gorm:"not null;default:0" json:"tokens_out"`
 	RevenueShare float64 `gorm:"type:numeric(12,4);not null;default:0" json:"revenue_share"`
 	SettleStatus string  `gorm:"size:16;not null;default:pending" json:"settle_status"`
 

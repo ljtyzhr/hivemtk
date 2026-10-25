@@ -131,7 +131,7 @@ func setupDedupEnv(t *testing.T) *WebhookService {
 			t.Fatalf("seed telegram account %s: %v", seed.name, err)
 		}
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 	return svc
 }
@@ -202,7 +202,7 @@ func TestFeishuDispatch_OfficialMessageIDDedupsAtHubLayer(t *testing.T) {
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed feishu account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 
 	// 同一条 om_dup_1，两次投递的其余字节不同（header.event_id / create_time 变化
@@ -300,7 +300,7 @@ func setupDingTalkInboundWithDB(t *testing.T, acc *model.DingTalkAppAccount) (*D
 	ingress := NewInboxIngressService()
 	ingress.cache = mc
 	ingress.SetAITrigger(&fakeAITrigger{})
-	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), acc.ID, db
+	return NewDingTalkAppService(&WebhookService{ingressSvc: ingress}), acc.ID, db
 }
 
 func dtInboundRows(t *testing.T, db *gorm.DB, convID string) []string {

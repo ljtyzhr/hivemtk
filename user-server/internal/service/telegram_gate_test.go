@@ -141,7 +141,7 @@ func TestStartTokenOwnershipAndExpiry(t *testing.T) {
 	if db == nil {
 		t.Skip("no test db")
 	}
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	svc.SetAPIBase(srv.URL)
 	seedTGMember(t, db, "tok_owner")
 
@@ -166,7 +166,7 @@ func TestStartTokenExpiredRejected(t *testing.T) {
 	if db == nil {
 		t.Skip("no test db")
 	}
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	svc.SetAPIBase(srv.URL)
 	seedTGMember(t, db, "tok_expired")
 
@@ -197,7 +197,7 @@ func TestAuthorizeMember_MuteUnlock_HappyPath(t *testing.T) {
 	if db == nil {
 		t.Skip("no test db")
 	}
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	svc.SetAPIBase(srv.URL)
 	seedTGMember(t, db, "tok_owner")
 
@@ -231,7 +231,7 @@ func TestAuthorizeMember_UnrestrictFailureRollsBack(t *testing.T) {
 	if db == nil {
 		t.Skip("no test db")
 	}
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	svc.SetAPIBase(srv.URL)
 	seedTGMember(t, db, "tok_owner")
 
@@ -258,7 +258,7 @@ func TestSweepExpiredFilter(t *testing.T) {
 	if db == nil {
 		t.Skip("no test db")
 	}
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	past := timePtr(time.Now().Add(-time.Hour))
 	future := timePtr(time.Now().Add(time.Hour))
 
@@ -321,7 +321,7 @@ func TestMemberUnverified(t *testing.T) {
 	if db == nil {
 		t.Skip("no test db")
 	}
-	svc := NewTelegramGateService(db)
+	svc := NewTelegramGateService()
 	past := timePtr(time.Now().Add(-time.Minute))
 
 	seeds := []struct {
@@ -424,7 +424,7 @@ func TestMemberUnverifiedPrivilegedSpeaker(t *testing.T) {
 			stub := &tgAPIStub{status: c.apiStatus, chatMemberStatus: c.memberStatus}
 			srv := httptest.NewServer(http.HandlerFunc(stub.handle))
 			t.Cleanup(srv.Close)
-			svc := NewTelegramGateService(db)
+			svc := NewTelegramGateService()
 			svc.SetAPIBase(srv.URL)
 			ctx := context.Background()
 
@@ -584,7 +584,7 @@ func TestMemberVerifiedScopes(t *testing.T) {
 					t.Fatalf("种台账: %v", err)
 				}
 			}
-			svc := NewTelegramGateService(db)
+			svc := NewTelegramGateService()
 			if got := svc.MemberVerified(context.Background(), 1, "-100", "4242"); got != c.want {
 				t.Errorf("MemberVerified = %v，want %v", got, c.want)
 			}
@@ -687,7 +687,7 @@ func TestRenderTGGateWelcomeNamedAndLegacy(t *testing.T) {
 }
 
 func TestMemberVerifiedUnwiredService(t *testing.T) {
-	if (NewTelegramGateService(nil)).MemberVerified(context.Background(), 1, "-100", "4242") {
+	if (NewTelegramGateService()).MemberVerified(context.Background(), 1, "-100", "4242") {
 		t.Error("未装配的门控服务不得判已验证")
 	}
 }

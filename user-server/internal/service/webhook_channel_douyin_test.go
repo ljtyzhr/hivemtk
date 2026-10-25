@@ -11,11 +11,11 @@ import (
 
 func newDouyinGenericTestService(t *testing.T) (*WebhookService, context.Context) {
 	t.Helper()
-	db := testutil.NewTestDB(t,
+	testutil.NewTestDB(t,
 		&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 		&model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	return NewWebhookService(db), context.Background()
+	return NewWebhookService(), context.Background()
 }
 
 // TestDispatchDouyinGeneric_MsgIDStable 相同内容重推 → MsgID 稳定（幂等键生效）

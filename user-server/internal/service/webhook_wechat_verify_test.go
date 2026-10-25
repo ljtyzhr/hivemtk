@@ -28,7 +28,7 @@ func newWechatVerifyService(t *testing.T, accounts ...*model.WechatAccount) *Web
 			t.Fatalf("create wechat account: %v", err)
 		}
 	}
-	return NewWebhookService(db)
+	return NewWebhookService()
 }
 
 // TestVerify_Wechat_NoSecretConfiguredRejects 未配置 secret：fail-closed 拒绝验签。

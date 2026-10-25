@@ -17,8 +17,6 @@ import (
 	"hivemtk-user/internal/pkg/httpclient"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // QQService QQ 机器人账号 CRUD 服务
@@ -26,13 +24,11 @@ type QQService struct {
 	accRepo *repository.QQAccountRepository
 }
 
-// NewQQService 创建 QQ 账号服务
-func NewQQService(db *gorm.DB) *QQService {
-	r := repository.NewQQAccountRepository()
-	if db != nil {
-		r.SetDB(context.Background(), db)
-	}
-	return &QQService{accRepo: r}
+// NewQQService 创建 QQ 账号服务。
+//
+// 五层架构 §3.2：构造器不接 DB 句柄——账号仓储用 repository 的全局构造器装配。
+func NewQQService() *QQService {
+	return &QQService{accRepo: repository.NewQQAccountRepository()}
 }
 
 // CreateAccount 创建账号
@@ -140,9 +136,9 @@ const (
 )
 
 // NewQQIntegrationService 创建 QQ 集成服务
-func NewQQIntegrationService(db *gorm.DB) *QQIntegrationService {
+func NewQQIntegrationService() *QQIntegrationService {
 	return &QQIntegrationService{
-		qqSvc:     NewQQService(db),
+		qqSvc:     NewQQService(),
 		hub:       NewMessageHubService(),
 		inbox:     NewInboxService(),
 		msgSeqMap: make(map[string]*qqSeqEntry),

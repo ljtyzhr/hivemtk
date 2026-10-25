@@ -25,6 +25,11 @@ type liveCodeRepository struct {
 	db *gorm.DB
 }
 
+// NewLiveCodeRepositoryDefault 默认构造（全局句柄）。
+func NewLiveCodeRepositoryDefault() LiveCodeRepository {
+	return NewLiveCodeRepository(GetDB())
+}
+
 func NewLiveCodeRepository(db *gorm.DB) LiveCodeRepository {
 	return &liveCodeRepository{db: db}
 }

@@ -91,7 +91,7 @@ func DescribeImage(ctx context.Context, filename string, data []byte) (string, e
 	if err != nil {
 		return "", fmt.Errorf("视觉服务请求失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return "", err

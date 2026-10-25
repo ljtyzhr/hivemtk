@@ -14,11 +14,8 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
-	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/repository"
 )
 
@@ -73,19 +70,16 @@ type SOPTemplateService struct {
 
 // NewSOPTemplateServiceDefault 使用全局 DB 创建 SOP Service（controller 层入口，避免 controller 持有 gorm.DB）。
 func NewSOPTemplateServiceDefault() *SOPTemplateService {
-	return NewSOPTemplateService(dbUtil.GetDB(), nil)
+	return NewSOPTemplateService()
 }
 
-// NewSOPTemplateService 创建 SOP Service
-//
-// Task 16: 第二个参数保留 *repository.SOPTemplateRepository 兼容旧调用, bindingRepo 走 SetBindingRepo 注入。
-func NewSOPTemplateService(db *gorm.DB, repo *repository.SOPTemplateRepository) *SOPTemplateService {
+// NewSOPTemplateService 创建 SOP Service（句柄由 repository 自取全局库；
+// bindingRepo 走 SetBindingRepo 注入）。
+func NewSOPTemplateService() *SOPTemplateService {
+	db := repository.GetDB()
 	var iface sopRepoIface
-	if repo == nil && db != nil {
-		repo = repository.NewSOPTemplateRepository(db)
-	}
-	if repo != nil {
-		iface = repo
+	if db != nil {
+		iface = repository.NewSOPTemplateRepository(db)
 	}
 	var bindingIface sopBindingRepoIface
 	if db != nil {

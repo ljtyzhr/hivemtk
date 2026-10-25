@@ -444,7 +444,7 @@ func TestN17_FeishuVoiceAndMediaLandInHubWithRightType(t *testing.T) {
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed feishu account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 	accountID := fmt.Sprintf("%d", acc.ID)
 
@@ -550,7 +550,7 @@ func TestN17_FeishuMediaFullChainBackfillsHubRow(t *testing.T) {
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed feishu account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 
 	type fetchCall struct {
@@ -642,7 +642,7 @@ func TestN17_WeComVoiceReachesHubInsteadOfBeingRejected(t *testing.T) {
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed wecom account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 	accountID := fmt.Sprintf("%d", acc.ID)
 
@@ -747,7 +747,7 @@ func TestN17_WhatsAppTypesMapIntoVocabulary(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("seed wa account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 	f4tInstallWAStubs(t)
 

@@ -284,7 +284,7 @@ func executeApprovalWaitNode(t *testing.T, database *gorm.DB, ctx context.Contex
 		Execution: exec, Node: node, CustomerID: exec.CustomerID,
 		ExecutionData: exec.ExecutionData, Input: exec.ExecutionData, TraceID: "wiring",
 	}
-	res, err := service.NewWaitExecutor(&service.SOPNodeExecutorDeps{DB: database}).Execute(ctx, ec)
+	res, err := service.NewWaitExecutor(&service.SOPNodeExecutorDeps{ExecRepo: repository.NewSopExecutionRepository(database), TimerRepo: repository.NewSOPTimerRepository(database)}).Execute(ctx, ec)
 	if err != nil {
 		t.Fatalf("执行器返回 error（失败应由状态表达）：%v", err)
 	}

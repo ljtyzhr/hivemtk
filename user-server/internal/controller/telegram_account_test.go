@@ -44,7 +44,7 @@ func setupTelegramAccountRouter(ctrl *TelegramAccountController) *gin.Engine {
 func setupTelegramWebhookRouter(database *gorm.DB) (*gin.Engine, *service.WebhookService) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	svc := service.NewWebhookService(database)
+	svc := service.NewWebhookService()
 	whCtrl := &WebhookController{svc: svc}
 	wh := r.Group("/api/webhook")
 	{

@@ -67,7 +67,7 @@ func gDySetup(t *testing.T) (*WebhookService, context.Context, string) {
 	if err := db.Create(tiktokAcc).Error; err != nil {
 		t.Fatalf("seed tiktok account: %v", err)
 	}
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 	return svc, context.Background(), gDySecret
 }
@@ -205,7 +205,7 @@ func TestBatchG_DispatchDouyin_OfficialTextEventLandsHubRow(t *testing.T) {
 	}
 
 	var rows int64
-	if err := svc.dbHandle().Model(&model.MessageHub{}).Where("account_id = ?", "gdy-acc").Count(&rows).Error; err != nil {
+	if err := svc.eventRepo.GetDB().Model(&model.MessageHub{}).Where("account_id = ?", "gdy-acc").Count(&rows).Error; err != nil {
 		t.Fatalf("count hub: %v", err)
 	}
 	if rows != 1 {
@@ -376,7 +376,7 @@ func TestBatchG_DispatchDouyin_NonMessageEventsWriteNoRow(t *testing.T) {
 		}
 	}
 	var rows int64
-	if err := svc.dbHandle().Model(&model.MessageHub{}).Where("account_id = ?", "gdy-none").Count(&rows).Error; err != nil {
+	if err := svc.eventRepo.GetDB().Model(&model.MessageHub{}).Where("account_id = ?", "gdy-none").Count(&rows).Error; err != nil {
 		t.Fatalf("count: %v", err)
 	}
 	if rows != 0 {
@@ -425,7 +425,7 @@ func TestBatchG_DispatchDouyin_SameServerMsgIDAcrossAccountsBothLand(t *testing.
 	}
 
 	var rows int64
-	if err := svc.dbHandle().Model(&model.MessageHub{}).
+	if err := svc.eventRepo.GetDB().Model(&model.MessageHub{}).
 		Where("account_id IN ?", []string{"acct-A", "acct-B"}).Count(&rows).Error; err != nil {
 		t.Fatalf("count: %v", err)
 	}

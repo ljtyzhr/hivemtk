@@ -13,13 +13,7 @@ import (
 
 // MigrationController 数据库迁移控制器
 //
-// 开源版命名修正：原 UpgradeController 实际承载的是数据库 schema 迁移、
-// 迁移任务、迁移回滚等"系统演进"能力，与"OTA 升级"无任何关系。
-// 为避免与"开源版无 OTA"约束产生歧义，统一更名为 migration_*。
-//
-// 历史兼容性：HTTP 路径已由 /upgrade/* 重命名为 /migration/*；
-// 旧的 controller 结构体名（UpgradeController / UpgradeTask*）暂保留以避免
-// 跨包大范围破坏性变更（service / repository / model 中仍以 UpgradeTask 命名）。
+// 暂保留旧名（UpgradeController / UpgradeTask*）以兼容现有调用。
 type MigrationController struct {
 	migrationService *migration.MigrationService
 }

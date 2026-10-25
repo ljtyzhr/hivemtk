@@ -8,8 +8,6 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // DouyinCardStatsService 抖音卡片统计服务接口
@@ -24,16 +22,16 @@ type douyinCardStatsService struct {
 }
 
 // NewDouyinCardStatsService 创建抖音卡片统计服务实例
-func NewDouyinCardStatsService(db *gorm.DB) DouyinCardStatsService {
+func NewDouyinCardStatsService(repo repository.DouyinCardStatsRepository) DouyinCardStatsService {
 	return &douyinCardStatsService{
-		repo: repository.NewDouyinCardStatsRepository(db),
+		repo: repo,
 	}
 }
 
 func (s *douyinCardStatsService) GetCardStats(ctx context.Context, req *dto.DouyinCardStatsRequest) (*dto.DouyinCardStatsResponse, error) {
 	card, err := s.repo.GetCardByID(ctx, req.CardID)
 	if err != nil {
-		return nil, fmt.Errorf("卡片不存在: %v", err)
+		return nil, fmt.Errorf("卡片不存在: %w", err)
 	}
 
 	views, err := s.repo.CountCardViews(ctx, req.CardID)

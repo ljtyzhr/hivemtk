@@ -63,7 +63,7 @@ func newConfigParamWriteFixture(t *testing.T) (*gin.Engine, *gorm.DB, *service.C
 		t.Fatalf("灌参数行失败：%v", err)
 	}
 
-	svc := service.NewConfigParamService(database)
+	svc := service.NewConfigParamService()
 	ctrl := NewConfigParamController(svc)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

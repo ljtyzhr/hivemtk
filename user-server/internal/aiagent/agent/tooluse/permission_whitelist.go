@@ -2,10 +2,110 @@ package tooluse
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"strings"
 	"sync"
 )
+
+// WhitelistSeedFileEnv 白名单 seed 文件路径（D-2）。
+//
+// 文件形如：
+//
+//	{"global":["tool_a"],"agents":{"agent_x":["tool_b"]}}
+//
+// 未设置 / 文件不存在 ⇒ 静默跳过，不改任何默认策略（尤其不动 defaultAllow）。
+const WhitelistSeedFileEnv = "TOOL_PERMISSION_WHITELIST_SEED_FILE"
+
+// WhitelistSeed 是启动期白名单种子。global 走全局白名单，agents 按 AgentID 覆盖式设置。
+type WhitelistSeed struct {
+	Global []string            `json:"global"`
+	Agents map[string][]string `json:"agents"`
+}
+
+// WhitelistSeedResult 描述一次 seed 加载实际应用了多少条。
+type WhitelistSeedResult struct {
+	Loaded      bool
+	GlobalTools int
+	Agents      int
+	AgentTools  int
+}
+
+// ApplyWhitelistSeedFile 读取并应用 seed 文件。
+//
+// 语义按"运营资产"而非"用户输入"设计：
+//   - 空路径 / 文件不存在 ⇒ (Loaded=false, nil)，静默跳过（不是错误）；
+//   - 读失败 / JSON 非法 ⇒ 返回 error 且**一条都不应用**，调用方保持启动默认；
+//   - 应用只调 AddGlobalWhitelist / SetAgentWhitelist，绝不碰 defaultAllow ——
+//     种子是"补授权"，不是"改默认策略"。
+//
+// 如何从 would_deny 报告生成这个文件（二选一里的"文档说明"）：
+//
+//	curl -s -H "Authorization: Bearer $TOKEN" https://<host>/api/agent/tools/risk \
+//	  | jq '{global: [.data.counts[]? | select(.would_deny > 0) | .tool_name], agents: {}}' \
+//	  > whitelist-seed.json
+//
+// 生成结果只是**待评审草稿**：报告按工具聚合，不按 Agent 拆分，所以 global 里是
+// "所有出现过 would_deny 的工具"。把确实应当无条件放行的留在 global，其余按 Agent
+// 挪进 agents（逐 Agent 归属可从 tool_risk_decision 日志的 agent_id+tool_name 汇总：
+//
+//	... | jq -r 'select(.event=="tool_risk_decision" and .would_deny==true) | [.agent_id,.tool_name] | @tsv'
+//
+// 一次 seed 里没出现的 Agent 不会被配置，仍按 defaultAllow 走。
+func ApplyWhitelistSeedFile(checker *WhitelistPermissionChecker, path string) (WhitelistSeedResult, error) {
+	var res WhitelistSeedResult
+	path = strings.TrimSpace(path)
+	if checker == nil || path == "" {
+		return res, nil
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return res, nil
+		}
+		return res, fmt.Errorf("read whitelist seed %q: %w", path, err)
+	}
+	var seed WhitelistSeed
+	if err := json.Unmarshal(raw, &seed); err != nil {
+		return res, fmt.Errorf("parse whitelist seed %q: %w", path, err)
+	}
+
+	seed.Global = nonEmptyTools(seed.Global)
+	checker.AddGlobalWhitelist(seed.Global)
+	res.GlobalTools = len(seed.Global)
+	for agentID, tools := range seed.Agents {
+		agentID = strings.TrimSpace(agentID)
+		if agentID == "" {
+			continue
+		}
+		tools = nonEmptyTools(tools)
+		checker.SetAgentWhitelist(agentID, tools)
+		res.Agents++
+		res.AgentTools += len(tools)
+	}
+	res.Loaded = true
+	return res, nil
+}
+
+// ApplyWhitelistSeedFromEnv 是启动装配用的入口：路径取自 WhitelistSeedFileEnv。
+func ApplyWhitelistSeedFromEnv(checker *WhitelistPermissionChecker) (WhitelistSeedResult, error) {
+	return ApplyWhitelistSeedFile(checker, os.Getenv(WhitelistSeedFileEnv))
+}
+
+// nonEmptyTools 去掉空串（SetAgentWhitelist 遇到空切片会删除该 Agent 的配置，
+// 若 list 里全是空串，这里先折成空切片，语义与"没配"一致）。
+func nonEmptyTools(tools []string) []string {
+	out := make([]string, 0, len(tools))
+	for _, t := range tools {
+		if t = strings.TrimSpace(t); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
 
 // WhitelistPermissionChecker 基于 agent_id 维度的工具白名单权限检查器
 type WhitelistPermissionChecker struct {
@@ -26,6 +126,14 @@ type WhitelistPermissionChecker struct {
 //
 // Check 的优先级：Agent 已配置白名单时其白名单为权威（"*" 通配也不绕过，
 // 防覆盖式逃逸）；全局白名单始终放行；仅当 Agent 未配置白名单时才回退到 defaultAllow。
+//
+// D-2 前置条件（切到 default-deny 之前必须同时满足，缺一不要改默认值）：
+//  1. 白名单 seed 文件已就位并通过 WhitelistSeedFileEnv 在启动期加载（global/agents
+//     两档都按运营真实数据填过），否则一开 default-deny 就是全站工具调用被拒；
+//  2. would_deny 统计已落库并累过一轮生产流量：/api/agent/tools/risk 的
+//     observations_persisted=true，且 counts 里的 would_deny 分布在开旗前被评审过。
+//
+// 本函数默认值**保持放行**；收口是运营动作，不是代码默认值的变更。
 func NewWhitelistPermissionChecker() *WhitelistPermissionChecker {
 	return &WhitelistPermissionChecker{
 		agentWhitelist:  make(map[string]map[string]bool),

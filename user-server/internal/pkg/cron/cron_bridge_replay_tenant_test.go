@@ -51,7 +51,7 @@ func TestBridgeOfflineReplayCron_ScansEachActiveTenant(t *testing.T) {
 		}
 	}
 
-	stats := service.NewBridgeOfflineReplayService().WithDB(gdb).RunOnceAllTenants(context.Background())
+	stats := service.NewBridgeOfflineReplayService().RunOnceAllTenants(context.Background())
 
 	// 判据是"扫到了渠道"：为 0 说明快照查询被守卫拒绝（这正是回归前的线上形态）。
 	if stats.ScannedChannels != 2 {
@@ -85,7 +85,7 @@ func TestBridgeOfflineReplayCron_OffModeRunsOnce(t *testing.T) {
 		t.Fatalf("seed 账号行失败: %v", err)
 	}
 
-	stats := service.NewBridgeOfflineReplayService().WithDB(gdb).RunOnceAllTenants(context.Background())
+	stats := service.NewBridgeOfflineReplayService().RunOnceAllTenants(context.Background())
 	if stats.ScannedChannels != 1 {
 		t.Fatalf("off 模式应扫到 1 个渠道，实际 %d", stats.ScannedChannels)
 	}

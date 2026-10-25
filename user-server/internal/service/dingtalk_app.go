@@ -21,8 +21,6 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // DingTalkAppService 钉钉企业内部应用账号服务（CRUD + 回调验签 + 入站收消息）
@@ -37,13 +35,12 @@ type DingTalkAppService struct {
 // webhookSvc 复用 WebhookService（其 ingressSvc 已在 NewWebhookService 中注入），
 // 以便入站消息经 HandleIngressMessage 进入统一 AI 派发管线。
 //
-// 注：保留 db *gorm.DB 入参以维持向后兼容（router 装配不改动），
-// 内部在构造函数中实例化 repository，service struct 不直接持有 *gorm.DB。
-func NewDingTalkAppService(db *gorm.DB, webhookSvc *WebhookService) *DingTalkAppService {
+// 句柄由 repository 自取全局库（测试用 db.SetTestDB／testutil 换库）。
+func NewDingTalkAppService(webhookSvc *WebhookService) *DingTalkAppService {
 	return &DingTalkAppService{
-		repo:       repository.NewDingTalkAppRepository(db),
+		repo:       repository.NewDingTalkAppRepositoryDefault(),
 		webhookSvc: webhookSvc,
-		hubRepo:    repository.NewMessageHubRepositoryWithDB(db),
+		hubRepo:    repository.NewMessageHubRepository(),
 	}
 }
 

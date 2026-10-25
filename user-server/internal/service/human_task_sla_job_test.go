@@ -27,7 +27,7 @@ func setupHumanTaskSLADB(t *testing.T) *gorm.DB {
 func newHumanTaskSLASvc(t *testing.T, database *gorm.DB, mode HumanTaskSLAMode) (*HumanTaskSLAWorker, *HumanTaskService) {
 	t.Helper()
 	svc := NewHumanTaskService(repository.NewHumanTaskRepositoryWithDB(database), &stubHumanTaskCfg{value: 5})
-	notifier := NewNotificationService(database)
+	notifier := NewNotificationService()
 	return NewHumanTaskSLAWorker(svc, notifier, mode, 0, 0), svc
 }
 
@@ -135,7 +135,7 @@ func TestHumanTaskSLAWorker_EnforceRemindsOncePerWindow(t *testing.T) {
 func TestHumanTaskSLAWorker_EnforceEscalatesAfterFullWindow(t *testing.T) {
 	database := setupHumanTaskSLADB(t)
 	svc := NewHumanTaskService(repository.NewHumanTaskRepositoryWithDB(database), &stubHumanTaskCfg{value: 5})
-	notifier := NewNotificationService(database)
+	notifier := NewNotificationService()
 	w := NewHumanTaskSLAWorker(svc, notifier, HumanTaskSLAModeEnforce, 0, 0)
 
 	useHumanTaskClock(t, humanTaskFixedNow)

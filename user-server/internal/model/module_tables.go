@@ -107,6 +107,9 @@ var knowledgeOwnedTables = []string{
 	"kb_item_bindings",
 	// T4 知识库冷启动三表：爬取源/爬取批次/QA 候选，随知识库模块开关
 	"kb_crawler_sources", "kb_crawl_batches", "qa_candidates",
+	// 父子分段的父块表（P1-1 项0，对标 Dify parent-child chunk）：检索命中小块后
+	// 回拼父块上下文，读写方只有 knowledge 分片/检索两处，随知识库模块开关。
+	"knowledge_chunk_parents",
 }
 
 // asset 模块独占
@@ -123,6 +126,11 @@ var assetOwnedTables = []string{
 var aiAgentOwnedTables = []string{
 	"ai_agents", "channel_agent_bindings", "agent_kb_bindings",
 	"ai_tool_configs", "ai_tool_account_bindings",
+	// custom_tools：用户经 OpenAPI 导入的自定义工具 Provider——与 ai_tool_configs
+	// 同一条工具装配链（都是"AI 能调用什么"的登记面），随 ai-agent 开关。
+	"custom_tools",
+	// mcp_servers：外部 MCP server 接入配置（P1-3 客户端侧配置面），同属工具面。
+	"mcp_servers",
 }
 
 // ai-sales 模块独占
@@ -138,6 +146,9 @@ var aiSalesOwnedTables = []string{
 	"humanize_dimensions", "feedback_records", "feedback_signals",
 	"feedback_events", "learning_insights", "bandit_reflux_log",
 	"low_quality_samples", "dialogue_eval_runs", "trace_eval_log",
+	// dialogue_eval_sets：导入的对话评测集（P0-1 CSV 批量导入的落点）——
+	// 与 dialogue_eval_runs 同一评测域（集 → 跑），随 ai-sales 开关。
+	"dialogue_eval_sets",
 }
 
 // reach-auto 模块独占

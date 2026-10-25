@@ -20,7 +20,7 @@ func setupIntentSOPSBTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestIntentSOP_SetSOPService(t *testing.T) {
-	rec := NewIntentRecognizer(nil, nil, nil)
+	rec := newIntentRecognizerNoDB(nil, nil)
 	if rec.sopService != nil {
 		t.Error("expected nil initially")
 	}
@@ -31,14 +31,14 @@ func TestIntentSOP_SetSOPService(t *testing.T) {
 }
 
 func TestIntentSOP_TriggerSOPByIntent_NoService(t *testing.T) {
-	rec := NewIntentRecognizer(nil, nil, nil)
+	rec := newIntentRecognizerNoDB(nil, nil)
 	rec.triggerSOPByIntent(context.Background(), "c-1", "s-1", "objection_price", 0.9)
 }
 
 func TestIntentSOP_TriggerSOPByIntent_LowConfidence(t *testing.T) {
 	db := setupIntentSOPSBTestDB(t)
-	svc := NewSOPService(db, nil)
-	rec := NewIntentRecognizer(db, nil, nil)
+	svc := NewSOPService(nil)
+	rec := NewIntentRecognizer(nil, nil)
 	rec.SetSOPService(context.Background(), svc)
 
 	agent := &model.SOPAgent{
@@ -64,8 +64,8 @@ func TestIntentSOP_TriggerSOPByIntent_LowConfidence(t *testing.T) {
 
 func TestIntentSOP_TriggerSOPByIntent_MatchAndExecute(t *testing.T) {
 	db := setupIntentSOPSBTestDB(t)
-	svc := NewSOPService(db, nil)
-	rec := NewIntentRecognizer(db, nil, nil)
+	svc := NewSOPService(nil)
+	rec := NewIntentRecognizer(nil, nil)
 	rec.SetSOPService(context.Background(), svc)
 
 	agent := &model.SOPAgent{
@@ -94,8 +94,8 @@ func TestIntentSOP_TriggerSOPByIntent_MatchAndExecute(t *testing.T) {
 
 func TestIntentSOP_TriggerSOPByIntent_InactiveAgent(t *testing.T) {
 	db := setupIntentSOPSBTestDB(t)
-	svc := NewSOPService(db, nil)
-	rec := NewIntentRecognizer(db, nil, nil)
+	svc := NewSOPService(nil)
+	rec := NewIntentRecognizer(nil, nil)
 	rec.SetSOPService(context.Background(), svc)
 
 	agent := &model.SOPAgent{
@@ -124,8 +124,8 @@ func TestIntentSOP_TriggerSOPByIntent_InactiveAgent(t *testing.T) {
 
 func TestIntentSOP_TriggerSOPByIntent_DuplicateGuard(t *testing.T) {
 	db := setupIntentSOPSBTestDB(t)
-	svc := NewSOPService(db, nil)
-	rec := NewIntentRecognizer(db, nil, nil)
+	svc := NewSOPService(nil)
+	rec := NewIntentRecognizer(nil, nil)
 	rec.SetSOPService(context.Background(), svc)
 
 	agent := &model.SOPAgent{
@@ -155,8 +155,8 @@ func TestIntentSOP_TriggerSOPByIntent_DuplicateGuard(t *testing.T) {
 
 func TestIntentSOP_TriggerSOPByIntent_NoMatch(t *testing.T) {
 	db := setupIntentSOPSBTestDB(t)
-	svc := NewSOPService(db, nil)
-	rec := NewIntentRecognizer(db, nil, nil)
+	svc := NewSOPService(nil)
+	rec := NewIntentRecognizer(nil, nil)
 	rec.SetSOPService(context.Background(), svc)
 
 	agent := &model.SOPAgent{
@@ -182,8 +182,8 @@ func TestIntentSOP_TriggerSOPByIntent_NoMatch(t *testing.T) {
 
 func TestIntentSOP_Recognize_EmptyCustomer(t *testing.T) {
 	db := setupIntentSOPSBTestDB(t)
-	svc := NewSOPService(db, nil)
-	rec := NewIntentRecognizer(db, nil, nil)
+	svc := NewSOPService(nil)
+	rec := NewIntentRecognizer(nil, nil)
 	rec.SetSOPService(context.Background(), svc)
 
 	agent := &model.SOPAgent{
@@ -210,8 +210,8 @@ func TestIntentSOP_Recognize_EmptyCustomer(t *testing.T) {
 
 func TestIntentSOP_Recognize_TriggersSOP(t *testing.T) {
 	db := setupIntentSOPSBTestDB(t)
-	svc := NewSOPService(db, nil)
-	rec := NewIntentRecognizer(db, nil, nil)
+	svc := NewSOPService(nil)
+	rec := NewIntentRecognizer(nil, nil)
 	rec.SetSOPService(context.Background(), svc)
 
 	agent := &model.SOPAgent{

@@ -59,14 +59,14 @@ func (m *UnknownQuestionRefluxMigration) Up(ctx context.Context) error {
 }
 
 func (m *UnknownQuestionRefluxMigration) Down(ctx context.Context) error {
-	if err := m.db.WithContext(ctx).Exec(
-		`DROP INDEX IF EXISTS idx_uq_question_trgm`).Error; err != nil {
-		return err
-	}
-	if err := m.db.WithContext(ctx).Exec(
-		`DROP TABLE IF EXISTS unknown_question_review_logs, unknown_question_clusters, unknown_questions CASCADE`).Error; err != nil {
-		return err
-	}
+	// 三张表由模型声明、经 AutoMigrate 建成（本迁移的 Up 只是"提前建"），
+	// 所以 Down 不删它们：删表＝连同 46 列与 11 个模型索引一起销毁在用数据，
+	// 而当前进程不会补回（AutoMigrate 只在启动时跑）。口径见 down_drop_policy.go。
+	declineTableDrop("v3.83.1",
+		"unknown_questions", "unknown_question_clusters", "unknown_question_review_logs")
+	// trgm 索引是本迁移 Up 自己 CREATE 的（不是模型标签声明），这一条才属于自己，
+	// 但同样不删：删掉它只让相似归簇长期 seq scan，而重建要再跑一次 Up。
+	declineIndexDrop("v3.83.1", "idx_uq_question_trgm")
 	// 不 drop pg_trgm 扩展：可能被其他表使用
 	return nil
 }

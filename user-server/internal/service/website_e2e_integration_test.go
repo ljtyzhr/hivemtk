@@ -12,7 +12,6 @@ import (
 
 	"hivemtk-user/internal/model"
 	dbutil "hivemtk-user/internal/pkg/db"
-	"hivemtk-user/internal/repository"
 )
 
 // 端到端：官网网页客服问「介绍下项目」必须答出标准答案，且**不转人工**。
@@ -90,7 +89,7 @@ func TestWebsiteE2E_ProductQuestionAnsweredByFAQ(t *testing.T) {
 	}
 
 	// 3) FAQ 服务命中标准答案。
-	faqSvc := NewFAQService(db, repository.NewFAQRepository(db))
+	faqSvc := NewFAQService()
 	matches, err := faqSvc.MatchByAgent(ctx, agentID, "介绍下项目", 3)
 	if err != nil {
 		t.Fatalf("FAQ 匹配失败: %v", err)

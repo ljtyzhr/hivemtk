@@ -11,6 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupBatchRoutes(auth *gin.RouterGroup) {
@@ -311,7 +313,7 @@ func setupOrderWebhookRoutes(public *gin.RouterGroup) {
 }
 
 func setupCommunityRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	communityCtrl := controller.NewCommunityController(service.NewCommunityService(gormDB))
+	communityCtrl := controller.NewCommunityController(service.NewCommunityService(repository.NewCommunityRepository(gormDB)))
 	auth.GET("/community/groups", communityCtrl.GetGroups)
 	auth.GET("/community/groups/:id", communityCtrl.GetGroupByID)
 	auth.GET("/community/members", communityCtrl.GetMembers)

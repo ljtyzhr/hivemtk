@@ -8,11 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
-	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/repository"
 )
@@ -101,31 +98,24 @@ type FAQService struct {
 
 // NewFAQServiceDefault 使用全局 DB 创建 FAQ Service（controller 层入口，避免 controller 持有 gorm.DB）。
 func NewFAQServiceDefault() *FAQService {
-	return NewFAQService(dbUtil.GetDB(), nil)
+	return NewFAQService()
 }
 
 // NewFAQService 创建 FAQ Service
 //
-// Task 15: 第二个参数保留 *repository.FAQRepository 兼容旧调用, bindingRepo 走 SetBindingRepo 注入。
-func NewFAQService(db *gorm.DB, repo *repository.FAQRepository) *FAQService {
-	var iface faqRepoIface
-	if repo == nil && db != nil {
-		repo = repository.NewFAQRepository(db)
+// 句柄由 repository 自取全局库（测试用 db.SetTestDB／testutil 换库）；库未就绪时两个
+// repo 都留 nil。bindingRepo 也可在装配后走 SetBindingRepo 注入。
+func NewFAQService() *FAQService {
+	svc := &FAQService{
+		clock:  realClock{},
+		cache:  make(map[uint][]model.FAQEntry),
+		loaded: make(map[uint]time.Time),
 	}
-	if repo != nil {
-		iface = repo
+	if db := repository.GetDB(); db != nil {
+		svc.repo = repository.NewFAQRepository(db)
+		svc.bindingRepo = repository.NewAgentKBBindingRepository(db)
 	}
-	var bindingIface faqBindingRepoIface
-	if db != nil {
-		bindingIface = repository.NewAgentKBBindingRepository(db)
-	}
-	return &FAQService{
-		repo:        iface,
-		bindingRepo: bindingIface,
-		clock:       realClock{},
-		cache:       make(map[uint][]model.FAQEntry),
-		loaded:      make(map[uint]time.Time),
-	}
+	return svc
 }
 
 // NewFAQServiceWithRepo 用任意实现 faqRepoIface 的 repo 创建 (测试用)

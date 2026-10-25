@@ -16,8 +16,8 @@ const d13Matrix = `{"customer_service":["cards.*","clues.view"],"staff":["cards.
 func setupD13(t *testing.T, matrix string) (*ConfigParamService, *gorm.DB) {
 	t.Helper()
 	db := testutil.NewTestDB(t, &model.ConfigParam{})
-	svc := NewConfigParamService(db)
-	if err := SeedConfigParams(context.Background(), db); err != nil {
+	svc := NewConfigParamService()
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Skipf("seed 不可用: %v", err)
 	}
 	if matrix != "" {

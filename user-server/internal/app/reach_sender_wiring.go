@@ -86,7 +86,7 @@ func (p *pipelineReachSender) SendReach(ctx context.Context, channel, accountID,
 // 而 tooluse 不能反向 import service（会成环），所以由装配点注入一次实现、由适配器读取。
 // 其余渠道的发送服务由 NewIntegrationReachAdapterFromDB 按 db 自己构造，不经过这里。
 func RegisterWeixinSender(db *gorm.DB) {
-	wechatSvc := service.NewWechatService(db)
+	wechatSvc := service.NewWechatService()
 	tooluse.GlobalServiceRegistry().RegisterWechat(&wechatLikeAdapter{svc: wechatSvc})
 }
 

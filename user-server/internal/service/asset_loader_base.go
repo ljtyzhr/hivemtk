@@ -6,16 +6,14 @@ import (
 	"log/slog"
 
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // assetLoaderRepo 五个 Loader 共用的资产读取仓储（构造期注入，L4 不直连 DB）
 var assetLoaderRepo *repository.AssetLoaderRepository
 
 // BindAssetLoaderRepository 装配期注入资产读取仓储（main/router 调用一次）
-func BindAssetLoaderRepository(db *gorm.DB) {
-	assetLoaderRepo = repository.NewAssetLoaderRepository(db)
+func BindAssetLoaderRepository(repo *repository.AssetLoaderRepository) {
+	assetLoaderRepo = repo
 }
 
 // LoadAssetFromDB 通用 DB 加载（优先 local_assets），走装配期注入的 AssetLoaderRepository

@@ -31,6 +31,11 @@ type domainPoolRepository struct {
 	db *gorm.DB
 }
 
+// NewDomainPoolRepositoryDefault 默认构造（全局句柄）。
+func NewDomainPoolRepositoryDefault() DomainPoolRepository {
+	return NewDomainPoolRepository(GetDB())
+}
+
 func NewDomainPoolRepository(db *gorm.DB) DomainPoolRepository {
 	return &domainPoolRepository{db: db}
 }

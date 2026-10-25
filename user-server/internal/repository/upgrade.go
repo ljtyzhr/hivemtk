@@ -48,9 +48,9 @@ func (r *UpgradeTaskRepository) GetAll(ctx context.Context, page, pageSize int) 
 		pageSize = 200
 	}
 
-// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find；
-// Count 失败时若不检查错误，total=0，管理页会把「有历史任务」显示成空列表。
-base := func() *gorm.DB {
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find；
+	// Count 失败时若不检查错误，total=0，管理页会把「有历史任务」显示成空列表。
+	base := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.UpgradeTask{})
 	}
 

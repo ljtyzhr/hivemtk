@@ -301,7 +301,7 @@ func TestPasswordResetService_ResetPassword_RevokesTokens(t *testing.T) {
 	}
 
 	start := time.Now().Add(-time.Second).Unix()
-	svc := NewPasswordResetService(database)
+	svc := NewPasswordResetService(repository.NewPasswordResetTokenRepository(database))
 	seedStaleWatermark(t, user.ID)
 
 	if err := svc.ResetPassword(context.Background(), &ResetPasswordRequest{

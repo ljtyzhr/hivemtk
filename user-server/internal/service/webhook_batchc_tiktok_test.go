@@ -50,7 +50,7 @@ func TestDispatchDouyin_TikTokMustNotBeLabelledDouyin(t *testing.T) {
 	}
 
 	var cnt int64
-	if err := svc.dbHandle().Model(&model.MessageHub{}).
+	if err := svc.eventRepo.GetDB().Model(&model.MessageHub{}).
 		Where("conversation_id = ?", "@c_1").Count(&cnt).Error; err != nil {
 		t.Fatalf("count hub: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestDispatchDouyin_LeadRowKeepsPlatform(t *testing.T) {
 		&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 		&model.WebhookEvent{}, &model.IntegrationAccount{}, &model.Clue{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	ctx := context.Background()
 	t.Cleanup(func() { svc.Stop(ctx) })
 
@@ -175,7 +175,7 @@ func TestTriggerBridgeDMOutreach_EnqueuesUnderOwnChannel(t *testing.T) {
 	SetGlobalInboxIngressService(ingress)
 	t.Cleanup(func() { SetGlobalInboxIngressService(nil) })
 
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	ctx := context.Background()
 	t.Cleanup(func() { svc.Stop(ctx) })
 
@@ -242,7 +242,7 @@ func TestDispatchToChannel_DouyinFamilyKeepsChannel(t *testing.T) {
 		&model.MessageHub{}, &model.InboxConversation{}, &model.UnifiedMessage{},
 		&model.WebhookEvent{}, &model.IntegrationAccount{}, &model.Clue{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	ctx := context.Background()
 	t.Cleanup(func() { svc.Stop(ctx) })
 

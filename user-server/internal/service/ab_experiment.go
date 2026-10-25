@@ -6,8 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gorm.io/gorm"
-
 	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -66,12 +64,12 @@ type ABExperiment struct {
 }
 
 // NewABExperiment 构造并启动异步落库 worker（db 为 nil 时纯内存模式）
-func NewABExperiment(db *gorm.DB, bufferSize int) *ABExperiment {
+func NewABExperiment(exposureRepo *repository.ABExposureRepository, bufferSize int) *ABExperiment {
 	if bufferSize <= 0 {
 		bufferSize = AbExposureBufferSize(context.Background())
 	}
 	a := &ABExperiment{
-		exposureRepo: repository.NewABExposureRepositoryWithDB(db),
+		exposureRepo: exposureRepo,
 		ch:           make(chan AbExposure, bufferSize),
 		done:         make(chan struct{}),
 	}
@@ -181,9 +179,9 @@ var (
 )
 
 // InitABExperiment 全局初始化（main 装配阶段调用一次）
-func InitABExperiment(db *gorm.DB) *ABExperiment {
+func InitABExperiment(exposureRepo *repository.ABExposureRepository) *ABExperiment {
 	abExperimentOnce.Do(func() {
-		abExperiment = NewABExperiment(db, AbExposureBufferSize(context.Background()))
+		abExperiment = NewABExperiment(exposureRepo, AbExposureBufferSize(context.Background()))
 	})
 	return abExperiment
 }

@@ -482,9 +482,9 @@ func (w *RecoveryQueueWorker) shadowPass(ctx context.Context, item *model.Recove
 		case errors.Is(err, ErrDoNotContact):
 			kind = "do_not_contact"
 			r.BlockedByDNC++
-		case strings.Contains(err.Error(), "no channel identity"):
+		case errors.Is(err, ErrNoChannelIdentity):
 			kind = "no_channel_identity"
-		case strings.Contains(err.Error(), "no active account"):
+		case errors.Is(err, ErrNoActiveAccount):
 			kind = "no_active_account"
 		}
 		logger.Ctx(ctx).Warn().Err(err).Uint64("recovery_id", item.ID).

@@ -22,13 +22,13 @@ import (
 )
 
 type Customer360Service struct {
-	sessionRepo      *repository.CustomerSessionRepository
-	messageRepo      *repository.SessionMessageRepository
-	clueRepo         repository.ClueRepository
-	orderRepo        repository.OrderRepository
-	unifiedMsgRepo   repository.UnifiedMessageRepository
-	customerRepo     repository.CustomerRepository
-	eventRepo        repository.CustomerEventRepository
+	sessionRepo    *repository.CustomerSessionRepository
+	messageRepo    *repository.SessionMessageRepository
+	clueRepo       repository.ClueRepository
+	orderRepo      repository.OrderRepository
+	unifiedMsgRepo repository.UnifiedMessageRepository
+	customerRepo   repository.CustomerRepository
+	eventRepo      repository.CustomerEventRepository
 
 	tagRepo     repository.CustomerTagAssignmentRepository
 	insightRepo repository.CustomerProfileInsightRepository
@@ -38,19 +38,19 @@ type Customer360Service struct {
 
 // NewCustomer360Service 构造客户 360 服务。
 // db 用于线索仓储（本实体链路要求显式注入）；其余仓储仍走各自域既有的构造口。
-func NewCustomer360Service(db *gorm.DB) *Customer360Service {
+func NewCustomer360Service(clueRepo repository.ClueRepository) *Customer360Service {
 	return &Customer360Service{
-		sessionRepo:      repository.NewCustomerSessionRepository(),
-		messageRepo:      repository.NewSessionMessageRepository(),
-		clueRepo:         repository.NewClueRepositoryWithDB(db),
-		orderRepo:        repository.NewOrderRepository(),
-		unifiedMsgRepo:   repository.NewUnifiedMessageRepository(),
-		customerRepo:     repository.NewCustomerRepository(),
-		eventRepo:        repository.NewCustomerEventRepository(),
-		tagRepo:          repository.NewCustomerTagAssignmentRepository(),
-		insightRepo:      repository.NewCustomerProfileInsightRepository(),
-		rfmRepo:          repository.NewCustomerRFMRepository(),
-		aiTagger:         NewAITagger(),
+		sessionRepo:    repository.NewCustomerSessionRepository(),
+		messageRepo:    repository.NewSessionMessageRepository(),
+		clueRepo:       clueRepo,
+		orderRepo:      repository.NewOrderRepository(),
+		unifiedMsgRepo: repository.NewUnifiedMessageRepository(),
+		customerRepo:   repository.NewCustomerRepository(),
+		eventRepo:      repository.NewCustomerEventRepository(),
+		tagRepo:        repository.NewCustomerTagAssignmentRepository(),
+		insightRepo:    repository.NewCustomerProfileInsightRepository(),
+		rfmRepo:        repository.NewCustomerRFMRepository(),
+		aiTagger:       NewAITagger(),
 	}
 }
 
@@ -1060,21 +1060,21 @@ func (s *Customer360Service) buildOrderInfoFromMap(userSessions []*model.Custome
 
 // Customer360ServiceForTest 用于测试的 Customer360Service（公开字段）
 type Customer360ServiceForTest struct {
-	SessionRepo      *repository.CustomerSessionRepository
-	MessageRepo      *repository.SessionMessageRepository
-	ClueRepo         repository.ClueRepository
-	OrderRepo        repository.OrderRepository
-	UnifiedMsgRepo   repository.UnifiedMessageRepository
+	SessionRepo    *repository.CustomerSessionRepository
+	MessageRepo    *repository.SessionMessageRepository
+	ClueRepo       repository.ClueRepository
+	OrderRepo      repository.OrderRepository
+	UnifiedMsgRepo repository.UnifiedMessageRepository
 }
 
 // GetCustomer360 获取客户 360 视图（测试版本）
 func (s *Customer360ServiceForTest) GetCustomer360(ctx context.Context, userID string) (*Customer360DTO, error) {
 	realService := &Customer360Service{
-		sessionRepo:      s.SessionRepo,
-		messageRepo:      s.MessageRepo,
-		clueRepo:         s.ClueRepo,
-		orderRepo:        s.OrderRepo,
-		unifiedMsgRepo:   s.UnifiedMsgRepo,
+		sessionRepo:    s.SessionRepo,
+		messageRepo:    s.MessageRepo,
+		clueRepo:       s.ClueRepo,
+		orderRepo:      s.OrderRepo,
+		unifiedMsgRepo: s.UnifiedMsgRepo,
 	}
 	return realService.GetCustomer360(ctx, userID)
 }
@@ -1082,11 +1082,11 @@ func (s *Customer360ServiceForTest) GetCustomer360(ctx context.Context, userID s
 // GetCustomerList 获取客户列表（测试版本）
 func (s *Customer360ServiceForTest) GetCustomerList(ctx context.Context, page, pageSize int, filters map[string]string) (map[string]*Customer360DTO, int64, error) {
 	realService := &Customer360Service{
-		sessionRepo:      s.SessionRepo,
-		messageRepo:      s.MessageRepo,
-		clueRepo:         s.ClueRepo,
-		orderRepo:        s.OrderRepo,
-		unifiedMsgRepo:   s.UnifiedMsgRepo,
+		sessionRepo:    s.SessionRepo,
+		messageRepo:    s.MessageRepo,
+		clueRepo:       s.ClueRepo,
+		orderRepo:      s.OrderRepo,
+		unifiedMsgRepo: s.UnifiedMsgRepo,
 	}
 	return realService.GetCustomerList(ctx, page, pageSize, filters)
 }

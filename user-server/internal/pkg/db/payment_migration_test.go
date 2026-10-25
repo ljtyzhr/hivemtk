@@ -29,9 +29,13 @@ import (
 )
 
 // paymentWantColumns 卡面列清单在库里的真实列名（升序 = information_schema 的读回顺序）。
+//
+// reason 是 E-10（2026-10-24）退款行的第二格：退款行记渠道给的退款原因，
+// 回款行恒空（见 model/payment.go 该字段注释）。它必须在这里同源，
+// 否则"卡面列清单"与真实表结构会各说一套。
 var paymentWantColumns = []string{
 	"amount", "bill_id", "channel_ref", "created_at", "currency", "id",
-	"order_id", "paid_at", "platform", "status", "tenant_id", "updated_at",
+	"order_id", "paid_at", "platform", "reason", "status", "tenant_id", "updated_at",
 }
 
 func paymentRegisteredModels() []any {

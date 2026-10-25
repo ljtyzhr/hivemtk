@@ -45,6 +45,11 @@ type smsDeliveryRepo struct {
 	db *gorm.DB
 }
 
+// NewSmsDeliveryRepositoryDefault 默认构造（全局句柄）。
+func NewSmsDeliveryRepositoryDefault() SmsDeliveryRepository {
+	return NewSmsDeliveryRepository(GetDB())
+}
+
 func NewSmsDeliveryRepository(db *gorm.DB) SmsDeliveryRepository {
 	return &smsDeliveryRepo{db: db}
 }

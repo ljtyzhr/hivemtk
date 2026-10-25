@@ -65,9 +65,13 @@ type memoryRepository struct {
 	db *gorm.DB
 }
 
-// NewMemoryRepository 构造（无参，内部取库句柄）
+// NewMemoryRepository 构造（无参，内部取库句柄；全局未装配时返回 nil，
+// 调用方按「repo 未装配」处理——与 DialogueMemoryRepository 同口径）。
 func NewMemoryRepository() MemoryRepository {
-	return &memoryRepository{db: _db.GetDB()}
+	if db := _db.GetDB(); db != nil {
+		return &memoryRepository{db: db}
+	}
+	return nil
 }
 
 // NewMemoryRepositoryWithDB 创建指定数据库连接的 MemoryRepository 实例（用于测试）

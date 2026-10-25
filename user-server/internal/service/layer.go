@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/featureflag"
@@ -42,21 +40,21 @@ type LayerRouter struct {
 
 // NewLayerRouter 创建 LayerRouter
 func NewLayerRouter(
-	db *gorm.DB,
 	faqRepo FAQMatcher,
 	sopRepo *repository.SOPTemplateRepository,
 	logRepo *repository.LayerDecisionLogRepository,
 	faqSvc *FAQService,
 	sopSvc *SOPTemplateService,
 ) *LayerRouter {
-	if faqRepo == nil && db != nil {
-		faqRepo = repository.NewFAQRepository(db)
+	// 默认构造内部解析全局句柄；未装配时返回 nil，保持「repo 未装配」旧语义。
+	if faqRepo == nil {
+		faqRepo = repository.NewFAQRepositoryDefault()
 	}
-	if sopRepo == nil && db != nil {
-		sopRepo = repository.NewSOPTemplateRepository(db)
+	if sopRepo == nil {
+		sopRepo = repository.NewSOPTemplateRepositoryDefault()
 	}
-	if logRepo == nil && db != nil {
-		logRepo = repository.NewLayerDecisionLogRepository(db)
+	if logRepo == nil {
+		logRepo = repository.NewLayerDecisionLogRepositoryDefault()
 	}
 	return &LayerRouter{
 		faqRepo: faqRepo,

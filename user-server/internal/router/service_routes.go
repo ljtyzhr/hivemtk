@@ -6,15 +6,15 @@ import (
 	"os"
 	"time"
 
-	"hivemtk-user/internal/app"
 	knowledgectrl "hivemtk-user/internal/aiagent/knowledge/controller"
 	knowledgeservice "hivemtk-user/internal/aiagent/knowledge/service"
+	"hivemtk-user/internal/app"
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
-	"hivemtk-user/internal/pkg/cron"
-	opsctrl "hivemtk-user/internal/ops/controller"
-	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/model"
+	opsctrl "hivemtk-user/internal/ops/controller"
+	"hivemtk-user/internal/pkg/cron"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 	"hivemtk-user/internal/service/reflux"
 	"hivemtk-user/internal/service/translation"
@@ -101,7 +101,7 @@ func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAge
 	wsHandler.SetLangResolver(langResolver)
 	auth.GET("/ws/agent", wsHandler.HandleWebSocket)
 
-	customer360Ctrl := controller.NewCustomer360Controller(service.NewCustomer360Service(db))
+	customer360Ctrl := controller.NewCustomer360Controller(service.NewCustomer360Service(repository.NewClueRepositoryWithDB(db)))
 	auth.GET("/customer-360", customer360Ctrl.GetCustomer360)
 	auth.GET("/customer-360/list", customer360Ctrl.GetCustomerList)
 	auth.GET("/customer-360/basic", customer360Ctrl.GetCustomerBasicInfo)
@@ -220,7 +220,7 @@ func setupPlatformAccountRoutes(auth *gin.RouterGroup) {
 }
 
 func setupWeComHealthRoutes(auth *gin.RouterGroup, db *gorm.DB) {
-	wcHCtrl := controller.NewWeComHealthController(service.NewWeComAccountHealthService(db), service.NewWeComIntegrationService(db))
+	wcHCtrl := controller.NewWeComHealthController(service.NewWeComAccountHealthService(), service.NewWeComIntegrationService())
 	auth.GET("/wecom/health/accounts", wcHCtrl.ListAccountsWithHealth)
 	auth.GET("/wecom/health/accounts/risks", wcHCtrl.GetRiskAccounts)
 	auth.GET("/wecom/health/accounts/select", wcHCtrl.SelectHealthyAccount)
@@ -238,7 +238,7 @@ func setupWeComHealthRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 func setupIntentRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	rec := service.GetIntentRecognizer()
 	if rec == nil {
-		rec = service.NewIntentRecognizer(db, app.GetGlobalDispatcher(), nil)
+		rec = service.NewIntentRecognizer(app.GetGlobalDispatcher(), nil)
 	}
 	intentCtrl := controller.NewIntentController(rec)
 	auth.POST("/intent/recognize", intentCtrl.Recognize)
@@ -304,14 +304,14 @@ func setupSSEDashboardRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	// （Stream/Snapshot/Metrics）没有任何装配点，运行时一律 404——写好的实时面
 	// 从未上线。db 传 nil 时控制器进入「离线模式」：连接可建、跳过 DB 采集返回零值快照，
 	// 与该控制器原本声明的语义一致。
-	dashSSECtrl := controller.NewDashboardSSEController(service.NewDashboardStatsService(db))
+	dashSSECtrl := controller.NewDashboardSSEController(service.NewDashboardStatsService())
 	auth.GET("/dashboards/stream", dashSSECtrl.StreamEventStream)
 	auth.GET("/dashboards/snapshot", dashSSECtrl.Snapshot)
 	auth.GET("/dashboards/metrics", dashSSECtrl.Metrics)
 }
 
 func setupDialogueMemoryRoutes(auth *gin.RouterGroup, db *gorm.DB) {
-	memCtrl := controller.NewDialogueMemoryController(service.NewDialogueMemoryService(db, nil))
+	memCtrl := controller.NewDialogueMemoryController(service.NewDialogueMemoryService(nil))
 	auth.POST("/memory/messages", memCtrl.AppendMessage)
 	auth.GET("/memory/short", memCtrl.ShortTerm)
 	auth.GET("/memory/long", memCtrl.LongTerm)
@@ -325,7 +325,7 @@ func setupDialogueMemoryRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 }
 
 func setupSOPRoutes(auth *gin.RouterGroup, db *gorm.DB) {
-	sopCtrl := controller.NewSOPController(service.NewSOPService(db, nil))
+	sopCtrl := controller.NewSOPController(service.NewSOPService(nil))
 
 	sopAgentRepo := repository.NewSopAgentRepository(db)
 	sopExecRepo := repository.NewSopExecutionRepository(db)
@@ -393,12 +393,12 @@ func setupSOPRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	cron.RegisterKBCrawlerTask(crawlerSvc)
 	knowledgectrl.NewKBCrawlerController(crawlerSvc, qaSplitSvc).RegisterRoutes(auth)
 
-	bindCtrl := controller.NewAgentKBBindingController(service.NewAgentKBBindingService(db))
+	bindCtrl := controller.NewAgentKBBindingController(service.NewAgentKBBindingService())
 	bindCtrl.RegisterRoutes(auth)
 }
 
 func setupReachPipelineRoutes(auth *gin.RouterGroup, db *gorm.DB) {
-	reachSvc := service.NewReachPipelineService(db)
+	reachSvc := service.NewReachPipelineService(repository.NewReachPipelineRepository(db))
 	if hook := service.NewHTTPAlertHook(os.Getenv("ALERT_WEBHOOK_URL")); hook != nil {
 		reachSvc.SetAlertHook(hook)
 	}
@@ -430,9 +430,22 @@ func setupReachPipelineRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 }
 
 func setupProactiveReachRoutes(auth *gin.RouterGroup, db *gorm.DB) {
-	reachSvc := service.NewReachPipelineService(db)
-	proactiveSvc := service.NewProactiveReachService(db, nil)
-	service.BindProactiveReachSenders(proactiveSvc, db)
+	reachSvc := service.NewReachPipelineService(repository.NewReachPipelineRepository(db))
+	proactiveSvc := service.NewProactiveReachService(
+		repository.NewProactiveReachRepository(db),
+		repository.NewCustomerDoNotContactRepository(db),
+		nil,
+	)
+	service.BindProactiveReachSenders(proactiveSvc, service.ProactiveReachSenderSet{
+		Telegram: service.NewTelegramIntegrationService(repository.NewTelegramAccountRepositoryWithDB(db)),
+		WhatsApp: service.NewWhatsAppCloudIntegrationService(repository.NewWhatsAppCloudAccountRepositoryWithDB(db)),
+		Feishu: service.NewFeishuIntegrationService(
+			repository.NewFeishuAccountRepositoryWithDB(db),
+			repository.NewFeishuMessageRepositoryWithDB(db),
+		),
+		WeCom:  service.NewWeComIntegrationService(),
+		Wechat: service.NewWechatService(),
+	})
 	// T-P3-07：直接 API 这条非工具外发路径在同一处装上闸门。装在装配点而不是每个
 	// handler 里，是因为这个控制器有 5 个外发入口（单发/快速/按客户/批量/校验），
 	// 逐个包等于把"新加一个入口就新漏一条路径"这件事留给下一个改代码的人。
@@ -548,7 +561,11 @@ func setupQualityRoutes(auth *gin.RouterGroup) {
 }
 
 func setupSecurityAuditRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	ctrl := controller.NewSecurityAuditController(service.NewSecurityAuditService(gormDB))
+	ctrl := controller.NewSecurityAuditController(service.NewSecurityAuditService(func() *repository.SecurityAuditRepository {
+		r := repository.NewSecurityAuditRepository()
+		r.SetDB(context.Background(), gormDB)
+		return r
+	}()))
 	auth.GET("/security/audit/list", ctrl.ListSecurityAudits)
 	auth.GET("/security/audit/:id", ctrl.GetSecurityAudit)
 
@@ -558,13 +575,13 @@ func setupSecurityAuditRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 
 // setupSecurityRulesRoutes 运营后台「安全规则配置」：敏感词过滤 / 输出内容护栏 / 数据脱敏。
 func setupSecurityRulesRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	rulesCtrl := controller.NewSecurityRulesController(service.NewSecurityRulesService(gormDB))
+	rulesCtrl := controller.NewSecurityRulesController(service.NewSecurityRulesService())
 	auth.GET("/security/rules", rulesCtrl.GetRules)
 
 }
 
 // setupSupportMetricsRoutes 运营后台「指标看板」：自助解决率 / 转人工率 / 会话轮次 / 知识库召回准确率。
 func setupSupportMetricsRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	metricsCtrl := controller.NewSupportMetricsController(service.NewSupportMetricsService(gormDB))
+	metricsCtrl := controller.NewSupportMetricsController(service.NewSupportMetricsService(repository.NewSupportMetricsRepository(gormDB)))
 	auth.GET("/metrics/support", metricsCtrl.GetSupportMetrics)
 }

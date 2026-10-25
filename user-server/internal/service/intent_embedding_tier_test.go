@@ -8,11 +8,20 @@ import (
 	"hivemtk-user/internal/aiagent/llm"
 
 	"gorm.io/gorm"
+
+	"github.com/redis/go-redis/v9"
 )
 
-func newIntentRecognizerNoDB(t *testing.T) (*IntentRecognizer, *gorm.DB) {
+// newIntentRecognizerForTest 构造未接库的识别器（本文件只喂 Embedding 腿，不碰表）。
+func newIntentRecognizerForTest(t *testing.T) (*IntentRecognizer, *gorm.DB) {
 	t.Helper()
-	return NewIntentRecognizer(nil, nil, nil), nil
+	return newIntentRecognizerNoDB(nil, nil), nil
+}
+
+// newIntentRecognizerNoDB 显式构造"未接库"的识别器：锁住 nil 防御腿，
+// 不受进程全局句柄残留影响（生产侧走 NewIntentRecognizer 自取全局库）。
+func newIntentRecognizerNoDB(dispatcher *llm.Dispatcher, cache *redis.Client) *IntentRecognizer {
+	return &IntentRecognizer{dispatcher: dispatcher, cache: cache}
 }
 
 func awaitAnchors(rec *IntentRecognizer) <-chan struct{} {
@@ -80,7 +89,7 @@ func unitVec(dim int, hotIdx []int) []float32 {
 
 func newAnchorStub(t *testing.T) (*IntentRecognizer, *stubEmbedder) {
 	t.Helper()
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	stub := &stubEmbedder{
 		dim: 8,
 		vecs: map[string][]float32{
@@ -121,7 +130,7 @@ func TestRecognizeEmbedding_HighConfidenceHit(t *testing.T) {
 }
 
 func TestRecognizeEmbedding_AmbiguityGapFallsThrough(t *testing.T) {
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 
 	v15 := []float32{0.966, 0.259, 0, 0, 0, 0, 0, 0}
 	v19 := []float32{0.9455, 0.3256, 0, 0, 0, 0, 0, 0}
@@ -157,7 +166,7 @@ func TestRecognizeEmbedding_LowSimilarityReturnsNil(t *testing.T) {
 }
 
 func TestRecognizeEmbedding_CircuitBreakerAfterConsecutiveFailures(t *testing.T) {
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	stub := &stubEmbedder{dim: 4, failN: 1000}
 	rec.SetEmbeddingService(stub)
 	<-awaitAnchors(rec)
@@ -174,7 +183,7 @@ func TestRecognizeEmbedding_CircuitBreakerAfterConsecutiveFailures(t *testing.T)
 }
 
 func TestRecognizeEmbedding_FailOpenThenRecover(t *testing.T) {
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	stub := &stubEmbedder{
 		dim: 8,
 
@@ -222,7 +231,7 @@ func TestLLMContract_LowConfidenceDowngradedToUnknown(t *testing.T) {
 
 // F1 懒重试：冷却到期后锚点为空应触发重新预计算（TEI 启动慢场景恢复）
 func TestRecognizeEmbedding_LazyRetryAfterCooldown(t *testing.T) {
-	rec, _ := newIntentRecognizerNoDB(t)
+	rec, _ := newIntentRecognizerForTest(t)
 	stub := &stubEmbedder{
 		dim: 8,
 		vecs: map[string][]float32{

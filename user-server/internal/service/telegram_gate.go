@@ -18,8 +18,6 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // TelegramGateService TG 群组入群管控服务
@@ -65,15 +63,23 @@ type TelegramGateService struct {
 // 与 db.SetTestDB / config.SetAppConfig 同属项目既有的测试注入约定。
 func (s *TelegramGateService) SetAPIBase(u string) { s.apiBase = u }
 
-func NewTelegramGateService(db *gorm.DB) *TelegramGateService {
-	svc := &TelegramGateService{}
-	if db != nil {
-		svc.gateRepo = repository.NewTelegramGroupGateRepositoryWithDB(db)
-		svc.memberRepo = repository.NewTelegramGroupMemberRepositoryWithDB(db)
-		svc.tgRepo = repository.NewTelegramAccountRepositoryWithDB(db)
-		svc.leaseRepo = repository.NewCronJobLeaseRepositoryWithDB(db)
+// NewTelegramGateService 创建群控门面。
+//
+// 五层架构 §3.2：构造器不接 DB 句柄——四个仓储都用 repository 的全局构造器装配。
+// 全局 DB 尚未初始化（单测/嵌入式）时退回"未装配"语义：仓储置 nil，
+// 各方法开头的 nil 守卫与原先传 nil db 时完全一致（判据由 repository.Bound 给出，
+// service 层不自己去读全局句柄）。
+func NewTelegramGateService() *TelegramGateService {
+	gateRepo := repository.NewTelegramGroupGateRepository()
+	if !gateRepo.Bound() {
+		return &TelegramGateService{}
 	}
-	return svc
+	return &TelegramGateService{
+		gateRepo:   gateRepo,
+		memberRepo: repository.NewTelegramGroupMemberRepository(),
+		tgRepo:     repository.NewTelegramAccountRepository(),
+		leaseRepo:  repository.NewCronJobLeaseRepository(),
+	}
 }
 
 // wired 依赖装配判定（gateRepo 与 db 同生共死，判它即判全部）
@@ -985,16 +991,18 @@ func sweepOnce(ctx context.Context, svc *TelegramGateService, workerID string) (
 }
 
 // StartGateSweeper 启动后台 TTL 清扫协程；调用方在路由注册后直接调用（内部 go routine），
-// 每分钟执行一次 SweepExpired。db 为 nil 时直接返回（测试/无 DB 场景）。
+// 每分钟执行一次 SweepExpired。svc 未装配（无库）时直接返回（测试/无 DB 场景）。
 //
+// 服务实例由装配点在调用处构造（StartGateSweeper(NewTelegramGateService())）：
+// 本函数不接 DB 句柄（五层架构 §3.2）。
 // 与 polling 锁共用 worker 标识（hostname:pid），日志里两个"谁在跑"能对上是同一个进程。
 // 成对的 StopGateSweeper 必须在进程关停时调用（main.go 里 defer）。
-func StartGateSweeper(db *gorm.DB) {
-	if db == nil {
+func StartGateSweeper(svc *TelegramGateService) {
+	if svc == nil || !svc.wired() {
 		return
 	}
 	workerID := GetPollingWorkerID()
-	startGateSweeper(NewTelegramGateService(db), workerID)
+	startGateSweeper(svc, workerID)
 	logger.Infof("[TG-Gate] TTL 清扫器已启动（每分钟一次，租约 worker=%s）", workerID)
 }
 

@@ -50,31 +50,19 @@ type VisitorChatService struct {
 // NewVisitorChatService 构造访客会话服务
 // agentBindingSvc 可为 nil（测试/降级场景）：nil 时网页客服回退默认编排（与既有行为一致）
 //
-// 五层架构 §三.5：service 层禁止直接持有 *gorm.DB，db 仅在构造期用于绑定各 repository；
-// 测试场景下调用方应先 db.SetTestDB(database)，再传入 db=database 以保证 repository 走测试库。
-func NewVisitorChatService(ctx context.Context, db *gorm.DB, channelSvc *ChatChannelService, orchestrator *SmartCSOrchestrator, agentBindingSvc *ChannelAgentBindingService) *VisitorChatService {
-	if db == nil {
-		db = repository.NewCustomerSessionRepository().GetDB(ctx)
-	}
+// 句柄由各 repository 构造器自取；测试场景下调用方先 db.SetTestDB(database) 换库。
+func NewVisitorChatService(channelSvc *ChatChannelService, orchestrator *SmartCSOrchestrator, agentBindingSvc *ChannelAgentBindingService) *VisitorChatService {
 	return &VisitorChatService{
 		channelSvc:      channelSvc,
 		orchestrator:    orchestrator,
 		sessionSvc:      NewCustomerSessionService(),
-		sessionRepo:     repository.NewCustomerSessionRepositoryWithDB(db),
-		messageRepo:     repository.NewSessionMessageRepositoryWithDB(db),
+		sessionRepo:     repository.NewCustomerSessionRepository(),
+		messageRepo:     repository.NewSessionMessageRepository(),
 		customerRepo:    repository.NewCustomerRepository(),
-		agentStatusRepo: repository.NewAgentStatusRepositoryWithDB(db),
+		agentStatusRepo: repository.NewAgentStatusRepository(),
 		agentBindingSvc: agentBindingSvc,
-		inboxConvRepo:   newInboxConversationRepo(db),
+		inboxConvRepo:   repository.NewInboxConversationRepository(),
 	}
-}
-
-func newInboxConversationRepo(db *gorm.DB) *repository.InboxConversationRepository {
-	repo := repository.NewInboxConversationRepository()
-	if db != nil {
-		repo.SetDB(context.Background(), db)
-	}
-	return repo
 }
 
 func (s *VisitorChatService) ensureVisitorCustomer(ctx context.Context, req *VisitorSendMessageRequest, session *model.CustomerSession) error {

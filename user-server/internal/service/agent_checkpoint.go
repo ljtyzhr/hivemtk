@@ -17,8 +17,6 @@ import (
 	"encoding/json"
 
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // AgentStageNames 五阶段顺序（恢复游标依据）
@@ -39,11 +37,6 @@ func CheckpointEnabled() bool { return checkpointEnabledFn() }
 
 // AgentCheckpoint 单条记录（别名，存储结构已收敛到 repository 层）
 type AgentCheckpoint = repository.AgentCheckpoint
-
-// NewAgentCheckpointRepository 构造（gorm 收敛在仓储，service 不直连 DB）
-func NewAgentCheckpointRepository(db *gorm.DB) *repository.AgentCheckpointRepository {
-	return repository.NewAgentCheckpointRepository(db)
-}
 
 // SaveCheckpoint 阶段完成即落 checkpoint（upsert，幂等）
 func SaveCheckpoint(ctx context.Context, repo *repository.AgentCheckpointRepository, threadID, stage string, state json.RawMessage) error {

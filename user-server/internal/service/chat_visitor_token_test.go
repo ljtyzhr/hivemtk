@@ -46,7 +46,7 @@ func newVisitorTokenTestService(t *testing.T) (*VisitorChatService, *gorm.DB) {
 	t.Cleanup(func() { db.SetTestDB(nil) })
 
 	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
-	svc := NewVisitorChatService(context.Background(), database, channelSvc, nil, NewChannelAgentBindingService())
+	svc := NewVisitorChatService(channelSvc, nil, NewChannelAgentBindingService())
 	return svc, database
 }
 

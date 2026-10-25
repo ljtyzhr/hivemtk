@@ -12,12 +12,12 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/websocket"
-
-	"gorm.io/gorm"
 )
 
 type SOPNodeExecutorDeps struct {
-	DB          *gorm.DB
+	// ExecRepo / TimerRepo 由装配点按全局库构造后注入（本包不接句柄）。
+	ExecRepo    *repository.SopExecutionRepository
+	TimerRepo   *repository.SOPTimerRepository
 	Dispatcher  *llm.Dispatcher
 	WSHub       *websocket.Hub
 	MsgRepo     *repository.SessionMessageRepository
@@ -86,7 +86,7 @@ type MessageNodeBase struct {
 	wsHub       *websocket.Hub
 	msgRepo     *repository.SessionMessageRepository
 	sessionRepo *repository.CustomerSessionRepository
-	// execRepo 仅补偿用（清 ExecutionData 产物键）。构造参数 deps.DB 为 nil 时留空，
+	// execRepo 仅补偿用（清 ExecutionData 产物键）。装配点没给 repo 时留空，
 	// 与 LLMNodeExecutor 的降级口径一致：无库可回滚 ⇒ Compensate 直接成功。
 	execRepo *repository.SopExecutionRepository
 
@@ -318,8 +318,8 @@ func NewMessageNodeExecutor(nodeType string, scenario llm.DispatchScenario, deps
 		sessionRepo: deps.SessionRepo,
 		llmSem:      deps.LLMSem,
 	}
-	if deps.DB != nil { // 无库 ⇒ 无可回滚状态，Compensate 直接成功（同 NewWaitExecutor 的降级口径）
-		b.execRepo = repository.NewSopExecutionRepository(deps.DB)
+	if deps.ExecRepo != nil { // 无库 ⇒ 无可回滚状态，Compensate 直接成功（同 NewWaitExecutor 的降级口径）
+		b.execRepo = deps.ExecRepo
 	}
 	return b
 }
@@ -539,7 +539,7 @@ func (e *LLMNodeExecutor) Execute(ctx context.Context, ec *ExecutionContext) (*N
 }
 
 func NewLLMNodeExecutor(nodeType string, deps *SOPNodeExecutorDeps) *LLMNodeExecutor {
-	execRepo := repository.NewSopExecutionRepository(deps.DB)
+	execRepo := deps.ExecRepo
 	return &LLMNodeExecutor{
 		nodeType:   nodeType,
 		dispatcher: deps.Dispatcher,
@@ -751,8 +751,8 @@ func (e *WaitExecutor) Execute(ctx context.Context, ec *ExecutionContext) (*Node
 // 当 deps.DB 非 nil 时构造 timerRepo，否则 timerRepo 为 nil（Execute 会跳过 DB 写入）。
 func NewWaitExecutor(deps *SOPNodeExecutorDeps) *WaitExecutor {
 	e := &WaitExecutor{}
-	if deps.DB != nil {
-		e.timerRepo = repository.NewSOPTimerRepository(deps.DB)
+	if deps.TimerRepo != nil {
+		e.timerRepo = deps.TimerRepo
 	}
 	return e
 }

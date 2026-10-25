@@ -195,6 +195,10 @@ func (s *KnowledgeService) processDocumentAsync(bgCtx context.Context, documentI
 	if err := s.docRepo.UpdateStatus(bgCtx, documentID, model.EmbedStatusIndexed, 100, ""); err != nil {
 		logger.Errorf("[knowledge] 更新已索引状态失败: %v", err)
 	}
+	// 分块与向量此刻才真正落库（导入受理时内容还没进来，那时抬列会留下
+	// "touch 之后、写入之前"的缓存盲窗）。在 Indexed 处抬 KB 行 updated_at，
+	// 让 rag_answer_cache 的命中校验把这些新内容的旧缓存判陈（C-11）。
+	s.touchKBForContentChange(bgCtx, "document_indexed")
 
 	docCount, _ := s.docRepo.CountByProduct(bgCtx, productID)
 	chunkCount, _ := s.chunkRepo.CountByProductID(bgCtx, productID)

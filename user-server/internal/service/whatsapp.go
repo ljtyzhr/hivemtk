@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils"
@@ -33,11 +32,11 @@ type WhatsappService struct {
 
 // NewWhatsappService 构造服务：线索仓储用装配点注入的连接（db 为 nil 时该依赖不可用，
 // 与调用方显式传入的语义一致，不回落全局句柄）。
-func NewWhatsappService(db *gorm.DB) *WhatsappService {
+func NewWhatsappService(clueRepo repository.ClueRepository) *WhatsappService {
 	repo := repository.NewWhatsappRepository()
 	return &WhatsappService{
 		repo:     repo,
-		clueRepo: repository.NewClueRepositoryWithDB(db),
+		clueRepo: clueRepo,
 		legacy:   newLegacyWhatsAppProvider(repo),
 		cloud:    cloudWhatsAppProvider{},
 	}

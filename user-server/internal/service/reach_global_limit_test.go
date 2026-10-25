@@ -8,14 +8,16 @@ import (
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 // D14: 全局频控跨管线共享计数（同客户不同 channel 计同一预算）
 func TestD14_GlobalLimitCrossPipeline(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ConfigParam{})
-	svc := NewReachPipelineService(db)
+	svc := NewReachPipelineService(repository.NewReachPipelineRepository(db))
 	svc.SetRateCache(cache.NewMemoryCache())
-	SeedConfigParams(context.Background(), db)
+	SeedConfigParams(context.Background())
 
 	ctx := context.Background()
 
@@ -48,9 +50,9 @@ func TestD14_GlobalLimitCrossPipeline(t *testing.T) {
 // D14: limit=0 禁用该层
 func TestD14_GlobalLimitDisabled(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ConfigParam{})
-	svc := NewReachPipelineService(db)
+	svc := NewReachPipelineService(repository.NewReachPipelineRepository(db))
 	svc.SetRateCache(cache.NewMemoryCache())
-	SeedConfigParams(context.Background(), db)
+	SeedConfigParams(context.Background())
 	svc.globalLimitFn = func(ctx context.Context) int { return 0 }
 
 	ctx := context.Background()

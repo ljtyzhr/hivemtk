@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils"
@@ -112,8 +110,7 @@ func GetMemorySystem() *MemorySystem {
 //
 // 五层架构修复：service 层不再持有 *gorm.DB，由 repository 层封装所有 DB 操作。
 // 保留 db 参数以兼容调用方（main.go），内部转换为 MemoryRepository。
-func InitMemorySystem(db *gorm.DB) *MemorySystem {
-	repo := repository.NewMemoryRepositoryWithDB(db)
+func InitMemorySystem(repo repository.MemoryRepository) *MemorySystem {
 	if os.Getenv("IS_TEST_MODE") == "1" {
 		return &MemorySystem{
 			memoryRepo:   repo,

@@ -488,7 +488,7 @@ func TestVisitorOpenSession_BlacklistRejected(t *testing.T) {
 	}
 
 	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(db.GetDB()))
-	visitorSvc := NewVisitorChatService(context.Background(), db.GetDB(), channelSvc, nil, nil)
+	visitorSvc := NewVisitorChatService(channelSvc, nil, nil)
 
 	// 路径1：全新建会话
 	_, err = visitorSvc.OpenSession(context.Background(), &VisitorOpenSessionRequest{

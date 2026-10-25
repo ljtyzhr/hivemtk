@@ -21,6 +21,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	// 知识模块自己的 repository 管文档/分块；KB 行（knowledge_bases）的属主在核心
+	// repository（internal/repository.KnowledgeBaseRepository）。内容变更失效锚
+	// 要抬 KB 行 updated_at，向下引核心仓储层，不构成反向依赖。
+	corerepository "hivemtk-user/internal/repository"
 	"time"
 
 	"gorm.io/gorm"
@@ -38,6 +43,7 @@ type KnowledgeService struct {
 	parentRepo    *repository.KnowledgeChunkParentRepository
 	importLogRepo *repository.KnowledgeImportLogRepository
 	searchLogRepo *repository.KnowledgeSearchLogRepository
+	kbRepo        *corerepository.KnowledgeBaseRepository
 	embeddingSvc  *llm.EmbeddingService
 	llmSvc        *llm.LLMService
 	ragSearcher   *RagSearcher
@@ -65,6 +71,7 @@ func newKnowledgeServiceWithDB(gdb *gorm.DB) *KnowledgeService {
 		parentRepo:    repository.NewKnowledgeChunkParentRepository(gdb),
 		importLogRepo: repository.NewKnowledgeImportLogRepository(gdb),
 		searchLogRepo: repository.NewKnowledgeSearchLogRepository(gdb),
+		kbRepo:        corerepository.NewKnowledgeBaseRepository(gdb),
 		embeddingSvc:  llm.NewEmbeddingService(),
 		llmSvc:        llm.NewLLMService(),
 		ragSearcher:   NewRagSearcherWithDB(gdb),
@@ -211,6 +218,8 @@ func (s *KnowledgeService) Delete(ctx context.Context, productID string, id int6
 	}
 
 	agent_runtime.PublishKnowledgeDocumentDelete(ctx, productID, uint(id), 0)
+	// 分块已删，答案缓存的依据变了——抬 KB 行 updated_at 判陈缓存（C-11）。
+	s.touchKBForContentChange(ctx, "document_delete")
 
 	return nil
 }
@@ -225,8 +234,23 @@ func (s *KnowledgeService) Update(ctx context.Context, doc *model.KnowledgeDocum
 	}
 
 	agent_runtime.PublishKnowledgeDocumentUpdate(ctx, doc.ProductID, uint(doc.ID), "", 0)
+	// 标题等元信息会进引用与回复，同样属于答案依据——一并判陈（C-11）。
+	s.touchKBForContentChange(ctx, "document_update")
 
 	return nil
+}
+
+// touchKBForContentChange 内容变更后抬 KB 行 updated_at（rag_answer_cache 失效锚，C-11）。
+//
+// best-effort：失败只记日志不阻断内容操作——失效锚写不进去的后果是缓存多陈旧一阵，
+// 反向阻断导入/删除则把低频管理动作变成了不可用。nil 库（测试态）静默跳过。
+func (s *KnowledgeService) touchKBForContentChange(ctx context.Context, event string) {
+	if s == nil || s.kbRepo == nil {
+		return
+	}
+	if err := s.kbRepo.TouchAllEnabled(ctx); err != nil {
+		logger.Errorf("[knowledge] 内容变更失效锚写失败（%s，答案缓存可能短暂陈旧）: %v", event, err)
+	}
 }
 
 // ListImportLogs 列出导入日志

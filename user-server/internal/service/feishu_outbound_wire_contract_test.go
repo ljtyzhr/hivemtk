@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/httpclient"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -60,7 +61,7 @@ func newFeishuWireFixture(t *testing.T) (*FeishuIntegrationService, *gorm.DB, *m
 	httpclient.Client = &http.Client{Transport: tr}
 	t.Cleanup(func() { httpclient.Client = orig })
 	acc := newFeishuTestAccount(t, database)
-	return NewFeishuIntegrationService(database), database, acc, tr
+	return NewFeishuIntegrationService(repository.NewFeishuAccountRepositoryWithDB(database), repository.NewFeishuMessageRepositoryWithDB(database)), database, acc, tr
 }
 
 func decodeWireBody(t *testing.T, raw []byte) map[string]any {

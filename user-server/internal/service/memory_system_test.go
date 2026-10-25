@@ -363,7 +363,7 @@ func TestMemorySystem_L4Record_NilDB(t *testing.T) {
 func TestMemorySystem_L1Trim_NoOp(t *testing.T) {
 	ctx := context.Background()
 	db := setupMemoryTestDB(t)
-	m := InitMemorySystem(db)
+	m := InitMemorySystem(repository.NewMemoryRepositoryWithDB(db))
 	for i := 0; i < 3; i++ {
 		m.L1Append(ctx, "s-1", "c-1", "user", "m")
 	}
@@ -377,7 +377,7 @@ func TestMemorySystem_L1Trim_NoOp(t *testing.T) {
 func TestMemorySystem_L1Append_UpdatedAt(t *testing.T) {
 	ctx := context.Background()
 	db := setupMemoryTestDB(t)
-	m := InitMemorySystem(db)
+	m := InitMemorySystem(repository.NewMemoryRepositoryWithDB(db))
 	m.L1Append(ctx, "s-1", "c-1", "user", "hi")
 	items, _ := m.L1List(ctx, "s-1", 1)
 	if len(items) == 0 {

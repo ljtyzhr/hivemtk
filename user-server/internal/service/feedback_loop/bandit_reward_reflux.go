@@ -45,6 +45,16 @@ func NewBanditRewardReflux(db *gorm.DB, bandit BanditUpdater) *BanditRewardReflu
 	}
 }
 
+// NewBanditRewardRefluxDefault 默认句柄变体：cron 侧不再经手 db（2026-10-25
+// 句柄收口；GetDB 解析留在 repository 层的 FeedbackLoopRepositoryDefault）。
+func NewBanditRewardRefluxDefault(bandit BanditUpdater) *BanditRewardReflux {
+	return &BanditRewardReflux{
+		repo:      repository.NewFeedbackLoopRepositoryDefault(),
+		bandit:    bandit,
+		batchSize: refluxBatchSize,
+	}
+}
+
 // RefluxStats 单次回流统计
 type RefluxStats struct {
 	Scanned  int

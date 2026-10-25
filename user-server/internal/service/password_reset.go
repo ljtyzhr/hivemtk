@@ -33,10 +33,10 @@ type PasswordResetService struct {
 	tokenRepo    *repository.PasswordResetTokenRepository
 }
 
-func NewPasswordResetService(db *gorm.DB) *PasswordResetService {
+func NewPasswordResetService(tokenRepo *repository.PasswordResetTokenRepository) *PasswordResetService {
 	return &PasswordResetService{
-		emailService: NewEmailService(db),
-		tokenRepo:    repository.NewPasswordResetTokenRepository(db),
+		emailService: NewEmailService(),
+		tokenRepo:    tokenRepo,
 	}
 }
 

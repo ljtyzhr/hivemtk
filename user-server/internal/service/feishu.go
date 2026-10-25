@@ -19,8 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/channelbot/core"
 	"hivemtk-user/internal/channelbot/telegram"
 	"hivemtk-user/internal/channelbot/whatsapp"
@@ -37,15 +35,10 @@ type FeishuService struct {
 	accountRepo *repository.FeishuAccountRepository
 }
 
-func NewFeishuService(db *gorm.DB) *FeishuService {
-	if db == nil {
-		return &FeishuService{}
-	}
-	r := repository.NewFeishuAccountRepository()
-	r.SetDB(context.Background(), db)
-	return &FeishuService{
-		accountRepo: r,
-	}
+// NewFeishuService 构造：账号仓储由装配点注入（service 不再握 DB 句柄，见五层架构 §3.2）。
+// 传 nil 表示"没有账号仓储"：读写口会以明确错误拒绝，而不是 panic 在某个空指针上。
+func NewFeishuService(accountRepo *repository.FeishuAccountRepository) *FeishuService {
+	return &FeishuService{accountRepo: accountRepo}
 }
 
 func (s *FeishuService) CreateAccount(ctx context.Context, input *model.FeishuAccount) (*model.FeishuAccount, error) {
@@ -105,14 +98,10 @@ type FeishuIntegrationService struct {
 	feishuMsgRepo *repository.FeishuMessageRepository
 }
 
-func NewFeishuIntegrationService(db *gorm.DB) *FeishuIntegrationService {
-	var msgRepo *repository.FeishuMessageRepository
-	if db != nil {
-		msgRepo = repository.NewFeishuMessageRepository()
-		msgRepo.SetDB(context.Background(), db)
-	}
+// NewFeishuIntegrationService 构造：账号仓储 + 消息仓储都由装配点注入（不握 DB 句柄）。
+func NewFeishuIntegrationService(accountRepo *repository.FeishuAccountRepository, msgRepo *repository.FeishuMessageRepository) *FeishuIntegrationService {
 	return &FeishuIntegrationService{
-		feishu:        NewFeishuService(db),
+		feishu:        NewFeishuService(accountRepo),
 		hub:           NewMessageHubService(),
 		inbox:         NewInboxService(),
 		feishuMsgRepo: msgRepo,
@@ -429,12 +418,16 @@ type TelegramService struct {
 	accRepo *repository.TelegramAccountRepository
 }
 
-func NewTelegramService(db *gorm.DB) *TelegramService {
-	r := repository.NewTelegramAccountRepository()
-	if db != nil {
-		r.SetDB(context.Background(), db)
+// NewTelegramService 构造：账号仓储由装配点注入。
+//
+// nil 的语义保留历史行为——退到进程全局句柄（控制器/用例里 `NewTelegramService(nil)`
+// 表达的是"没注入，用默认那一份"）。要复用同一个连接请显式传
+// repository.NewTelegramAccountRepositoryWithDB(db)。
+func NewTelegramService(accRepo *repository.TelegramAccountRepository) *TelegramService {
+	if accRepo == nil {
+		accRepo = repository.NewTelegramAccountRepository()
 	}
-	return &TelegramService{accRepo: r}
+	return &TelegramService{accRepo: accRepo}
 }
 
 // TelegramService.CreateAccount 的两条外部 IO 腿以函数变量注入（与飞书媒体三条腿同一手法，
@@ -561,9 +554,9 @@ type TelegramIntegrationService struct {
 	inbox *InboxService
 }
 
-func NewTelegramIntegrationService(db *gorm.DB) *TelegramIntegrationService {
+func NewTelegramIntegrationService(accRepo *repository.TelegramAccountRepository) *TelegramIntegrationService {
 	return &TelegramIntegrationService{
-		tg:    NewTelegramService(db),
+		tg:    NewTelegramService(accRepo),
 		hub:   NewMessageHubService(),
 		inbox: NewInboxService(),
 	}
@@ -852,13 +845,8 @@ type WhatsAppCloudService struct {
 	accRepo *repository.WhatsAppCloudAccountRepository
 }
 
-func NewWhatsAppCloudService(db *gorm.DB) *WhatsAppCloudService {
-	if db == nil {
-		return &WhatsAppCloudService{}
-	}
-	r := repository.NewWhatsAppCloudAccountRepository()
-	r.SetDB(context.Background(), db)
-	return &WhatsAppCloudService{accRepo: r}
+func NewWhatsAppCloudService(accRepo *repository.WhatsAppCloudAccountRepository) *WhatsAppCloudService {
+	return &WhatsAppCloudService{accRepo: accRepo}
 }
 
 func (s *WhatsAppCloudService) CreateAccount(ctx context.Context, acc *model.WhatsAppCloudAccount) (*model.WhatsAppCloudAccount, error) {
@@ -931,9 +919,9 @@ type WhatsAppCloudIntegrationService struct {
 	inbox *InboxService
 }
 
-func NewWhatsAppCloudIntegrationService(db *gorm.DB) *WhatsAppCloudIntegrationService {
+func NewWhatsAppCloudIntegrationService(accRepo *repository.WhatsAppCloudAccountRepository) *WhatsAppCloudIntegrationService {
 	return &WhatsAppCloudIntegrationService{
-		wa:    NewWhatsAppCloudService(db),
+		wa:    NewWhatsAppCloudService(accRepo),
 		hub:   NewMessageHubService(),
 		inbox: NewInboxService(),
 	}

@@ -17,7 +17,7 @@ func setupAssetBundleRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	localAssetRepo := repository.NewLocalAssetRepository(gormDB)
 	localAssetDataRepo := repository.NewLocalAssetDataRepository(gormDB)
 	localAssetSyncLogRepo := repository.NewLocalAssetSyncLogRepository(gormDB)
-	localAssetSvc := service.NewLocalAssetService(localAssetRepo, localAssetDataRepo, localAssetSyncLogRepo, platform.NewPlatformAPIClient(), gormDB)
+	localAssetSvc := service.NewLocalAssetService(localAssetRepo, localAssetDataRepo, localAssetSyncLogRepo, platform.NewPlatformAPIClient())
 	assetBundleSvc.SetLocalLoader(localAssetSvc)
 	service.SetAssetBundleResolver(assetBundleSvc)
 	ctrl := controller.NewAssetBundleController(assetBundleSvc)
@@ -29,7 +29,7 @@ func setupAssetBundleRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 		ctrl.Register(g)
 	}
 	// T5 资产市场商店化：商户侧 listing/评分/举报 + 平台审核后台
-	storeSvc := service.NewAssetStoreService(gormDB)
+	storeSvc := service.NewAssetStoreService()
 	storeCtrl := controller.NewAssetStoreController(storeSvc)
 	storeCtrl.RegisterMerchantRoutes(auth.Group("/v1/asset-store"))
 	storeCtrl.RegisterAdminRoutes(auth.Group("/v1/asset-admin"))
@@ -42,7 +42,7 @@ func setupAssetMarketRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	sr := repository.NewLocalAssetSyncLogRepository(gdb)
 	pc := platform.NewPlatformAPIClient()
 	h := controller.NewAssetMarketController(
-		service.NewLocalAssetService(ar, dr, sr, pc, gdb),
+		service.NewLocalAssetService(ar, dr, sr, pc),
 		service.NewAssetMarketService(pc),
 		service.NewAIAgentServiceWithRepo(repository.NewAIAgentRepositoryWithDB(gdb)),
 	)

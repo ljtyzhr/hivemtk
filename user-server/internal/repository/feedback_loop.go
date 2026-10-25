@@ -203,6 +203,11 @@ func (r *FeedbackLoopRepository) ListBanditArms(ctx context.Context, experimentI
 }
 
 // NewFeedbackLoopRepositoryWithDB 使用指定 *gorm.DB 构造（供 service 构造函数与测试使用）
+// NewFeedbackLoopRepositoryDefault 默认构造（全局句柄；与传 GetDB() 同语义）。
+func NewFeedbackLoopRepositoryDefault() *FeedbackLoopRepository {
+	return NewFeedbackLoopRepositoryWithDB(GetDB())
+}
+
 func NewFeedbackLoopRepositoryWithDB(db *gorm.DB) *FeedbackLoopRepository {
 	return &FeedbackLoopRepository{db: db}
 }

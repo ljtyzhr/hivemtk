@@ -2,6 +2,7 @@ package email
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -382,8 +383,14 @@ func TestEmailSmtpService_CreateEmailSmtp_EmptyFields(t *testing.T) {
 	}
 }
 
-// TestEmailSmtpService_UpdateEmailSmtp_NotFound 测试更新不存在的 SMTP 配置
-// 注：GORM 的 Save 方法在记录不存在时会插入新记录，所以这个测试主要验证可以插入
+// TestEmailSmtpService_UpdateEmailSmtp_NotFound 更新一个不存在的 SMTP 配置必须报"不存在"。
+//
+// 判据改写的理由（原断言错在前提）：原注释写"GORM 的 Save 在记录不存在时会插入"——
+// 那是 GORM v1 的语义。v2 的 Save 对带主键的行只做 UPDATE，命中 0 行时
+// internal/pkg/db.SaveWholeRow 显式返回 gorm.ErrRecordNotFound（写守卫：定向写命中
+// 0 行不许被当成成功）。所以这条现在测的正是那份守卫：**改一个不存在的 ID 不许
+// 静默插入一行新配置**——静默插入的后果是管理页上多出一条来路不明、且密码被
+// 二次加密的 SMTP 记录，发信时选到它就是发不出去。
 func TestEmailSmtpService_UpdateEmailSmtp_NotFound(t *testing.T) {
 	database := setupEmailSmtpServiceTestDB(t)
 	service := NewEmailSmtpService()
@@ -399,14 +406,14 @@ func TestEmailSmtpService_UpdateEmailSmtp_NotFound(t *testing.T) {
 	}
 
 	err := service.UpdateEmailSmtp(context.Background(), emailSmtp)
-	if err != nil {
-		t.Errorf("UpdateEmailSmtp should not fail: %v", err)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("更新不存在的 SMTP 应报 ErrRecordNotFound（定向写命中 0 行不许当成功），实际: %v", err)
 	}
 
 	var count int64
 	database.Model(&model.EmailSmtp{}).Count(&count)
-	if count != 1 {
-		t.Errorf("Expected 1 SMTP record (inserted), got %d", count)
+	if count != 0 {
+		t.Errorf("更新不存在的 ID 不许插入新行，实际插入 %d 行", count)
 	}
 }
 

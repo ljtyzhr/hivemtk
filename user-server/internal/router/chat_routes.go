@@ -23,7 +23,7 @@ func setupChatPublicRoutes(public *gin.RouterGroup, db *gorm.DB, orchestrator *s
 		aiAgentRepo,
 		service.NewAIAgentServiceWithRepo(aiAgentRepo),
 	)
-	visitorSvc := service.NewVisitorChatService(context.Background(), db, channelSvc, orchestrator, agentBindingSvc)
+	visitorSvc := service.NewVisitorChatService(channelSvc, orchestrator, agentBindingSvc)
 
 	chatPublic := public.Group("/chat/public")
 	// tenant_code 声明要排在渠道解析**之前**：default/{platform}_card 这类每租户自动
@@ -123,7 +123,7 @@ func setupCardShareRoutes(r *gin.Engine, gormDB *gorm.DB) {
 	kuaishouCardCtrl := controller.NewKuaishouCardController(service.NewKuaishouCardService(gormDB))
 	r.GET("/share/kuaishou/:id", middleware.PublicIDTenant(gormDB, "kuaishou_cards"), kuaishouCardCtrl.SharePage)
 
-	xiaohongshuCardCtrl := controller.NewXiaohongshuCardController(service.NewXiaohongshuCardService(gormDB))
+	xiaohongshuCardCtrl := controller.NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(gormDB), service.NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)), service.NewDomainPoolService(repository.NewDomainPoolRepository(gormDB), repository.NewDomainBlacklistRepository(gormDB))))
 	r.GET("/share/xiaohongshu/:id", middleware.PublicIDTenant(gormDB, "xiaohongshu_cards"), xiaohongshuCardCtrl.SharePage)
 
 	xianyuCardCtrl := controller.NewXianyuCardController(service.NewXianyuCardService(gormDB), service.NewXianyuCardStatsService(gormDB))

@@ -11,7 +11,7 @@ import (
 // 商业产品级核心闭环：客户在 4 个渠道发消息 → 智能体 9 步处理 → 决策快照进入反馈学习
 func TestE2E_FullChain_ReachToSalesFeedback(t *testing.T) {
 	fl := NewFeedbackLearner(nil)
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	engine.SetFeedbackLearner(context.Background(), fl)
 
 	channels := []struct {
@@ -85,7 +85,7 @@ func TestE2E_FullChain_ReachToSalesFeedback(t *testing.T) {
 // 商业产品级：智能体用得越久越懂客户，FeedbackLearner 累积数据后能建议置信度阈值
 func TestE2E_FullChain_FeedbackAccumulation(t *testing.T) {
 	fl := NewFeedbackLearner(nil)
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	engine.SetFeedbackLearner(context.Background(), fl)
 
 	customer := "cust_accumulation"
@@ -124,7 +124,7 @@ func TestE2E_FullChain_FeedbackAccumulation(t *testing.T) {
 // 商业产品级：确保 9 步链路按正确顺序执行，不遗漏、不乱序
 func TestE2E_FullChain_StepSequence(t *testing.T) {
 	fl := NewFeedbackLearner(nil)
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	engine.SetFeedbackLearner(context.Background(), fl)
 
 	resp, err := engine.ProcessIncomingMessage(context.Background(), &ChannelMessage{
@@ -175,7 +175,7 @@ func TestE2E_FullChain_StepSequence(t *testing.T) {
 // 商业产品级：SmartCSOrchestrator 是 LLM + 客服座席的结合体，遇到 AI 可处理的会话时委托给 SalesEngine
 func TestE2E_FullChain_SmartOrchestratorDelegatesToEngine(t *testing.T) {
 	fl := NewFeedbackLearner(nil)
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	engine.SetFeedbackLearner(context.Background(), fl)
 
 	orchestrator := NewSmartCSOrchestrator(engine, DefaultOrchestratorConfig(), nil)
@@ -202,7 +202,7 @@ func TestE2E_FullChain_SmartOrchestratorDelegatesToEngine(t *testing.T) {
 // 商业产品级：SalesResponse 是整个链路的核心数据载体，必须包含完整信息
 func TestE2E_FullChain_ResponseIntegrity(t *testing.T) {
 	fl := NewFeedbackLearner(nil)
-	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	engine.SetFeedbackLearner(context.Background(), fl)
 
 	resp, err := engine.ProcessIncomingMessage(context.Background(), &ChannelMessage{

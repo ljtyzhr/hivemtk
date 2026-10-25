@@ -10,11 +10,15 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 )
 
 func TestPartialRefundSettlesBackToPartial(t *testing.T) {
@@ -209,5 +213,121 @@ func TestPartialRefundCarriesReason(t *testing.T) {
 	}
 	if _, err := svc.payments.GetByChannelRef(ctx, "refund-5c"); err != nil {
 		t.Fatalf("回读失败: %v", err)
+	}
+}
+
+// TestConcurrentPartialRefundsCannotOverdraw A11：并发退款不许把净到账退成负数。
+//
+// service 侧这一格守的是**接线**：仓储的 CreateRefundGuarded 已经有并发用例，
+// 但若有人把 RecordPartialRefund 改回"先 SumSettledByBill 再 Create"的两步，
+// 仓储那边照样全绿，只有这条会红。判据打在落库行数与复算净到账上：
+// 净到账 100、16 路并发各退 80 ⇒ 至多一笔成功，退完净到账 ≥ 0。
+func TestConcurrentPartialRefundsCannotOverdraw(t *testing.T) {
+	if testing.Short() {
+		t.Skip("需要测试库")
+	}
+	db := testutil.NewTestDB(t, &model.Bill{}, &model.Payment{})
+	ctx := context.Background()
+	bill := payBill(t, db, "b_refund_race", "q_refund", "qr_refund", 100)
+	svc := paySvc(t, db)
+	if _, err := svc.RecordPayment(ctx, payIn(bill.ID, "pay-race", 100)); err != nil {
+		t.Fatalf("入账失败: %v", err)
+	}
+
+	const lanes = 16
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make(chan error, lanes)
+	for i := 0; i < lanes; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			_, err := svc.RecordPartialRefund(ctx, RecordPartialRefundInput{
+				BillID: bill.ID, RefundRef: fmt.Sprintf("refund-race-%d", i), Amount: 80,
+				Platform: "taobao", OrderID: fmt.Sprintf("ord-refund-race-%d", i),
+			})
+			errs <- err
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	succeeded := 0
+	for err := range errs {
+		if err == nil {
+			succeeded++
+		}
+	}
+	if succeeded != 1 {
+		t.Errorf("并发 %d 路各退 80（净到账 100）：成功 %d 笔 ≠ 1（≥2 = TOCTOU 在场；0 = 守卫连该放的那笔也拒了）", lanes, succeeded)
+	}
+
+	payRepo := repository.NewPaymentRepositoryWithDB(db)
+	got, err := payRepo.SumSettledByBill(ctx, bill.ID)
+	if err != nil {
+		t.Fatalf("复算净到账失败: %v", err)
+	}
+	if got != 20 {
+		t.Errorf("净到账 %v ≠ 20（100 − 一笔 80）：负结清是假事实或退款被漏记", got)
+	}
+}
+
+// countingRefundStore 包一层真仓储，只数"走的是哪条写路径"。
+//
+// 为什么要这层：并发用例只能证明"结果没坏"，证明不了"接线没退回两步"——
+// 本地快库上 16 路自动提交语句会被单条池连接吸收，把 service 改回
+// "先 SumSettledByBill 再 Create" 时那条并发用例仍然绿（实测：succeeded=1）。
+// 这条断言把判据钉在调用面上：退款**只能**走 CreateRefundGuarded 这条原子通路。
+type countingRefundStore struct {
+	paymentStore
+	guardedCalls int
+	directCalls  int
+}
+
+func (c *countingRefundStore) Create(ctx context.Context, p *model.Payment) error {
+	c.directCalls++
+	return c.paymentStore.Create(ctx, p)
+}
+
+func (c *countingRefundStore) CreateRefundGuarded(ctx context.Context, p *model.Payment, guard func(float64) error) error {
+	c.guardedCalls++
+	return c.paymentStore.CreateRefundGuarded(ctx, p, guard)
+}
+
+// TestRefundLegOnlyUsesTheAtomicPath A11 接线判据：退款腿只走原子通路。
+//
+// 正控制：回款腿（RecordPayment）仍然走 Create——若两条腿都走守卫，本条也会红，
+// 说明计数器真的在数（不是恒 0 的橡皮章）。
+func TestRefundLegOnlyUsesTheAtomicPath(t *testing.T) {
+	if testing.Short() {
+		t.Skip("需要测试库")
+	}
+	db := testutil.NewTestDB(t, &model.Bill{}, &model.Payment{})
+	ctx := context.Background()
+	bill := payBill(t, db, "b_refund_wire", "q_refund", "qr_refund", 100)
+	spy := &countingRefundStore{paymentStore: repository.NewPaymentRepositoryWithDB(db)}
+	svc := NewPaymentService(spy, repository.NewBillRepositoryWithDB(db))
+	svc.SetClock(func() time.Time { return qsClockBase })
+
+	// 正控制：回款腿走 Create。
+	if _, err := svc.RecordPayment(ctx, payIn(bill.ID, "pay-wire", 100)); err != nil {
+		t.Fatalf("入账失败: %v", err)
+	}
+	if spy.directCalls != 1 || spy.guardedCalls != 0 {
+		t.Fatalf("回款腿路径不对：direct=%d guarded=%d（期望 1/0）", spy.directCalls, spy.guardedCalls)
+	}
+
+	// 判据：退款腿走 CreateRefundGuarded，且不再直插。
+	spy.directCalls, spy.guardedCalls = 0, 0
+	if _, err := svc.RecordPartialRefund(ctx, RecordPartialRefundInput{
+		BillID: bill.ID, RefundRef: "refund-wire", Amount: 30,
+		Platform: "taobao", OrderID: "ord-refund-wire",
+	}); err != nil {
+		t.Fatalf("退款失败: %v", err)
+	}
+	if spy.guardedCalls != 1 || spy.directCalls != 0 {
+		t.Fatalf("退款腿没走原子通路：guarded=%d direct=%d（期望 1/0——退回两步就是 TOCTOU 复发）",
+			spy.guardedCalls, spy.directCalls)
 	}
 }

@@ -45,7 +45,7 @@ func TestNewWebhookService_ExpiresStaleDelayedOnBoot(t *testing.T) {
 		}
 	}
 
-	svc := NewWebhookService(database)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	var got model.DelayedOutboundReply

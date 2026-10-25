@@ -13,8 +13,6 @@ import (
 
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/aiagent/llm"
 
 	"hivemtk-user/internal/dto"
@@ -25,6 +23,8 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 type SOPService struct {
@@ -143,10 +143,11 @@ type SOPGraph = dto.SOPGraph
 
 type SOPEdge = dto.SOPEdge
 
-func NewSOPService(db *gorm.DB, dispatcher *llm.Dispatcher) *SOPService {
+// NewSOPService 构造（句柄由 repository 自取全局库）
+func NewSOPService(dispatcher *llm.Dispatcher) *SOPService {
 	return &SOPService{
-		agentRepo:  repository.NewSopAgentRepository(db),
-		execRepo:   repository.NewSopExecutionRepository(db),
+		agentRepo:  repository.NewSopAgentRepositoryDefault(),
+		execRepo:   repository.NewSopExecutionRepositoryDefault(),
 		dispatcher: dispatcher,
 	}
 }
@@ -987,9 +988,9 @@ func GetSOPService() *SOPService {
 	return sopInstance
 }
 
-func InitSOPService(db *gorm.DB, dispatcher *llm.Dispatcher) *SOPService {
+func InitSOPService(dispatcher *llm.Dispatcher) *SOPService {
 	sopOnce.Do(func() {
-		sopInstance = NewSOPService(db, dispatcher)
+		sopInstance = NewSOPService(dispatcher)
 	})
 	return sopInstance
 }

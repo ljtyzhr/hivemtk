@@ -64,7 +64,7 @@ func TestSuggestQQWebhookURLFromBase(t *testing.T) {
 
 // TestVerifyCallbackSelfCheck_Errors 无 DB 连接时的错误分支
 func TestVerifyCallbackSelfCheck_Errors(t *testing.T) {
-	svc := NewQQService(nil)
+	svc := NewQQService()
 	// 全局 DB 未初始化（单测环境无 PG）时 GetByID 返回错误而非 panic
 	if _, err := svc.VerifyCallbackSelfCheck(context.Background(), 999999); err == nil {
 		t.Error("expect error when db unavailable, got nil")

@@ -13,8 +13,8 @@ import (
 // 泛词兜底命中（keyword_fallback）且 score<0.3 直接丢弃；其余保留。
 func TestShouldDropCitation(t *testing.T) {
 	cases := []struct {
-		name   string
-		cit    dto.Citation
+		name     string
+		cit      dto.Citation
 		wantDrop bool
 	}{
 		{
@@ -47,7 +47,7 @@ func TestShouldDropCitation(t *testing.T) {
 			cit:  dto.Citation{Type: dto.CitationTypeChunk},
 		},
 		{
-			name:   "nil 引用不 panic 也不丢",
+			name:     "nil 引用不 panic 也不丢",
 			wantDrop: false,
 		},
 	}

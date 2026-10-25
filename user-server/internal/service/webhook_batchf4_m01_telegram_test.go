@@ -66,7 +66,7 @@ func f4TGSetup(t *testing.T, token string) (*WebhookService, *gorm.DB) {
 	if err := db.Create(acc).Error; err != nil {
 		t.Fatalf("seed telegram account: %v", err)
 	}
-	ws := NewWebhookService(db)
+	ws := NewWebhookService()
 	t.Cleanup(func() { ws.Stop(context.Background()) })
 	return ws, db
 }
@@ -641,7 +641,7 @@ func TestM01_TelegramSameUpdateIDAcrossAccounts(t *testing.T) {
 			t.Fatalf("seed account %d: %v", seed.id, err)
 		}
 	}
-	ws := NewWebhookService(db)
+	ws := NewWebhookService()
 	t.Cleanup(func() { ws.Stop(context.Background()) })
 
 	const sharedUpdate = int64(4242424)
@@ -711,7 +711,7 @@ func TestM01_TelegramSameUpdateIDAcrossAccounts(t *testing.T) {
 // 因此这里直接铺两行同 msg_id、不同 account_id 的 hub 记录，单独验写入侧的收敛。
 func TestM01_TelegramBackfillScopedToAccount(t *testing.T) {
 	db := setupTelegramTestDB(t)
-	ws := NewWebhookService(db)
+	ws := NewWebhookService()
 	t.Cleanup(func() { ws.Stop(context.Background()) })
 
 	const sharedMsgID = "tg_upd_collide_999"

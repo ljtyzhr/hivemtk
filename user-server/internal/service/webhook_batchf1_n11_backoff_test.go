@@ -255,7 +255,7 @@ func TestN11_QuotaAndWindowHaveNoInProcessBackoff(t *testing.T) {
 // 而不是无条件用 {60s,2m,4m}。
 func TestN11_EnqueueHonoursChannelDelay(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	p := &ParsedPayload{EventID: "evt-n11-1", Sender: "sender-n11-1"}
@@ -276,7 +276,7 @@ func TestN11_EnqueueHonoursChannelDelay(t *testing.T) {
 // TestN11_EnqueueHonoursClientStructuredDelay 客户端结构化路径同口径：等待值来自 APIError。
 func TestN11_EnqueueHonoursClientStructuredDelay(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	p := &ParsedPayload{EventID: "evt-n11-4", Sender: "sender-n11-4"}
@@ -301,7 +301,7 @@ func TestN11_EnqueueHonoursClientStructuredDelay(t *testing.T) {
 // （"只顺延不提前"）。
 func TestN11_ChannelDelayNeverShortensTableBackoff(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	p := &ParsedPayload{EventID: "evt-n11-2", Sender: "sender-n11-2"}
@@ -322,7 +322,7 @@ func TestN11_ChannelDelayNeverShortensTableBackoff(t *testing.T) {
 // TestN11_QuotaCodeDoesNotEnterRetryLane 配额型失败不得进队列（把队列灌满无效请求）。
 func TestN11_QuotaCodeDoesNotEnterRetryLane(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	p := &ParsedPayload{EventID: "evt-n11-3", Sender: "sender-n11-3"}

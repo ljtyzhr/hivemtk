@@ -54,10 +54,10 @@ func TestWireReportingConfigParamsReachesReader(t *testing.T) {
 	if database == nil {
 		t.Skip("no DB")
 	}
-	if err := service.SeedConfigParams(context.Background(), database); err != nil {
+	if err := service.SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := service.NewConfigParamService(database)
+	svc := service.NewConfigParamService()
 	service.SetGlobalForTest(svc)
 	t.Cleanup(func() { service.SetGlobalForTest(nil) })
 

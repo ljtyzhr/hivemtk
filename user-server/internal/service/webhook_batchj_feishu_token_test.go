@@ -11,6 +11,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/httpclient"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -62,7 +63,7 @@ func batchJFeishuAccount(t *testing.T, database *gorm.DB, label string) *model.F
 //     只看 calls 数是抓不住的，必须看 TokenExpires）。
 func TestBatchJ_FeishuTokenLegShapes(t *testing.T) {
 	database := setupFeishuTestDB(t)
-	svc := NewFeishuIntegrationService(database)
+	svc := NewFeishuIntegrationService(repository.NewFeishuAccountRepositoryWithDB(database), repository.NewFeishuMessageRepositoryWithDB(database))
 	orig := httpclient.Client
 	t.Cleanup(func() { httpclient.Client = orig })
 

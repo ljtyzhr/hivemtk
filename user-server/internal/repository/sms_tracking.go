@@ -33,6 +33,11 @@ type smsTrackingRepo struct {
 //
 // db 为 nil 时尝试从全局获取（_db.GetDB()）；若全局也未初始化（如测试场景未 SetTestDB），
 // 则返回 db=nil 的 repo，所有方法走 nil 兜底分支返回错误或空结果，避免 panic。
+// NewSmsTrackingRepositoryDefault 默认构造（全局句柄）。
+func NewSmsTrackingRepositoryDefault() SmsTrackingRepository {
+	return NewSmsTrackingRepository(GetDB())
+}
+
 func NewSmsTrackingRepository(db *gorm.DB) SmsTrackingRepository {
 	if db == nil {
 		db = _db.GetDB()

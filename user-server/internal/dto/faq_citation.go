@@ -39,7 +39,7 @@ type ChunkCitation struct {
 	DocTitle    string  `json:"doc_title"`
 	ChunkIndex  int     `json:"chunk_index"`
 	Score       float64 `json:"score"`
-	Snippet     string  `json:"snippet"` // chunk 内容（截断 500 字）
+	Snippet     string  `json:"snippet"`      // chunk 内容（截断 500 字）
 	StartOffset int64   `json:"start_offset"` // 0 = 未回填，前端不高亮
 	EndOffset   int64   `json:"end_offset"`
 	Page        int     `json:"page"`
@@ -54,10 +54,10 @@ type DocAgg struct {
 
 // Citation 一次回答的单条引用（type 区分 FAQ/chunk）
 type Citation struct {
-	Type   string          `json:"type"`
-	FAQ    *FAQCitation    `json:"faq,omitempty"`
-	Chunks []ChunkCitation `json:"chunks,omitempty"`
-	DocAggs []DocAgg       `json:"doc_aggs,omitempty"`
+	Type    string          `json:"type"`
+	FAQ     *FAQCitation    `json:"faq,omitempty"`
+	Chunks  []ChunkCitation `json:"chunks,omitempty"`
+	DocAggs []DocAgg        `json:"doc_aggs,omitempty"`
 }
 
 // CitationCountMax 引用透传条数上限（FAQ top1~top3，防引用面板变检索 dump）

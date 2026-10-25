@@ -9,8 +9,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // 平台标识常量（与 model.PlatformXxx 保持一致）
@@ -290,11 +288,9 @@ type tiktokCardStatsAdapter struct {
 }
 
 // NewPlatformTiktokCardStatsAdapter 创建 TikTok 统一接口适配器
-//
-// 注：保留 gormDB *gorm.DB 入参以维持向后兼容（router 装配不改动），
-// 内部在构造函数中实例化 repository，service struct 不直接持有 *gorm.DB。
-func NewPlatformTiktokCardStatsAdapter(inner TikTokCardService, gormDB *gorm.DB) PlatformCardStatsService {
-	return &tiktokCardStatsAdapter{inner: inner, activity: repository.NewTikTokCardRepository(gormDB)}
+// （句柄由 repository 自取全局库）
+func NewPlatformTiktokCardStatsAdapter(inner TikTokCardService) PlatformCardStatsService {
+	return &tiktokCardStatsAdapter{inner: inner, activity: repository.NewTikTokCardRepositoryDefault()}
 }
 
 func (a *tiktokCardStatsAdapter) Platform() string { return PlatformCardStatsTiktok }

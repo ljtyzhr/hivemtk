@@ -66,14 +66,14 @@ func setupPublicRoutes(public *gin.RouterGroup, liveCodeController *controller.L
 	public.POST("/system/create-default-admin", setupOnly, authCtrl.CreateDefaultAdmin)
 
 	redirectCtrl := controller.NewRedirectController(
-		service.NewShortLinkService(db),
+		service.NewShortLinkService(repository.NewShortLinkRepository(db), repository.NewDomainPoolRepository(db), repository.NewShortLinkAccessRepository(db)),
 		service.NewDouyinCardService(db),
 		service.NewKuaishouCardService(db),
-		service.NewXiaohongshuCardService(db),
+		service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(db), service.NewShortLinkService(repository.NewShortLinkRepository(db), repository.NewDomainPoolRepository(db), repository.NewShortLinkAccessRepository(db)), service.NewDomainPoolService(repository.NewDomainPoolRepository(db), repository.NewDomainBlacklistRepository(db))),
 		service.NewXianyuCardService(db),
-		service.NewDouyinCardStatsService(db),
-		service.NewKuaishouCardStatsService(db),
-		service.NewXiaohongshuCardStatsService(db),
+		service.NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(db)),
+		service.NewKuaishouCardStatsService(repository.NewKuaishouCardStatsRepository(db)),
+		service.NewXiaohongshuCardStatsService(repository.NewXiaohongshuCardStatsRepository(db)),
 		service.NewXianyuCardStatsService(db),
 		service.NewTikTokCardService(),
 	)
@@ -122,7 +122,7 @@ func wirePublicDependencies(db *gorm.DB) publicDeps {
 		knowledgeMerchantCtrl:  knowledgectrl.NewKnowledgeMerchantController(),
 		emailUnsubscribeCtrl:   controller.NewEmailUnsubscribeController(service.NewEmailUnsubscribeService(emailUnsubscribeRepo)),
 		smsUnsubscribeCtrl:     controller.NewSmsUnsubscribeController(service.NewSmsUnsubscribeService(smsUnsubscribeRepo)),
-		smsDeliveryTrackerCtrl: controller.NewSmsDeliveryTrackerController(service.NewSmsDeliveryTrackerService(db, nil, nil)),
+		smsDeliveryTrackerCtrl: controller.NewSmsDeliveryTrackerController(service.NewSmsDeliveryTrackerService(nil, nil)),
 		emailOpenTrackerCtrl:   controller.NewEmailOpenTrackerController(service.NewEmailOpenTrackerService(nil, nil)),
 		emailTrackingCtrl:      controller.NewEmailTrackingController(service.NewEmailTrackingService(repository.NewEmailTrackingRepository(db))),
 		inboxIngressCtrl:       controller.NewInboxIngressController(service.NewInboxIngressService()),

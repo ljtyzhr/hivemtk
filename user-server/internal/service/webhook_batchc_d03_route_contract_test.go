@@ -39,7 +39,8 @@ func TestWebhookInbound_CapabilityMatchesDispatchSwitch(t *testing.T) {
 	// 两个方向的漂移都要红：
 	//   能力表说支持、dispatchToChannel 却没分支 = 事件被收下后静默丢弃（D-03 原缺陷）；
 	//   dispatchToChannel 有分支、能力表却拒绝 = 适配器成了永远进不去的死代码。
-	svc := NewWebhookService(newD03DispatchDB(t))
+	newD03DispatchDB(t)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	for _, ch := range declaredWebhookChannels {
@@ -84,7 +85,8 @@ func TestReceive_CapableChannelsPassTheGate(t *testing.T) {
 	// 反向闸：能力表不能把有适配器的渠道一起拒掉，否则就造出了新的死路。
 	// 这里不要求验签通过（账号没配密钥），只要求拒绝理由不是"渠道不支持"。
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	svc := NewWebhookService(newD03DispatchDB(t))
+	newD03DispatchDB(t)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	for _, ch := range declaredWebhookChannels {
@@ -119,7 +121,7 @@ func TestHandleJob_UnwiredChannelLeavesNoUnifiedMessage(t *testing.T) {
 	// 唯一还能走到 default 的路径是恢复扫描器重放改造前入库的旧事件行。
 	// 这时既不能写一条 unified_message 冒充"已收到"，也不能留着 processed=false 让扫描器反复重投。
 	db := newD03DispatchDB(t)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	eventID := fmt.Sprintf("d03-unwired-%d", time.Now().UnixNano())
@@ -158,7 +160,7 @@ func TestHandleJob_DouyinNonMessageEventWritesNoUnifiedMessage(t *testing.T) {
 	// handleJob 的"非消息事件"白名单原先写死 5 个渠道，抖系加了解析器却没进清单：
 	// 无 sender 的抖系事件不产 hub 行，却继续往下落一条空内容 unified_message。
 	db := newD03DispatchDB(t)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	eventID := fmt.Sprintf("d03-dy-skip-%d", time.Now().UnixNano())

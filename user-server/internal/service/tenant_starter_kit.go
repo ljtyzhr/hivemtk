@@ -41,18 +41,17 @@ const (
 
 // provisionTenantStarterKit 为新租户建立站点配置行、克隆起步智能体并创建
 // 内置起步资产包（幂等）。
-// database 由调用方经仓储 GetDB 传入：service 禁止全局摸 db.GetDB（架构门 L4）。
-func provisionTenantStarterKit(ctx context.Context, tenantID uint, tenantName string, database *gorm.DB) {
+// repo 由调用方构造（内部仍可带自己的连接）：service 自身不接句柄（五层 §3.2）。
+func provisionTenantStarterKit(ctx context.Context, tenantID uint, tenantName string, repo *repository.StarterKitRepository) {
 	if tenantID == 0 {
 		return
 	}
-	if database == nil {
-		logger.Warnf("[starter-kit] tenant=%d 无可用数据库句柄，跳过赠送", tenantID)
+	if repo == nil {
+		logger.Warnf("[starter-kit] tenant=%d 无可用仓储，跳过赠送", tenantID)
 		return
 	}
 	// 注册/初始化 ctx 无租户绑定：走系统域豁免通道，行上显式 TenantID 定归属
 	sysCtx := tenant.WithSystemScope(ctx)
-	repo := repository.NewStarterKitRepository(database)
 
 	provisionTenantSiteConfig(sysCtx, repo, tenantID, tenantName)
 	provisionStarterAgent(sysCtx, repo, tenantID)

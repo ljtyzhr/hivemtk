@@ -95,7 +95,7 @@ func TestWritableRowsAreExactlyNonReadOnlyNonDeprecated(t *testing.T) {
 // 判据落在**库里那一行**而不是内存视图：页面渲染读的就是这一列。
 func TestBoolWriteCanonicalizesToTrueFalse(t *testing.T) {
 	db := newBoolCanonicalDB(t)
-	svc := NewConfigParamService(db)
+	svc := NewConfigParamService()
 	ctx := context.Background()
 	const group, key = "cache", "faq_answer_enabled"
 	var p model.ConfigParam

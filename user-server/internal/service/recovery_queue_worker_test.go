@@ -788,7 +788,7 @@ func TestRecoveryQueueWorker_DNCZeroOutboundThroughRealReach(t *testing.T) {
 	}
 
 	var outbound []string
-	reach := NewProactiveReachService(db, &mockAccountLookup{})
+	reach := NewProactiveReachService(repository.NewProactiveReachRepository(db), repository.NewCustomerDoNotContactRepository(db), &mockAccountLookup{})
 	reach.SetDoNotContact(dncSvc)
 	reach.SetSMSRegistry(func() (func(ctx context.Context, phone, content, templateID string, params map[string]string) (string, error), error) {
 		return func(ctx context.Context, phone, _, _ string, _ map[string]string) (string, error) {

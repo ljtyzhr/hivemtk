@@ -6,6 +6,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 )
 
 // 种子里的文案改了，存量库读到的却还是旧文案——因为 SeedConfigParams 原本只补插缺失行。
@@ -48,7 +49,7 @@ func TestSeedConfigParamsRefreshesStaleDefinition(t *testing.T) {
 		t.Fatalf("预置存量行失败: %v", err)
 	}
 
-	if err := SeedConfigParams(ctx, db); err != nil {
+	if err := SeedConfigParams(ctx); err != nil {
 		t.Fatalf("SeedConfigParams failed: %v", err)
 	}
 
@@ -83,7 +84,7 @@ func TestSeedConfigParamsRefreshesStaleDefinition(t *testing.T) {
 
 	// 二次 seed 必须是无操作：否则每次重启都在写库，"改了值"与"没改"就再也区分不出来了。
 	before := got
-	if err := SeedConfigParams(ctx, db); err != nil {
+	if err := SeedConfigParams(ctx); err != nil {
 		t.Fatalf("二次 SeedConfigParams failed: %v", err)
 	}
 	var again model.ConfigParam
@@ -112,7 +113,7 @@ func TestSeedConfigParamsDoesNotMatchOtherGroupSameKey(t *testing.T) {
 		t.Fatalf("预置同 key 别的组行失败: %v", err)
 	}
 
-	if err := SeedConfigParams(ctx, db); err != nil {
+	if err := SeedConfigParams(ctx); err != nil {
 		t.Fatalf("SeedConfigParams failed: %v", err)
 	}
 
@@ -168,7 +169,7 @@ func TestSeedParamGroups_PrunesRetiredGroupWithoutLiveParams(t *testing.T) {
 		t.Fatalf("预置参数失败: %v", err)
 	}
 
-	if err := SeedParamGroups(ctx, db); err != nil {
+	if err := SeedParamGroups(ctx, repository.NewConfigParamRepository(db)); err != nil {
 		t.Fatalf("SeedParamGroups 失败: %v", err)
 	}
 

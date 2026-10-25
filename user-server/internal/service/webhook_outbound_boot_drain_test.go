@@ -38,7 +38,7 @@ func TestNewWebhookService_DrainsDueDelayedOnBoot(t *testing.T) {
 		t.Fatalf("预置到期记录失败: %v", err)
 	}
 
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	deadline := time.Now().Add(10 * time.Second)

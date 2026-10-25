@@ -15,6 +15,11 @@ type SOPTimerRepository struct {
 	db *gorm.DB
 }
 
+// NewSOPTimerRepositoryDefault 默认构造（全局句柄；与传 GetDB() 同语义）。
+func NewSOPTimerRepositoryDefault() *SOPTimerRepository {
+	return NewSOPTimerRepository(GetDB())
+}
+
 func NewSOPTimerRepository(db *gorm.DB) *SOPTimerRepository {
 	return &SOPTimerRepository{db: db}
 }

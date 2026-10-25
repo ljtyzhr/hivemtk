@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
@@ -51,10 +49,10 @@ func (s *SOPScheduler) SOPService(ctx context.Context) *SOPService {
 }
 
 // InitSOPScheduler 初始化并启动调度器
-func InitSOPScheduler(db *gorm.DB, dispatcher any) *SOPScheduler {
+func InitSOPScheduler(dispatcher any) *SOPScheduler {
 	schedulerOnce.Do(func() {
-		svc := InitSOPService(db, nil)
-		globalSOPScheduler = NewSOPScheduler(svc, db, soPSchedulerScanInterval())
+		svc := InitSOPService(nil)
+		globalSOPScheduler = NewSOPScheduler(svc, soPSchedulerScanInterval())
 		globalSOPScheduler.Start(context.Background())
 	})
 	return globalSOPScheduler
@@ -87,21 +85,27 @@ func soPSchedulerScanInterval() time.Duration {
 }
 
 // NewSOPScheduler 构造调度器
-func NewSOPScheduler(svc *SOPService, db *gorm.DB, interval time.Duration) *SOPScheduler {
+func NewSOPScheduler(svc *SOPService, interval time.Duration) *SOPScheduler {
 	if interval <= 0 {
 		interval = 60 * time.Second
 	}
 	var agentRepo *repository.SopAgentRepository
 	var execRepo *repository.SopExecutionRepository
-	if db != nil {
-		agentRepo = repository.NewSopAgentRepository(db)
-		execRepo = repository.NewSopExecutionRepository(db)
+	var audience *AudienceSelector
+	if repository.DBReady() {
+		agentRepo = repository.NewSopAgentRepositoryDefault()
+		execRepo = repository.NewSopExecutionRepositoryDefault()
+		audience = NewAudienceSelectorWithSources(
+			repository.NewCustomerRFMRepository(),
+			repository.NewCustomerTagAssignmentRepository(),
+			repository.NewChurnScoreRepositoryDefault(),
+		)
 	}
 	return &SOPScheduler{
 		svc:       svc,
 		agentRepo: agentRepo,
 		execRepo:  execRepo,
-		audience:  NewAudienceSelectorWithDB(db),
+		audience:  audience,
 		interval:  interval,
 		stopCh:    make(chan struct{}),
 	}

@@ -38,7 +38,7 @@ type ApprovalAutoSendBridge struct {
 	enabled   bool
 }
 
-// approvalAutoSendFlagEnv 自动外发开关（E-10，2026-10-24）。
+// approvalAutoSendFlagEnv 自动外发开关。
 //
 // 规划 §4.10 判据"关闭开关时行为与现在一致"：此前桥装配后**无法单独关闭**
 // （只能卸整个审批运行时），与 FF_LTC_APPROVAL_RESUME 开关家族不一致。

@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // DomainPoolService 域名池服务接口
@@ -41,10 +39,10 @@ type domainPoolService struct {
 }
 
 // NewDomainPoolService 创建域名池服务实例
-func NewDomainPoolService(db *gorm.DB) DomainPoolService {
+func NewDomainPoolService(domainPoolRepo repository.DomainPoolRepository, blacklistRepo *repository.DomainBlacklistRepository) DomainPoolService {
 	return &domainPoolService{
-		domainPoolRepo: repository.NewDomainPoolRepository(db),
-		blacklistRepo:  repository.NewDomainBlacklistRepository(db),
+		domainPoolRepo: domainPoolRepo,
+		blacklistRepo:  blacklistRepo,
 	}
 }
 

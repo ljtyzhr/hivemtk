@@ -25,6 +25,9 @@ type SmsRepository interface {
 	GetSmsByID(ctx context.Context, id uint) (*model.SmsRecord, error)
 	CreateSmsRecord(ctx context.Context, record *model.SmsRecord) error
 	UpdateSmsRecord(ctx context.Context, record *model.SmsRecord) error
+	// MarkDeliveryByMsgID 送达回执按运营商单号回写台账终态（delivered/failed）。
+	// 只推进仍停在 sending/sent 的行——重复或迟到回执不回撬已落终态的行。
+	MarkDeliveryByMsgID(ctx context.Context, msgID, status, errCode, errMsg string) (int64, error)
 
 	GetDraftList(ctx context.Context, page, limit int, title string) ([]*model.SmsDraft, int64, error)
 	GetDraftByID(ctx context.Context, id uint) (*model.SmsDraft, error)
@@ -219,6 +222,22 @@ func (r *smsRepository) CreateSmsRecord(ctx context.Context, record *model.SmsRe
 
 func (r *smsRepository) UpdateSmsRecord(ctx context.Context, record *model.SmsRecord) error {
 	return r.db.WithContext(ctx).Save(record).Error
+}
+
+func (r *smsRepository) MarkDeliveryByMsgID(ctx context.Context, msgID, status, errCode, errMsg string) (int64, error) {
+	if r.db == nil || msgID == "" || status == "" {
+		return 0, nil
+	}
+	updates := map[string]any{"status": status}
+	if status == model.SmsStatusFailed {
+		updates["error_code"] = errCode
+		updates["error_msg"] = errMsg
+	}
+	res := r.db.WithContext(ctx).
+		Model(&model.SmsRecord{}).
+		Where("msg_id = ? AND status IN ?", msgID, []string{"sending", "sent"}).
+		Updates(updates)
+	return res.RowsAffected, res.Error
 }
 
 func (r *smsRepository) GetDraftList(ctx context.Context, page, limit int, title string) ([]*model.SmsDraft, int64, error) {

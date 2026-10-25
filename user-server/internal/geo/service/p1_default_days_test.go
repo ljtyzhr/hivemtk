@@ -21,10 +21,10 @@ func TestDefaultTrendDaysReadsParamCenter(t *testing.T) {
 	if database == nil {
 		t.Skip("no DB")
 	}
-	if err := service.SeedConfigParams(context.Background(), database); err != nil {
+	if err := service.SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := service.NewConfigParamService(database)
+	svc := service.NewConfigParamService()
 	service.SetGlobalForTest(svc)
 	t.Cleanup(func() { service.SetGlobalForTest(nil) })
 
@@ -39,7 +39,7 @@ func TestDefaultTrendDaysReadsParamCenter(t *testing.T) {
 		t.Fatalf("UpdateValue 失败：%v", err)
 	}
 	// 参数服务按 group.key 缓存 60s，换个冷缓存才读得到新值。
-	service.SetGlobalForTest(service.NewConfigParamService(database))
+	service.SetGlobalForTest(service.NewConfigParamService())
 	if got := defaultTrendDays(ctx); got != 90 {
 		t.Errorf("改库为 90 后得到 %d", got)
 	}
@@ -51,7 +51,7 @@ func TestDefaultTrendDaysReadsParamCenter(t *testing.T) {
 	if err := repo.UpdateValue(ctx, "geo", "default_visibility_days", "0", 1); err != nil {
 		t.Fatalf("repo.UpdateValue 失败：%v", err)
 	}
-	service.SetGlobalForTest(service.NewConfigParamService(database))
+	service.SetGlobalForTest(service.NewConfigParamService())
 	if got := defaultTrendDays(ctx); got != 30 {
 		t.Errorf("库里是 0 时应回落 30, 得到 %d", got)
 	}

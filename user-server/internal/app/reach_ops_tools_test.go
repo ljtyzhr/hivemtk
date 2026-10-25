@@ -11,6 +11,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
+
+	"hivemtk-user/internal/repository"
 )
 
 func TestReachBatchTool_MissingPipelineDep(t *testing.T) {
@@ -34,7 +36,7 @@ func TestReachBatchTool_MissingRequired(t *testing.T) {
 
 func TestReachBatchTool_EmptyItems(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ReachPipeline{}, &model.ReachJob{})
-	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(db)}
+	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(repository.NewReachPipelineRepository(db))}
 	tool := tooluse.NewReachBatchTool(tooluse.ReachToolDeps{Pipeline: svc, Adapter: &e2eMockReachAdapter{}})
 	_, err := tool.Execute(context.Background(), map[string]any{
 		"pipeline_id": "1",
@@ -59,7 +61,7 @@ func seedPipeline(t *testing.T, svc *service.ReachPipelineService) uint {
 
 func TestReachBatchTool_HappyPath(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ReachPipeline{}, &model.ReachJob{})
-	rawSvc := service.NewReachPipelineService(db)
+	rawSvc := service.NewReachPipelineService(repository.NewReachPipelineRepository(db))
 	pid := seedPipeline(t, rawSvc)
 	svc := &reachBatchPipelineAdapter{svc: rawSvc}
 	tool := tooluse.NewReachBatchTool(tooluse.ReachToolDeps{Pipeline: svc, Adapter: &e2eMockReachAdapter{}})
@@ -104,7 +106,7 @@ func TestReachScheduleTool_MissingPipelineDep(t *testing.T) {
 
 func TestReachScheduleTool_PastRunAt(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ReachPipeline{}, &model.ReachJob{})
-	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(db)}
+	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(repository.NewReachPipelineRepository(db))}
 	tool := tooluse.NewReachScheduleTool(tooluse.ReachToolDeps{Pipeline: svc, Adapter: &e2eMockReachAdapter{}})
 	_, err := tool.Execute(context.Background(), map[string]any{
 		"pipeline_id": "1", "customer_id": "c1",
@@ -118,7 +120,7 @@ func TestReachScheduleTool_PastRunAt(t *testing.T) {
 
 func TestReachScheduleTool_InvalidRunAt(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ReachPipeline{}, &model.ReachJob{})
-	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(db)}
+	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(repository.NewReachPipelineRepository(db))}
 	tool := tooluse.NewReachScheduleTool(tooluse.ReachToolDeps{Pipeline: svc, Adapter: &e2eMockReachAdapter{}})
 	if _, err := tool.Execute(context.Background(), map[string]any{
 		"pipeline_id": "1", "customer_id": "c1",
@@ -130,7 +132,7 @@ func TestReachScheduleTool_InvalidRunAt(t *testing.T) {
 
 func TestReachScheduleTool_HappyPath(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ReachPipeline{}, &model.ReachJob{})
-	rawSvc := service.NewReachPipelineService(db)
+	rawSvc := service.NewReachPipelineService(repository.NewReachPipelineRepository(db))
 	pid := seedPipeline(t, rawSvc)
 	svc := &reachBatchPipelineAdapter{svc: rawSvc}
 	tool := tooluse.NewReachScheduleTool(tooluse.ReachToolDeps{Pipeline: svc, Adapter: &e2eMockReachAdapter{}})
@@ -209,7 +211,7 @@ func TestReachHistoryTool_MissingPipelineDep(t *testing.T) {
 
 func TestReachHistoryTool_PageSizeCap(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.ReachPipeline{}, &model.ReachJob{})
-	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(db)}
+	svc := &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(repository.NewReachPipelineRepository(db))}
 	tool := tooluse.NewReachHistoryTool(tooluse.ReachToolDeps{Pipeline: svc, Adapter: &e2eMockReachAdapter{}})
 	res, err := tool.Execute(context.Background(), map[string]any{
 		"channel": "sms", "state": "success", "page": 1, "page_size": 9999,

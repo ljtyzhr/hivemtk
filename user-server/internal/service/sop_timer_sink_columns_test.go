@@ -66,7 +66,7 @@ func TestSOPDispatcher_SweepSkipsOverdueByColumn(t *testing.T) {
 	db.Create(timer)
 
 	var dispatched int32
-	outbox := NewSOPOutboxDispatcher(db, nil)
+	outbox := NewSOPOutboxDispatcher(nil)
 	outbox.execDispatcher = &mockExecDispatcher{dispatchFn: func(task *dispatchTask) {
 		if task.SkipWait {
 			atomic.AddInt32(&dispatched, 1)
@@ -101,7 +101,7 @@ func TestSOPDispatcher_SweepLegacyPayloadOnlyTimer(t *testing.T) {
 	}
 	db.Create(timer)
 
-	outbox := NewSOPOutboxDispatcher(db, nil)
+	outbox := NewSOPOutboxDispatcher(nil)
 	outbox.execDispatcher = &mockExecDispatcher{dispatchFn: func(task *dispatchTask) {}}
 	outbox.sweepPendingTimers(context.Background(), time.Now())
 
@@ -125,7 +125,7 @@ func TestSOPDispatcher_ClaimCountColumnDeadLetter(t *testing.T) {
 	}
 	db.Create(timer)
 
-	outbox := NewSOPOutboxDispatcher(db, nil)
+	outbox := NewSOPOutboxDispatcher(nil)
 	outbox.sweepPendingTimers(context.Background(), time.Now())
 
 	var updated model.SOPTimer
@@ -152,7 +152,7 @@ func TestSOPDispatcher_BumpClaimWritesColumn(t *testing.T) {
 	}
 	db.Create(timer)
 
-	outbox := NewSOPOutboxDispatcher(db, nil)
+	outbox := NewSOPOutboxDispatcher(nil)
 	outbox.bumpTimerClaimOrDeadLetter(context.Background(), timer, time.Now())
 
 	var updated model.SOPTimer

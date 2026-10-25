@@ -49,10 +49,10 @@ func setupGroupMessagingRouter(ctrl *GroupMessagingController) *gin.Engine {
 func TestGroupMessagingController_GetLeadGroups_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
 	ctrl := NewGroupMessagingController(
-		service.NewWhatsappService(db.GetDB()),
-		service.NewClueServiceWithDB(db.GetDB(), nil),
-		service.NewMessageQueueService(db.GetDB()),
-		service.NewWhatsAppTemplateService(db.GetDB()),
+		service.NewWhatsappService(repository.NewClueRepositoryWithDB(db.GetDB())),
+		service.NewClueServiceDefault(nil),
+		service.NewMessageQueueService(),
+		service.NewWhatsAppTemplateService(),
 	)
 	ctrl.clueSvc = service.NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 	router := setupGroupMessagingRouter(ctrl)
@@ -69,10 +69,10 @@ func TestGroupMessagingController_GetLeadGroups_Success(t *testing.T) {
 func TestGroupMessagingController_GetTemplates_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
 	ctrl := NewGroupMessagingController(
-		service.NewWhatsappService(db.GetDB()),
-		service.NewClueServiceWithDB(db.GetDB(), nil),
-		service.NewMessageQueueService(db.GetDB()),
-		service.NewWhatsAppTemplateService(db.GetDB()),
+		service.NewWhatsappService(repository.NewClueRepositoryWithDB(db.GetDB())),
+		service.NewClueServiceDefault(nil),
+		service.NewMessageQueueService(),
+		service.NewWhatsAppTemplateService(),
 	)
 	router := setupGroupMessagingRouter(ctrl)
 
@@ -88,10 +88,10 @@ func TestGroupMessagingController_GetTemplates_Success(t *testing.T) {
 func TestGroupMessagingController_CreateTemplate_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
 	ctrl := NewGroupMessagingController(
-		service.NewWhatsappService(db.GetDB()),
-		service.NewClueServiceWithDB(db.GetDB(), nil),
-		service.NewMessageQueueService(db.GetDB()),
-		service.NewWhatsAppTemplateService(db.GetDB()),
+		service.NewWhatsappService(repository.NewClueRepositoryWithDB(db.GetDB())),
+		service.NewClueServiceDefault(nil),
+		service.NewMessageQueueService(),
+		service.NewWhatsAppTemplateService(),
 	)
 	router := setupGroupMessagingRouter(ctrl)
 
@@ -113,10 +113,10 @@ func TestGroupMessagingController_CreateTemplate_Success(t *testing.T) {
 func TestGroupMessagingController_CreateTemplate_InvalidJSON(t *testing.T) {
 	setupGroupMessagingTestDB(t)
 	ctrl := NewGroupMessagingController(
-		service.NewWhatsappService(db.GetDB()),
-		service.NewClueServiceWithDB(db.GetDB(), nil),
-		service.NewMessageQueueService(db.GetDB()),
-		service.NewWhatsAppTemplateService(db.GetDB()),
+		service.NewWhatsappService(repository.NewClueRepositoryWithDB(db.GetDB())),
+		service.NewClueServiceDefault(nil),
+		service.NewMessageQueueService(),
+		service.NewWhatsAppTemplateService(),
 	)
 	router := setupGroupMessagingRouter(ctrl)
 
@@ -133,10 +133,10 @@ func TestGroupMessagingController_CreateTemplate_InvalidJSON(t *testing.T) {
 func TestGroupMessagingController_SelectGroupAndSendMessage_InvalidJSON(t *testing.T) {
 	setupGroupMessagingTestDB(t)
 	ctrl := NewGroupMessagingController(
-		service.NewWhatsappService(db.GetDB()),
-		service.NewClueServiceWithDB(db.GetDB(), nil),
-		service.NewMessageQueueService(db.GetDB()),
-		service.NewWhatsAppTemplateService(db.GetDB()),
+		service.NewWhatsappService(repository.NewClueRepositoryWithDB(db.GetDB())),
+		service.NewClueServiceDefault(nil),
+		service.NewMessageQueueService(),
+		service.NewWhatsAppTemplateService(),
 	)
 	router := setupGroupMessagingRouter(ctrl)
 
@@ -153,10 +153,10 @@ func TestGroupMessagingController_SelectGroupAndSendMessage_InvalidJSON(t *testi
 func TestGroupMessagingController_GetSendRecords_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
 	ctrl := NewGroupMessagingController(
-		service.NewWhatsappService(db.GetDB()),
-		service.NewClueServiceWithDB(db.GetDB(), nil),
-		service.NewMessageQueueService(db.GetDB()),
-		service.NewWhatsAppTemplateService(db.GetDB()),
+		service.NewWhatsappService(repository.NewClueRepositoryWithDB(db.GetDB())),
+		service.NewClueServiceDefault(nil),
+		service.NewMessageQueueService(),
+		service.NewWhatsAppTemplateService(),
 	)
 	router := setupGroupMessagingRouter(ctrl)
 

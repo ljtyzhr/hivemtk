@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
@@ -46,9 +44,9 @@ type AssetResolver struct {
 var assetResolverInstance *AssetResolver
 
 // InitAssetResolver 初始化全局运行时覆盖层，应在服务启动时调用一次。
-func InitAssetResolver(db *gorm.DB) {
+func InitAssetResolver(assetRepo repository.LocalAssetRepository) {
 	assetResolverInstance = &AssetResolver{
-		assetRepo: repository.NewLocalAssetRepository(db),
+		assetRepo: assetRepo,
 		agent:     NewAgentLoader(),
 		script:    NewScriptLoader(),
 		sop:       NewSOPLoader(),

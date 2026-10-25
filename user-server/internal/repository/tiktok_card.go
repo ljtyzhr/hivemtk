@@ -32,6 +32,11 @@ type tiktokCardRepository struct {
 }
 
 // NewTikTokCardRepository 创建 TikTok 卡片仓储
+// NewTikTokCardRepositoryDefault 默认构造（全局句柄）。
+func NewTikTokCardRepositoryDefault() TikTokCardRepository {
+	return NewTikTokCardRepository(GetDB())
+}
+
 func NewTikTokCardRepository(db *gorm.DB) TikTokCardRepository {
 	return &tiktokCardRepository{db: db}
 }

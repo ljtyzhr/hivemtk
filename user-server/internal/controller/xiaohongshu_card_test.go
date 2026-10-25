@@ -16,6 +16,8 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupXiaohongshuCardTestDB(t *testing.T) *gorm.DB {
@@ -40,7 +42,7 @@ func TestXiaohongshuCardController_Create_Success(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards", ctrl.Create)
 
@@ -68,7 +70,7 @@ func TestXiaohongshuCardController_Create_Success(t *testing.T) {
 // TestXiaohongshuCardController_Create_InvalidJSON 测试无效 JSON 请求
 func TestXiaohongshuCardController_Create_InvalidJSON(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards", ctrl.Create)
 
@@ -85,7 +87,7 @@ func TestXiaohongshuCardController_Create_InvalidJSON(t *testing.T) {
 // TestXiaohongshuCardController_Create_EmptyTitle 测试空标题
 func TestXiaohongshuCardController_Create_EmptyTitle(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards", ctrl.Create)
 
@@ -108,7 +110,7 @@ func TestXiaohongshuCardController_Create_EmptyTitle(t *testing.T) {
 // TestXiaohongshuCardController_Create_InvalidImageURL 测试无效图片 URL
 func TestXiaohongshuCardController_Create_InvalidImageURL(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards", ctrl.Create)
 
@@ -139,7 +141,7 @@ func TestXiaohongshuCardController_Create_DefaultRedirectURL(t *testing.T) {
 		Status:  1,
 	})
 	var domainPoolID uint = 1
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards", ctrl.Create)
 
@@ -170,7 +172,7 @@ func TestXiaohongshuCardController_Update_Success(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 
@@ -219,7 +221,7 @@ func TestXiaohongshuCardController_Update_Success(t *testing.T) {
 // TestXiaohongshuCardController_Update_InvalidJSON 测试无效 JSON
 func TestXiaohongshuCardController_Update_InvalidJSON(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.PUT("/xiaohongshu/cards/:id", ctrl.Update)
 
@@ -236,7 +238,7 @@ func TestXiaohongshuCardController_Update_InvalidJSON(t *testing.T) {
 // TestXiaohongshuCardController_Update_IDMismatch 测试 ID 不匹配
 func TestXiaohongshuCardController_Update_IDMismatch(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.PUT("/xiaohongshu/cards/:id", ctrl.Update)
 
@@ -259,7 +261,7 @@ func TestXiaohongshuCardController_Update_IDMismatch(t *testing.T) {
 // TestXiaohongshuCardController_Delete_Success 测试删除卡片成功
 func TestXiaohongshuCardController_Delete_Success(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 
@@ -285,7 +287,7 @@ func TestXiaohongshuCardController_Delete_Success(t *testing.T) {
 // TestXiaohongshuCardController_Delete_InvalidID 测试无效 ID
 func TestXiaohongshuCardController_Delete_InvalidID(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.DELETE("/xiaohongshu/cards/:id", ctrl.Delete)
 
@@ -301,7 +303,7 @@ func TestXiaohongshuCardController_Delete_InvalidID(t *testing.T) {
 // TestXiaohongshuCardController_GetByID_Success 测试根据 ID 获取卡片成功
 func TestXiaohongshuCardController_GetByID_Success(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 
@@ -327,7 +329,7 @@ func TestXiaohongshuCardController_GetByID_Success(t *testing.T) {
 // TestXiaohongshuCardController_GetByID_NotFound 测试卡片不存在
 func TestXiaohongshuCardController_GetByID_NotFound(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.GET("/xiaohongshu/cards/:id", ctrl.GetByID)
 
@@ -343,7 +345,7 @@ func TestXiaohongshuCardController_GetByID_NotFound(t *testing.T) {
 // TestXiaohongshuCardController_GetByID_InvalidID 测试无效 ID 格式
 func TestXiaohongshuCardController_GetByID_InvalidID(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.GET("/xiaohongshu/cards/:id", ctrl.GetByID)
 
@@ -359,7 +361,7 @@ func TestXiaohongshuCardController_GetByID_InvalidID(t *testing.T) {
 // TestXiaohongshuCardController_GetList_Success 测试获取卡片列表成功
 func TestXiaohongshuCardController_GetList_Success(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 
@@ -387,7 +389,7 @@ func TestXiaohongshuCardController_GetList_Success(t *testing.T) {
 // TestXiaohongshuCardController_GetList_DefaultPagination 测试默认分页
 func TestXiaohongshuCardController_GetList_DefaultPagination(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 
@@ -413,7 +415,7 @@ func TestXiaohongshuCardController_GetList_DefaultPagination(t *testing.T) {
 // TestXiaohongshuCardController_GetList_InvalidPage 测试无效分页参数
 func TestXiaohongshuCardController_GetList_InvalidPage(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 	router.GET("/xiaohongshu/cards", ctrl.GetList)
@@ -436,7 +438,7 @@ func TestXiaohongshuCardController_GenerateShortLink_Success(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 
@@ -471,7 +473,7 @@ func TestXiaohongshuCardController_GenerateShortLink_Success(t *testing.T) {
 // TestXiaohongshuCardController_GenerateShortLink_InvalidID 测试无效 ID
 func TestXiaohongshuCardController_GenerateShortLink_InvalidID(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards/:id/shortlink", ctrl.GenerateShortLink)
 
@@ -487,7 +489,7 @@ func TestXiaohongshuCardController_GenerateShortLink_InvalidID(t *testing.T) {
 // TestXiaohongshuCardController_GenerateShortLink_NotFound 测试卡片不存在
 func TestXiaohongshuCardController_GenerateShortLink_NotFound(t *testing.T) {
 	database := setupXiaohongshuCardTestDB(t)
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards/:id/shortlink", ctrl.GenerateShortLink)
 
@@ -509,7 +511,7 @@ func TestXiaohongshuCardController_Create_WithTags(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards", ctrl.Create)
 
@@ -542,7 +544,7 @@ func TestXiaohongshuCardController_Create_InactiveCard(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(database))
+	ctrl := NewXiaohongshuCardController(service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database))))
 	router := setupGinEngine()
 	router.POST("/xiaohongshu/cards", ctrl.Create)
 
@@ -574,7 +576,7 @@ func TestXiaohongshuCardController_Update_ViewCount(t *testing.T) {
 		Purpose: "test",
 		Status:  1,
 	})
-	svc := service.NewXiaohongshuCardService(database)
+	svc := service.NewXiaohongshuCardService(repository.NewXiaohongshuCardRepository(database), service.NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database)), service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)))
 	ctrl := NewXiaohongshuCardController(svc)
 	router := setupGinEngine()
 

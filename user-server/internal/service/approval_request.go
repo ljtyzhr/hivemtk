@@ -324,12 +324,6 @@ func (s *ApprovalRequestService) AddWaitNotifier(n ApprovalWaitNotifier) {
 	s.notifierMu.Unlock()
 }
 
-func (s *ApprovalRequestService) waitNotifier() ApprovalWaitNotifier {
-	s.notifierMu.RLock()
-	defer s.notifierMu.RUnlock()
-	return s.notifier
-}
-
 // notifyWait 把结论推给等待方；未装配时静默（那是默认档，不是故障）。
 // E-10：主槽（SetWaitNotifier 装的）先通知，再逐个通知追加订阅者——
 // 顺序失败只出声不拦截（同一判据：人的裁决已经落库，不能因为叫不醒某个订阅者回滚它）。

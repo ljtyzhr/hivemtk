@@ -217,7 +217,7 @@ func TestBindToAgent_NilBindingRepo(t *testing.T) {
 // nil db 时, NewKnowledgeBaseService 会构造 KnowledgeBaseRepository(nil) 和 AgentKBBindingRepository(nil)
 // 这些非 nil 的 typed nil 指针, 因此 svc.repo != nil 但 svc.repo.db == nil
 func TestNewKnowledgeBaseService(t *testing.T) {
-	svc := NewKnowledgeBaseService(nil)
+	svc := NewKnowledgeBaseService()
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}

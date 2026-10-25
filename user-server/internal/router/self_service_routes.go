@@ -7,10 +7,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupSelfServiceRoutes(public *gin.RouterGroup, db *gorm.DB) {
-	selfSvcCtrl := controller.NewSelfServiceController(service.NewPasswordResetService(db))
+	selfSvcCtrl := controller.NewSelfServiceController(service.NewPasswordResetService(repository.NewPasswordResetTokenRepository(db)))
 	authCtrl := controller.NewAuthController()
 	public.POST("/public/register", middleware.BruteForceGuard("register"), authCtrl.Register)
 	public.POST("/public/forgot-password", middleware.BruteForceGuard("forgot-password"), selfSvcCtrl.ForgotPassword)

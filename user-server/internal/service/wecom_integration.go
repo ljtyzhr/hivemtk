@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -24,17 +23,16 @@ type WeComIntegrationService struct {
 	wecom     *WeComService
 }
 
-// NewWeComIntegrationService 创建集成服务
-func NewWeComIntegrationService(db *gorm.DB) *WeComIntegrationService {
-	repo := repository.NewWeComAccountRepository()
-	if db != nil {
-		repo.SetDB(context.Background(), db)
-	}
+// NewWeComIntegrationService 创建集成服务。
+//
+// 五层架构 §3.2：构造器不接 DB 句柄——账号仓储与健康度服务各自装配
+// （都走 repository 的全局构造器）。
+func NewWeComIntegrationService() *WeComIntegrationService {
 	return &WeComIntegrationService{
-		repo:      repo,
+		repo:      repository.NewWeComAccountRepository(),
 		hub:       NewMessageHubService(),
 		inbox:     NewInboxService(),
-		healthSvc: NewWeComAccountHealthService(db),
+		healthSvc: NewWeComAccountHealthService(),
 		wecom:     NewWeComService(),
 	}
 }

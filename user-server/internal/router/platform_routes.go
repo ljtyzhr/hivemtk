@@ -7,17 +7,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupWhatsappRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	whatsappCtrl := controller.NewWhatsappController(service.NewWhatsappService(gormDB))
+	whatsappCtrl := controller.NewWhatsappController(service.NewWhatsappService(repository.NewClueRepositoryWithDB(gormDB)))
 	// 群发控制器的依赖全部在装配层构造（controller 不 import repository / gorm ——
 	// depguard 的 controller-layer 清单，且那是五层架构的破口）。
 	whatsappGroupMsgCtrl := controller.NewGroupMessagingController(
 		whatsappCtrl.GetService(),
-		service.NewClueServiceWithDB(gormDB, service.NewClueScoreService(gormDB)),
-		service.NewMessageQueueService(gormDB),
-		service.NewWhatsAppTemplateService(gormDB),
+		service.NewClueServiceDefault(service.NewClueScoreService()),
+		service.NewMessageQueueService(),
+		service.NewWhatsAppTemplateService(),
 	)
 
 	auth.GET("/whatsapp/accounts", whatsappCtrl.ListAccounts)
@@ -57,21 +59,30 @@ func setupWhatsappRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 }
 
 func setupTelegramRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	telegramAccountCtrl := controller.NewTelegramAccountController(service.NewTelegramService(gormDB))
+	telegramAccountCtrl := controller.NewTelegramAccountController(
+		service.NewTelegramService(repository.NewTelegramAccountRepositoryWithDB(gormDB)),
+	)
 	admin := auth.Group("", middleware.AdminAuthMiddleware())
 	telegramAccountCtrl.RegisterRoutes(admin)
-	gateCtrl := controller.NewTelegramGateController(service.NewTelegramGateService(gormDB))
+	gateCtrl := controller.NewTelegramGateController(service.NewTelegramGateService())
 	gateCtrl.RegisterRoutes(admin)
 }
 
 func setupFeishuRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	feishuCtrl := controller.NewFeishuAccountController(service.NewFeishuService(gormDB), service.NewFeishuIntegrationService(gormDB))
+	feishuCtrl := controller.NewFeishuAccountController(
+		service.NewFeishuService(repository.NewFeishuAccountRepositoryWithDB(gormDB)),
+		service.NewFeishuIntegrationService(
+			repository.NewFeishuAccountRepositoryWithDB(gormDB),
+			repository.NewFeishuMessageRepositoryWithDB(gormDB),
+		),
+	)
 	admin := auth.Group("", middleware.AdminAuthMiddleware())
 	feishuCtrl.RegisterRoutes(admin)
 }
 
 func setupWhatsAppCloudRoutes(auth *gin.RouterGroup, whatsappCloudSvc *service.WhatsAppCloudService, gormDB *gorm.DB) {
-	waCtrl := controller.NewWhatsAppCloudAccountController(whatsappCloudSvc, service.NewWhatsAppCloudIntegrationService(gormDB))
+	waCtrl := controller.NewWhatsAppCloudAccountController(whatsappCloudSvc,
+		service.NewWhatsAppCloudIntegrationService(repository.NewWhatsAppCloudAccountRepositoryWithDB(gormDB)))
 	admin := auth.Group("", middleware.AdminAuthMiddleware())
 	waCtrl.RegisterRoutes(admin)
 }
@@ -83,7 +94,7 @@ func setupDingTalkAppRoutes(auth *gin.RouterGroup, dingtalkAppSvc *service.DingT
 }
 
 func setupWechatRoutes(auth *gin.RouterGroup, gormDB *gorm.DB, ingressSvc *service.InboxIngressService) {
-	wechatCtrl := controller.NewWechatController(service.NewWechatService(gormDB))
+	wechatCtrl := controller.NewWechatController(service.NewWechatService())
 	if ingressSvc != nil {
 		wechatCtrl.SetIngressSvc(ingressSvc)
 	}
@@ -92,7 +103,7 @@ func setupWechatRoutes(auth *gin.RouterGroup, gormDB *gorm.DB, ingressSvc *servi
 }
 
 func setupWechatWebhookRoutes(r *gin.RouterGroup, gormDB *gorm.DB, ingressSvc *service.InboxIngressService) {
-	wechatCtrl := controller.NewWechatController(service.NewWechatService(gormDB))
+	wechatCtrl := controller.NewWechatController(service.NewWechatService())
 	if ingressSvc != nil {
 		wechatCtrl.SetIngressSvc(ingressSvc)
 	}
@@ -107,7 +118,7 @@ func setupTiktokRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 }
 
 func setupQQRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	qqAccountCtrl := controller.NewQQAccountController(service.NewQQService(gormDB))
+	qqAccountCtrl := controller.NewQQAccountController(service.NewQQService())
 	admin := auth.Group("", middleware.AdminAuthMiddleware())
 	qqAccountCtrl.RegisterRoutes(admin)
 }

@@ -25,7 +25,6 @@ const (
 	OrderStatusForceClose   OrderStatusType = -2
 )
 
-// 新增AccountStatusType定义
 type AccountStatusType int
 
 const (

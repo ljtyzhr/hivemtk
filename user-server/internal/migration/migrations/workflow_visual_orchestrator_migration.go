@@ -8,7 +8,6 @@ import (
 )
 
 // WorkflowVisualOrchestratorMigration 可视化工作流编排器迁移
-// 新增 workflow_versions、workflow_executions 表，支持版本管理与执行监控
 type WorkflowVisualOrchestratorMigration struct {
 	db *gorm.DB
 }

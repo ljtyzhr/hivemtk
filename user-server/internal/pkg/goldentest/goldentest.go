@@ -1,6 +1,5 @@
-// Package goldentest 确定性测试基建（借鉴 catbus rand.ts/vm.ts 模式）：
-// 种子随机数 + 假时钟 + 黄金文件回放，让含随机数/时间/外部请求的代码
-// 可字节级复现。
+// Package goldentest 确定性测试基建：种子随机数 + 假时钟 + 黄金文件回放，
+// 让含随机数/时间/外部请求的代码可字节级复现。
 package goldentest
 
 import (
@@ -12,7 +11,7 @@ import (
 	"time"
 )
 
-// SeededRand mulberry32 种子随机源：同种子同序列，替代 Math.random 式不确定性。
+// SeededRand mulberry32 种子随机源：同种子同序列。
 type SeededRand struct {
 	state uint32
 }

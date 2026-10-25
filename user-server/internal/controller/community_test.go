@@ -15,6 +15,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupCommunityTestDB(t *testing.T) *gorm.DB {
@@ -29,7 +31,7 @@ func setupCommunityTestDB(t *testing.T) *gorm.DB {
 
 func setupCommunityController(t *testing.T) (*CommunityController, *gin.Engine) {
 	database := setupCommunityTestDB(t)
-	ctrl := NewCommunityController(service.NewCommunityService(database))
+	ctrl := NewCommunityController(service.NewCommunityService(repository.NewCommunityRepository(database)))
 	router := gin.New()
 
 	return ctrl, router
@@ -288,7 +290,7 @@ func TestCommunityController_GetStatistics_Success(t *testing.T) {
 // TestCommunityController_NewCommunityController 测试构造函数
 func TestCommunityController_NewCommunityController(t *testing.T) {
 	database := setupCommunityTestDB(t)
-	ctrl := NewCommunityController(service.NewCommunityService(database))
+	ctrl := NewCommunityController(service.NewCommunityService(repository.NewCommunityRepository(database)))
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}

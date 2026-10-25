@@ -16,12 +16,12 @@ type Config struct {
 	SSL      bool   `json:"ssl"`
 }
 
-// ImplicitTLSPort 隐式 TLS（SMTPS）的标准端口。其余端口走 STARTTLS —— gomail.NewDialer
-// 用的也是这一条判据，两处一致才不会让同一条 SMTP 记录在两条外发路径上表现不同。
+// ImplicitTLSPort 隐式 TLS（SMTPS）的标准端口。其余端口走 STARTTLS ——
+// 与 gomail.NewDialer 用同一判据，保证同一条 SMTP 记录在两条外发路径上表现一致。
 const ImplicitTLSPort = 465
 
 // SendMail 发一封信。opts 是给合规头部（List-Unsubscribe 等）留的接缝：
-// 可变参数让既有调用方一行不改，新调用方能拿到"这封信真发出去时头会长什么样"的控制点。
+// 可变参数让既有调用方一行不改，新调用方能控制最终发出的邮件头。
 func SendMail(cfg Config, to []string, subject, body string, isHTML bool, opts ...Option) error {
 	cfg = resolveSendConfig(cfg)
 

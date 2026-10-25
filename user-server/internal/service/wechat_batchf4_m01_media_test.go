@@ -92,7 +92,7 @@ func f4WxMediaSetup(t *testing.T, hubMsgID string) (*WechatService, uint, *gorm.
 	if err := database.Create(hub).Error; err != nil {
 		t.Fatalf("create hub row: %v", err)
 	}
-	return NewWechatService(database), acc.ID, database
+	return NewWechatService(), acc.ID, database
 }
 
 // f4WxMediaURL 轮询读回 media_url（回填是异步的，直读会把竞态误读成缺陷）。

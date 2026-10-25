@@ -31,12 +31,12 @@ type ClueScoreService struct {
 	clueRepo   repository.ClueRepository
 }
 
-// NewClueScoreService 用装配点注入的连接创建线索评分服务
-func NewClueScoreService(db *gorm.DB) *ClueScoreService {
+// NewClueScoreService 用全局库创建线索评分服务（测试用 db.SetTestDB／testutil 换库）
+func NewClueScoreService() *ClueScoreService {
 	return &ClueScoreService{
-		scoreRepo:  repository.NewClueScoreRepositoryWithDB(db),
-		engageRepo: repository.NewClueEngagementRepositoryWithDB(db),
-		clueRepo:   repository.NewClueRepositoryWithDB(db),
+		scoreRepo:  repository.NewClueScoreRepository(),
+		engageRepo: repository.NewClueEngagementRepository(),
+		clueRepo:   repository.NewClueRepositoryDefault(),
 	}
 }
 

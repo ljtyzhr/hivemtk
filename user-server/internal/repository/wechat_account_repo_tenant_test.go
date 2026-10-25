@@ -71,7 +71,7 @@ func TestWechatAccountUpdate_CrossTenantReportsNotFound(t *testing.T) {
 	mine := wxSeed(t, db, wxTenantA, "wx_mine_a")
 	theirs := wxSeed(t, db, wxTenantB, "wx_theirs_b")
 
-	repo := NewWechatAccountRepository(db)
+	repo := NewWechatAccountRepositoryWithDB(db)
 	ctxA := tenant.WithTenantID(context.Background(), wxTenantA)
 
 	err := repo.UpdateCredentials(ctxA, &model.WechatAccount{
@@ -100,7 +100,7 @@ func TestWechatAccountDelete_CrossTenantReportsNotFound(t *testing.T) {
 	mine := wxSeed(t, db, wxTenantA, "wx_del_mine")
 	theirs := wxSeed(t, db, wxTenantB, "wx_del_theirs")
 
-	repo := NewWechatAccountRepository(db)
+	repo := NewWechatAccountRepositoryWithDB(db)
 	ctxA := tenant.WithTenantID(context.Background(), wxTenantA)
 
 	if err := repo.Delete(ctxA, theirs.ID); !errors.Is(err, ErrWechatAccountNotFound) {
@@ -125,7 +125,7 @@ func TestWechatAccountDelete_CrossTenantReportsNotFound(t *testing.T) {
 
 func TestWechatAccountUpdate_MissingRowReportsNotFound(t *testing.T) {
 	db := wxSetupDB(t)
-	repo := NewWechatAccountRepository(db)
+	repo := NewWechatAccountRepositoryWithDB(db)
 
 	err := repo.UpdateCredentials(tenant.WithTenantID(context.Background(), wxTenantA), &model.WechatAccount{
 		ID: 999999, AppID: "wx_ghost", AppSecret: "s", Token: "t", Status: "active",

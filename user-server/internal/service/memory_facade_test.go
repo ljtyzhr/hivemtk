@@ -78,7 +78,7 @@ func TestMemoryFacadeNilReceiver(t *testing.T) {
 }
 
 func TestMemoryFacadeNilSystems(t *testing.T) {
-	f := NewMemoryFacade(nil, nil, nil)
+	f := NewMemoryFacade(nil, nil)
 	if err := f.Write(context.Background(), MemoryWrite{Scope: MemoryScopeDialogue, SessionID: "s-1"}); err != nil {
 		t.Errorf("底层缺失时 Write 应静默跳过，got %v", err)
 	}
@@ -92,7 +92,7 @@ func TestMemoryFacadeNilSystems(t *testing.T) {
 }
 
 func TestMemoryFacadeWriteUnknownScope(t *testing.T) {
-	f := NewMemoryFacade(nil, nil, nil)
+	f := NewMemoryFacade(nil, nil)
 	if err := f.Write(context.Background(), MemoryWrite{Scope: "nope"}); err == nil {
 		t.Error("未知 scope 应返回错误")
 	}
@@ -100,7 +100,7 @@ func TestMemoryFacadeWriteUnknownScope(t *testing.T) {
 
 func TestMemoryFacadeWriteFactNilRepo(t *testing.T) {
 
-	f := NewMemoryFacade(nil, &MemorySystem{}, nil)
+	f := NewMemoryFacade(&MemorySystem{}, nil)
 	if err := f.Write(context.Background(), MemoryWrite{Scope: MemoryScopeFact, CustomerID: "c-1", Key: "budget", Value: "8000"}); err != nil {
 		t.Errorf("repo 为 nil 应静默，got %v", err)
 	}

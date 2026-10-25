@@ -14,7 +14,8 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 )
 
-// ErrCacheMiss key 不存在或已过期时返回（对齐 RedisCache 未命中返回 redis.Nil 的契约）
+// ErrCacheMiss key 不存在或已过期时返回（两后端统一哨兵：RedisCache 的 Get/GetJSON/LPop
+// 已在实现内把 redis.Nil 转换为本哨兵，调用方判未命中只看 errors.Is(err, ErrCacheMiss) 一支）
 var ErrCacheMiss = errors.New("cache: key not found")
 
 // DefaultMaxKeys 默认 LRU 上限（修复：限制内存使用）
@@ -184,7 +185,7 @@ func (m *MemoryCache) peekItem(key string) (*cacheItem, bool) {
 }
 
 // Get 获取缓存
-// 未命中或已过期返回 ErrCacheMiss（与 RedisCache 未命中返回 redis.Nil 的契约对齐）
+// 未命中或已过期返回 ErrCacheMiss（两后端统一哨兵，见 RedisCache.Get 的转换）
 func (m *MemoryCache) Get(ctx context.Context, key string) (string, error) {
 	key = tenant.RedisKey(ctx, key)
 	item, ok := m.peekItem(key)

@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -27,9 +25,9 @@ type EmailService struct {
 }
 
 // NewEmailService 创建邮件服务
-func NewEmailService(db *gorm.DB) *EmailService {
+func NewEmailService() *EmailService {
 	return &EmailService{
-		accRepo: repository.NewEmailAccountRepositoryWithDB(db),
+		accRepo: repository.NewEmailAccountRepository(),
 		hub:     NewMessageHubService(),
 	}
 }

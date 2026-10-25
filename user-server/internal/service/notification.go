@@ -5,8 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
@@ -22,10 +20,10 @@ type NotificationService struct {
 //
 // 五层架构 §三.5：构造函数保留 db *gorm.DB 参数（调用方不变），
 // 内部创建 repository 实例，service 不再持有 db。
-func NewNotificationService(db *gorm.DB) *NotificationService {
+func NewNotificationService() *NotificationService {
 	return &NotificationService{
-		repo:     repository.NewNotificationRepositoryWithDB(db),
-		readRepo: repository.NewNotificationReadRepositoryWithDB(db),
+		repo:     repository.NewNotificationRepository(),
+		readRepo: repository.NewNotificationReadRepository(),
 	}
 }
 

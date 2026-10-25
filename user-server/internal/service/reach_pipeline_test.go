@@ -15,6 +15,8 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupReachTestDB(t *testing.T) *gorm.DB {
@@ -49,7 +51,7 @@ func (s *reachStubSender) sentTo() []string {
 
 func newReachTestService(t *testing.T) (*ReachPipelineService, *gorm.DB) {
 	db := setupReachTestDB(t)
-	svc := NewReachPipelineService(db)
+	svc := NewReachPipelineService(repository.NewReachPipelineRepository(db))
 	svc.SetReachSender(&reachStubSender{})
 	return svc, db
 }

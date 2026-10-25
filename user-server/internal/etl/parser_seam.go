@@ -81,7 +81,7 @@ func parseViaSidecar(ctx context.Context, filename string, data []byte) (string,
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return "", fmt.Errorf("sidecar HTTP %d: %s", resp.StatusCode, string(body))

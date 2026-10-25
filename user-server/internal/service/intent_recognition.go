@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/dto"
@@ -132,25 +131,24 @@ type IntentRecognizer struct {
 }
 
 // NewIntentRecognizer 创建意图识别器
-func NewIntentRecognizer(db *gorm.DB, dispatcher *llm.Dispatcher, cache *redis.Client) *IntentRecognizer {
+// 句柄由 repository 自取全局库（测试用 db.SetTestDB／testutil 换库）。
+func NewIntentRecognizer(dispatcher *llm.Dispatcher, cache *redis.Client) *IntentRecognizer {
 	var recordRepo *repository.IntentRecordRepository
 	var logRepo *repository.IntentLogRepository
-	if db != nil {
+	if repository.DBReady() {
+		// 无参构造内部自取全局句柄（测试经 testutil 换库），SetDB 注入成为冗余。
 		recordRepo = repository.NewIntentRecordRepository()
-		recordRepo.SetDB(context.Background(), db)
 		logRepo = repository.NewIntentLogRepository()
-		logRepo.SetDB(context.Background(), db)
 	}
 	rec := &IntentRecognizer{
 		recordRepo:       recordRepo,
 		logRepo:          logRepo,
-		sopExecutionRepo: repository.NewSopExecutionRepository(db),
+		sopExecutionRepo: repository.NewSopExecutionRepositoryDefault(),
 		dispatcher:       dispatcher,
 		cache:            cache,
 	}
-	if db != nil {
+	if repository.DBReady() {
 		rec.exampleRepo = repository.NewIntentExampleRepository()
-		rec.exampleRepo.SetDB(context.Background(), db)
 	}
 	return rec
 }
@@ -1106,7 +1104,7 @@ func UpdateIntentConfig(ctx context.Context, cfg *IntentConfig) error {
 //   - 表无记录：使用默认 Enabled=true
 //   - 表有记录：以 DB 配置为准
 //   - DB 不可用：降级为默认 Enabled=true（不阻断服务启动）
-func InitIntentRecognizer(db *gorm.DB, dispatcher *llm.Dispatcher, cache *redis.Client) *IntentRecognizer {
+func InitIntentRecognizer(dispatcher *llm.Dispatcher, cache *redis.Client) *IntentRecognizer {
 	intentRecognizerOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
 		defer cancel()
@@ -1123,7 +1121,7 @@ func InitIntentRecognizer(db *gorm.DB, dispatcher *llm.Dispatcher, cache *redis.
 			}
 		}
 
-		intentRecognizer = NewIntentRecognizer(db, dispatcher, cache)
+		intentRecognizer = NewIntentRecognizer(dispatcher, cache)
 
 		intentRecognizer.SetEmbeddingService(llm.NewEmbeddingService())
 

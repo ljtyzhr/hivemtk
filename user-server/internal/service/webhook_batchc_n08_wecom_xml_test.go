@@ -151,7 +151,7 @@ func TestN08_ParsePayload_XMLEnvelopeParses(t *testing.T) {
 func TestN08_DispatchWeCom_XMLFullPathLandsInHub(t *testing.T) {
 	db := setupChannelFullDB(t)
 	acc, aesKey := n08Seed(t, db, 90413001)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 	accountID := fmt.Sprintf("%d", acc.ID)
 
@@ -210,7 +210,7 @@ func TestN08_DispatchWeCom_XMLFullPathLandsInHub(t *testing.T) {
 func TestN08_DispatchWeCom_JSONEnvelopeStillWorks(t *testing.T) {
 	db := setupChannelFullDB(t)
 	acc, aesKey := n08Seed(t, db, 90413003)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 
 	plain := `{"ToUserName":"ww_n08_corp","FromUserName":"ext_n08_json","CreateTime":1700000002,` +
@@ -297,7 +297,7 @@ func TestN08_XMLDepthIsBounded(t *testing.T) {
 func TestN08_DispatchWeCom_NestedXMLFieldsReachHubContent(t *testing.T) {
 	db := setupChannelFullDB(t)
 	acc, aesKey := n08Seed(t, db, 90413005)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 
 	plain := `<xml><ToUserName><![CDATA[ww_n08_corp]]></ToUserName>` +
@@ -376,7 +376,7 @@ func TestN08_NestedMediaIDIsPickedUp(t *testing.T) {
 func TestN08_DispatchWeCom_NestedMediaIDReachesHubRow(t *testing.T) {
 	db := setupChannelFullDB(t)
 	acc, _ := n08Seed(t, db, 90413009)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	t.Cleanup(func() { svc.Stop(context.Background()) })
 
 	body := []byte(`<xml><ToUserName><![CDATA[ww_n08_corp]]></ToUserName>` +

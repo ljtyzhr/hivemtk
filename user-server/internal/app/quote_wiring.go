@@ -140,8 +140,21 @@ func approvalSubmitReader(db *gorm.DB) (*service.ApprovalRequestService, bool) {
 //
 // 只交身份、不填 Phone/Email 那条判据在调用方（quote_send.go 文件头），本层不改载荷。
 func quoteReachSender(db *gorm.DB) *service.ProactiveReachService {
-	reach := service.NewProactiveReachService(db, nil)
-	service.BindProactiveReachSenders(reach, db)
+	reach := service.NewProactiveReachService(
+		repository.NewProactiveReachRepository(db),
+		repository.NewCustomerDoNotContactRepository(db),
+		nil,
+	)
+	service.BindProactiveReachSenders(reach, service.ProactiveReachSenderSet{
+		Telegram: service.NewTelegramIntegrationService(repository.NewTelegramAccountRepositoryWithDB(db)),
+		WhatsApp: service.NewWhatsAppCloudIntegrationService(repository.NewWhatsAppCloudAccountRepositoryWithDB(db)),
+		Feishu: service.NewFeishuIntegrationService(
+			repository.NewFeishuAccountRepositoryWithDB(db),
+			repository.NewFeishuMessageRepositoryWithDB(db),
+		),
+		WeCom:  service.NewWeComIntegrationService(),
+		Wechat: service.NewWechatService(),
+	})
 	if !AttachReachGate(reach) {
 		LogReachGateSkippedAssemblyPoint("app.InitQuoteRuntime")
 	}

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -176,6 +177,27 @@ func (r *KnowledgeBaseRepository) Update(ctx context.Context, id uint, kb *model
 			"member_count":   kb.MemberCount,
 			"doc_count":      kb.DocCount,
 		}))
+}
+
+// TouchAllEnabled 内容变更失效锚（C-11）：把启用中的 KB 行 updated_at 抬到当前时刻。
+//
+// rag_answer_cache 的命中校验拿 knowledge_bases.updated_at 与缓存行 kb_updated_at 比先后；
+// 文档/分块内容变更若不抬这列，答案缓存对内容永久失明——命中校验永远判"没变过"，
+// 客户拿到的还是旧知识的答案。与 UpdateVersionCanary 的"刻意不碰 updated_at"相对：
+// 那是版本命名空间切换（旧版本的缓存行要留作回滚），这是同一命名空间内答案依据的
+// 内容已变（必须判陈）。
+//
+// 文档/分块按 RagProduct 归属，缓存按 agent 的 KB 行命名空间，两者之间没有精确映射表；
+// 这里选择对本租户全部启用 KB 过度失效：文档变更是低频管理动作，答案查询是高频热路径，
+// 宁可多算一次也不留脏读。租户边界由 WithContext 的隔离 callback 兜底（bgCtx 由请求
+// ctx 派生，带租户）。
+func (r *KnowledgeBaseRepository) TouchAllEnabled(ctx context.Context) error {
+	if r == nil || r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.KnowledgeBase{}).
+		Where("enabled = ?", true).
+		Update("updated_at", time.Now()).Error
 }
 
 // UpdateVersionCanary 只写版本/灰度三列，且刻意不碰 updated_at：必须用

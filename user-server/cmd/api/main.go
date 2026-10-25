@@ -170,7 +170,7 @@ func main() {
 	defer app.CloseToolAuditPersistence()
 
 	if gdb := db.GetDB(); gdb != nil {
-		if err := service.SeedConfigParams(context.Background(), gdb); err != nil {
+		if err := service.SeedConfigParams(context.Background()); err != nil {
 			logger.Errorf("[ConfigParam] seed failed: %v", err)
 		} else {
 			// 数量从种子现取。写死一个数字的话，种子涨上去之后它一直在撒谎——
@@ -181,7 +181,7 @@ func main() {
 		// group key，功能不残废，所以这里只记 error 不阻断启动。与 SeedConfigParams
 		// 分开是为了不让「组表缺失」把参数值本身的 seed 一起判死（那会让每个只声明
 		// &model.ConfigParam{} 的测试 fixture 全红，详见 service.SeedParamGroups 的注释）。
-		if err := service.SeedParamGroups(context.Background(), gdb); err != nil {
+		if err := service.SeedParamGroups(context.Background(), repository.NewConfigParamRepository(gdb)); err != nil {
 			logger.Errorf("[ConfigParam] 分组元数据 seed failed（管理端侧栏会回落成英文组名）: %v", err)
 		} else {
 			logger.Info("[ConfigParam] param group metadata seeded (" + strconv.Itoa(len(service.DefaultParamGroupDefs())) + " groups)")
@@ -293,8 +293,8 @@ func main() {
 		logger.Info("[ConfigParam] reporting 组接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
 
-	service.InitDefaultStorageIfEmpty(db.GetDB())
-	service.BindAssetLoaderRepository(db.GetDB())
+	service.InitDefaultStorageIfEmpty(repository.NewObsConfigRepositoryWithDB(db.GetDB()))
+	service.BindAssetLoaderRepository(repository.NewAssetLoaderRepository(db.GetDB()))
 
 	logger.Info("[DNC] customer_do_not_contact ready, sms_unsubscribes pending backfill via DoNotContactService.BackfillFromSMSUnsubscribe")
 
@@ -306,7 +306,7 @@ func main() {
 	appCfg := config.GetAppConfig()
 	service.SetAgentLoopTimeout(appCfg.Inference.LLM.TimeoutSeconds)
 
-	// OPT-SEC-08：先从 /run/secrets（K8s Secret/Vault Agent 挂载卷）预加载密钥文件为
+	// 先从 /run/secrets（K8s Secret/Vault Agent 挂载卷）预加载密钥文件为
 	// env，再执行 InitFromEnv；已显式设置的 env 优先，不覆盖。
 	secretsDir := os.Getenv("HIVEMTK_SECRETS_DIR")
 	if secretsDir == "" {
@@ -369,7 +369,7 @@ func main() {
 		app.NewHTTPInferenceProbe(3*time.Second),
 	)
 
-	service.InitIntentRecognizer(db.GetDB(), llm.GetGlobalDispatcher(), nil)
+	service.InitIntentRecognizer(llm.GetGlobalDispatcher(), nil)
 	logger.Info("[IntentRecognition] global instance initialized, dispatcher wired")
 
 	llm.InitDefaultAlertHook(llm.NewInMemoryAlertSink(200))
@@ -493,10 +493,10 @@ func main() {
 	defer sseHub.Stop(context.Background())
 	logger.Info("[M-4] SSE dashboard hub started (6 topics: llm_calls/intent_recognition/rag_queries/agent_actions/humanize_scores/system_alerts)")
 
-	scheduler := service.InitSOPScheduler(db.GetDB(), nil)
+	scheduler := service.InitSOPScheduler(nil)
 	defer scheduler.Stop(context.Background())
 
-	execDispatcher := service.InitSOPExecutionDispatcher(db.GetDB(), scheduler.SOPService(context.Background()), nil)
+	execDispatcher := service.InitSOPExecutionDispatcher(scheduler.SOPService(context.Background()), nil)
 	defer execDispatcher.Stop(context.Background())
 	execDispatcher.SetWSHub(context.Background(), websocket.GetHub())
 	// W-2 Saga 补偿挂载：FF_LTC_SAGA_COMPENSATION 关时不注入，失败路径与今天一致。
@@ -510,10 +510,10 @@ func main() {
 		}()
 	}
 
-	outboxDispatcher := service.InitSOPOutboxDispatcher(db.GetDB(), execDispatcher)
+	outboxDispatcher := service.InitSOPOutboxDispatcher(execDispatcher)
 	defer outboxDispatcher.Stop(context.Background())
 
-	stuckDetector := service.InitSOPStuckDetector(db.GetDB(), execDispatcher)
+	stuckDetector := service.InitSOPStuckDetector(execDispatcher)
 	defer stuckDetector.Stop(context.Background())
 
 	defer event.StopGlobal()
@@ -522,10 +522,16 @@ func main() {
 		intentRec.SetSOPService(context.Background(), scheduler.SOPService(context.Background()))
 	}
 
-	service.InitConfidenceAggregator(db.GetDB(), service.NewLocalConfidenceEmbedder())
-	service.InitHumanizeEvalService(db.GetDB(), nil)
+	service.InitConfidenceAggregator(repository.NewThresholdPolicyRepositoryWithDB(db.GetDB()), repository.NewConfidenceSignalRepositoryWithDB(db.GetDB()), repository.NewConfidenceCalibrationRepositoryWithDB(db.GetDB()), service.NewLocalConfidenceEmbedder())
+	service.InitHumanizeEvalService(nil)
 	service.InitFeedbackCollector(db.GetDB())
 	logger.Info("[P0-3/4/5] confidence aggregator + humanize evaluator + feedback collector initialized")
+
+	// R-8 合规审计：不装配时触达侧所有判定/提醒全走 nil-safe 退路（只打 WARN 不落库），
+	// reach_compliance_log 一行不会有——审计面在代码里齐全、在库里不存在。
+	complianceAudit := service.InitComplianceAuditLogger()
+	defer complianceAudit.Stop()
+	logger.Info("[R-8] 合规审计落库器已装配（reach_compliance_log 异步批量落盘）")
 
 	traceLearningSvc := trace_learning.New(db.GetDB(), llm.GetGlobalDispatcher(), trace_learning.DefaultConfig())
 	trace_learning.SetGlobal(traceLearningSvc)
@@ -548,12 +554,12 @@ func main() {
 		logger.Info("[G7] feedback learning cron started (daily: extract profile + node conversion suggestions)")
 	}
 
-	service.InitMemorySystem(db.GetDB())
+	service.InitMemorySystem(repository.NewMemoryRepositoryWithDB(db.GetDB()))
 
 	// L-4 记忆衰减归档：此前只有实现、没有装配点（memory_items 与
 	// customer_long_term_memory 的 invalid_at 永远不会被写，L2 事实只进不出）。
 	// 这里按 1h 一轮接入，跨租户由 RunMemoryDecayAllTenants 经 tenant.Fanout 扇出。
-	service.StartMemoryDecayLoop(context.Background(), db.GetDB(), time.Hour)
+	service.StartMemoryDecayLoop(context.Background(), repository.NewMemoryDecayRepository(db.GetDB()), time.Hour)
 	logger.Info("[MemoryDecay] L-4 记忆衰减归档已装配（1h 一轮，按租户扇出）")
 
 	rfmCron := service.NewCustomerRFMCron(nil)
@@ -561,7 +567,7 @@ func main() {
 	defer rfmCron.Stop(context.Background())
 	logger.Info("[CustomerRFMCron] RFM 分层定时重算已装配")
 
-	churnCron := service.NewChurnScoreCron(service.NewChurnScoreService(db.GetDB()))
+	churnCron := service.NewChurnScoreCron(service.NewChurnScoreService(repository.NewChurnScoreRepository(db.GetDB())))
 	churnCron.Start(context.Background())
 	defer churnCron.Stop(context.Background())
 	logger.Info("[ChurnScoreCron] BG/NBD 流失评分周批已装配")
@@ -584,7 +590,7 @@ func main() {
 	defer journeySleepCron.Stop(context.Background())
 	logger.Info("[JourneySleepCron] 沉睡客户自动检测已装配")
 
-	wecomQuotaResetCron := cronpkg.NewWeComQuotaResetCron(service.NewWeComAccountHealthService(db.GetDB()))
+	wecomQuotaResetCron := cronpkg.NewWeComQuotaResetCron(service.NewWeComAccountHealthService())
 	wecomQuotaResetCron.Start(context.Background())
 	defer wecomQuotaResetCron.Stop(context.Background())
 	logger.Info("[WeComQuotaResetCron] 企微日配额每日重置已装配")
@@ -639,7 +645,7 @@ func main() {
 	// msg_hourly_summary 唯一的写入者。service 包的 init 装配传的是 nil DB ⇒ repo 非空但
 	// 句柄为空，每 5 分钟只留下一行 "invalid db"，水位线永不推进，汇总表从未产出过一行
 	// （仪表盘的消息量因此一直走实时兜底）。与上一行同法改为显式装配。
-	service.StartMessageHubSummaryAggCron(db.GetDB())
+	service.StartMessageHubSummaryAggCron(repository.NewMessageHubSummaryRepository(db.GetDB()))
 	defer service.StopMessageHubSummaryAggCron(context.Background())
 	logger.Info("[HubSummaryAggCron] message_hub 小时汇总已显式启动（替代 init 里的 nil DB 哑装配）")
 
@@ -650,7 +656,7 @@ func main() {
 	if os.Getenv("ALERT_EMAIL_ENABLED") == "true" {
 		if recps := os.Getenv("ALERT_EMAIL_RECIPIENTS"); recps != "" {
 			recipients := strings.Split(recps, ",")
-			emailSvc := service.NewEmailService(db.GetDB())
+			emailSvc := service.NewEmailService()
 			alertNotifiers = append(alertNotifiers, service.NewEmailAlertNotifier(emailSvc, recipients, 0))
 			logger.Infof("[T8] alert email notifier enabled, recipients=%v", recipients)
 		}

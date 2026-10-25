@@ -16,6 +16,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 // 第十轮守卫接线测试：路由上挂了 BruteForceGuard，控制器失败路径必须
@@ -86,7 +88,7 @@ func TestResetPassword_GuardCountsOnlyTokenFailures(t *testing.T) {
 		t.Skip("BRUTE_FORCE_DISABLED 环境开启，跳过守卫测试")
 	}
 
-	ctrl := NewSelfServiceController(service.NewPasswordResetService(database))
+	ctrl := NewSelfServiceController(service.NewPasswordResetService(repository.NewPasswordResetTokenRepository(database)))
 	router := setupGinEngine()
 	router.POST("/public/reset-password", middleware.BruteForceGuard("reset-password"), ctrl.ResetPassword)
 

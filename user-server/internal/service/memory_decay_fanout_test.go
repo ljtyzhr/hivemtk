@@ -21,6 +21,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -94,7 +95,7 @@ func TestMemoryDecayAllTenants_FansOutPerTenant(t *testing.T) {
 	// 新鲜行（confidence=0.9、刚创建）不该被动到
 	freshItem := mdSeedDecayItem(t, db, 91, "cFresh", 9)
 
-	stats, err := RunMemoryDecayAllTenants(context.Background(), db, false)
+	stats, err := RunMemoryDecayAllTenants(context.Background(), repository.NewMemoryDecayRepository(db), false)
 	if err != nil {
 		t.Fatalf("跨租户衰减失败: %v", err)
 	}
@@ -144,7 +145,7 @@ func TestMemoryDecayAllTenants_FailClosedWithoutLoader(t *testing.T) {
 	}
 	mdSeedDecayItem(t, db, 91, "cA", 1)
 
-	stats, err := RunMemoryDecayAllTenants(context.Background(), db, false)
+	stats, err := RunMemoryDecayAllTenants(context.Background(), repository.NewMemoryDecayRepository(db), false)
 	if err == nil {
 		t.Fatalf("枚举器未装配却返回成功（stats=%+v）⇒ on 模式下会静默空转", stats)
 	}
@@ -162,7 +163,7 @@ func TestMemoryDecayAllTenants_DryRunDoesNotWrite(t *testing.T) {
 	}
 	stale := mdSeedDecayItem(t, db, 91, "cA", 1)
 
-	stats, err := RunMemoryDecayAllTenants(context.Background(), db, true)
+	stats, err := RunMemoryDecayAllTenants(context.Background(), repository.NewMemoryDecayRepository(db), true)
 	if err != nil {
 		t.Fatalf("干跑失败: %v", err)
 	}

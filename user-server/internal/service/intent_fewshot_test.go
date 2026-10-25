@@ -196,7 +196,7 @@ func TestFewShotStore_CooldownNoRetryStorm(t *testing.T) {
 }
 
 func newInjectedRecognizer(fake *fakeFewShotEmbedder) *IntentRecognizer {
-	rec := NewIntentRecognizer(nil, nil, nil)
+	rec := newIntentRecognizerNoDB(nil, nil)
 	rec.embedSvc = fake
 	return rec
 }
@@ -295,7 +295,7 @@ func TestFewShotInject_FallbackStatic_AllBelowMinCos(t *testing.T) {
 
 // TestFewShotInject_NoEmbedder_Static embedder 未注入 → 直接静态路径（零行为变化）
 func TestFewShotInject_NoEmbedder_Static(t *testing.T) {
-	rec := NewIntentRecognizer(nil, nil, nil)
+	rec := newIntentRecognizerNoDB(nil, nil)
 	r, err := rec.Recognize(context.Background(), "s-1", "", "怎么下单购买")
 	if err != nil {
 		t.Fatal(err)

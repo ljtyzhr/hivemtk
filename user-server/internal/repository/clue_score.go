@@ -21,6 +21,11 @@ type clueScoreRepo struct {
 	db *gorm.DB
 }
 
+// NewClueScoreRepository 默认构造（全局句柄，仓库既有惯例）。
+func NewClueScoreRepository() ClueScoreRepository {
+	return &clueScoreRepo{db: GetDB()}
+}
+
 // NewClueScoreRepositoryWithDB 用装配点注入的连接创建线索评分仓库
 func NewClueScoreRepositoryWithDB(db *gorm.DB) ClueScoreRepository {
 	return &clueScoreRepo{db: db}
@@ -110,6 +115,11 @@ type ClueEngagementRepository interface {
 
 type clueEngagementRepo struct {
 	db *gorm.DB
+}
+
+// NewClueEngagementRepository 默认构造（全局句柄，仓库既有惯例）。
+func NewClueEngagementRepository() ClueEngagementRepository {
+	return &clueEngagementRepo{db: GetDB()}
 }
 
 // NewClueEngagementRepositoryWithDB 用装配点注入的连接创建线索互动事件仓库

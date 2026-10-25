@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/aiagent/agent/tooluse"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 )
 
@@ -31,6 +32,9 @@ import (
 //   - RiskGate:           按 FF_TOOL_PERMISSION_ENFORCE 挂载工具后果分级判定（off|shadow，默认 off；
 //     本层**只有观察态**，阻断排在 P9，见 permission_wiring.go）。判定依据是 Agent 自己的
 //     白名单，不读全局白名单/"*"/defaultAllow；与上面两道门的判据（工具名、账号）互不重叠。
+//   - 风险统计落库:       观察计数（含 would_deny）启动读回 + 周期 flush 到 platform_config_kv，
+//     跨重启保留（D-2，见 permission_wiring.go 的 startToolRiskStatsPersistence）。
+//   - 白名单 seed:        TOOL_PERMISSION_WHITELIST_SEED_FILE 在启动期补授权，不改 defaultAllow。
 //
 // 优化：本地持有 memAuditLogger / memCostTracker 引用，
 // 通过 GetGlobalMemoryAuditLogger / GetGlobalMemoryCostTracker 暴露给调试 API（/agent/tools/audit /cost）。
@@ -41,6 +45,9 @@ import (
 func InitGlobalToolExecutor() {
 	memAuditLogger = tooluse.NewMemoryAuditLogger(10000)
 	memCostTracker = tooluse.NewMemoryCostTracker()
+	// D-2：白名单 seed 先于 executor 建链应用。seed 只补授权，不改 defaultAllow；
+	// 路径未设置/文件不存在时这里是无操作。
+	applyWhitelistSeed()
 	config := tooluse.ToolExecutorConfig{
 		DefaultTimeout:    30 * time.Second,
 		PermissionChecker: GetGlobalPermissionChecker(),
@@ -54,6 +61,11 @@ func InitGlobalToolExecutor() {
 	circuitMode := applyToolCircuitBreaker(&config)
 	approvalMode := applyApprovalGate(&config)
 	riskMode := applyRiskGate(&config)
+	// D-2：observer 由 applyRiskGate 创建；统计落 platform_config_kv（实例级 KV），
+	// 启动 load + 周期 flush。mode=off 时 riskObserverRef=nil，这里是 no-op。
+	startToolRiskStatsPersistence(riskObserverRef,
+		repository.NewPlatformConfigKVRepositoryWithDB(db.GetDB()),
+		toolRiskStatsFlushInterval())
 	auditMode := applyToolAuditPersistence(&config, db.GetDB())
 	exec := tooluse.NewToolExecutor(tooluse.GetGlobalRegistry(), config)
 	tooluse.SetGlobalExecutor(exec)

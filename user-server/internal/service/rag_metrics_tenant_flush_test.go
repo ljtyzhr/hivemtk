@@ -13,6 +13,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 func ragQueryReq(q string) *RecordQueryRequest {
@@ -35,7 +37,7 @@ func TestRagMetrics_FlushSplitsByTenant(t *testing.T) {
 	})
 
 	db := testutil.NewTestDB(t, &model.RagQueryLog{})
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	svc.RecordQuery(complianceTenantCtx(21), ragQueryReq("q-21"))
 	svc.RecordQuery(complianceTenantCtx(22), ragQueryReq("q-22"))
@@ -77,7 +79,7 @@ func TestRagMetrics_DropsLogWithoutTenant(t *testing.T) {
 	})
 
 	db := testutil.NewTestDB(t, &model.RagQueryLog{})
-	svc := NewRagMetricsService(db)
+	svc := NewRagMetricsService(repository.NewRagMetricsRepository(db))
 
 	svc.RecordQuery(context.Background(), ragQueryReq("unbound"))
 	svc.RecordQuery(complianceTenantCtx(21), ragQueryReq("q-21"))

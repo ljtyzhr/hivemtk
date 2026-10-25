@@ -23,36 +23,36 @@ func setupSOPSchedulerTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestSOPScheduler_NewAndInterval(t *testing.T) {
-	s := NewSOPScheduler(nil, nil, 0)
+	s := NewSOPScheduler(nil, 0)
 	if s.interval != 60*time.Second {
 		t.Errorf("default interval should be 60s, got %v", s.interval)
 	}
-	s2 := NewSOPScheduler(nil, nil, 5*time.Second)
+	s2 := NewSOPScheduler(nil, 5*time.Second)
 	if s2.interval != 5*time.Second {
 		t.Errorf("expected 5s, got %v", s2.interval)
 	}
 }
 
 func TestSOPScheduler_StartStop(t *testing.T) {
-	db := setupSOPSchedulerTestDB(t)
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, 100*time.Millisecond)
+	setupSOPSchedulerTestDB(t)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, 100*time.Millisecond)
 	s.Start(context.Background())
 	time.Sleep(150 * time.Millisecond)
 	s.Stop(context.Background())
 }
 
 func TestSOPScheduler_StartTwiceIsIdempotent(t *testing.T) {
-	db := setupSOPSchedulerTestDB(t)
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, time.Second)
+	setupSOPSchedulerTestDB(t)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, time.Second)
 	s.Start(context.Background())
 	s.Start(context.Background())
 	s.Stop(context.Background())
 }
 
 func TestSOPScheduler_StopTwiceSafe(t *testing.T) {
-	s := NewSOPScheduler(nil, nil, time.Second)
+	s := NewSOPScheduler(nil, time.Second)
 	s.Start(context.Background())
 	s.Stop(context.Background())
 	if s.running {
@@ -85,8 +85,8 @@ func TestSOPScheduler_CleanupStuckExecutions(t *testing.T) {
 		t.Fatalf("create fresh: %v", err)
 	}
 
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, time.Hour)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, time.Hour)
 	s.cleanupStuckExecutions(ctx)
 
 	var stuckGot model.SOPExecution
@@ -123,8 +123,8 @@ func TestSOPScheduler_DispatchAutoSOP(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, time.Hour)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, time.Hour)
 	s.dispatchAutoSOPs(ctx)
 
 	var execs []model.SOPExecution
@@ -135,7 +135,7 @@ func TestSOPScheduler_DispatchAutoSOP(t *testing.T) {
 }
 
 func TestSOPScheduler_DispatchAutoSOP_NilDB(t *testing.T) {
-	s := NewSOPScheduler(nil, nil, time.Hour)
+	s := NewSOPScheduler(nil, time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 }
 
@@ -153,8 +153,8 @@ func TestSOPScheduler_DispatchScheduledSOP_FirstRun(t *testing.T) {
 	if err := db.Create(agent).Error; err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, time.Hour)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, time.Hour)
 	s.dispatchScheduledSOPs(context.Background())
 
 	var execs []model.SOPExecution
@@ -183,8 +183,8 @@ func TestSOPScheduler_DispatchScheduledSOP_IntervalGuard(t *testing.T) {
 	if err := db.Create(agent).Error; err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, time.Hour)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, time.Hour)
 	s.dispatchScheduledSOPs(context.Background())
 
 	var execs []model.SOPExecution
@@ -209,8 +209,8 @@ func TestSOPScheduler_TryExecute_DuplicateGuard(t *testing.T) {
 	if err := db.Create(agent).Error; err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, time.Hour)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, time.Hour)
 	s.tryExecute(ctx, *agent)
 	s.tryExecute(ctx, *agent)
 
@@ -272,14 +272,14 @@ func TestSOPScheduler_FmtUintSafe(t *testing.T) {
 }
 
 func TestSOPScheduler_Tick_NilDB(t *testing.T) {
-	s := NewSOPScheduler(nil, nil, time.Hour)
+	s := NewSOPScheduler(nil, time.Hour)
 	s.tick(context.Background())
 }
 
 func TestSOPScheduler_Tick_WithDB_NoData(t *testing.T) {
-	db := setupSOPSchedulerTestDB(t)
-	svc := NewSOPService(db, nil)
-	s := NewSOPScheduler(svc, db, time.Hour)
+	setupSOPSchedulerTestDB(t)
+	svc := NewSOPService(nil)
+	s := NewSOPScheduler(svc, time.Hour)
 	s.tick(context.Background())
 }
 
@@ -359,7 +359,7 @@ func TestSOPScheduler_EmptyAudienceDoesNotTargetCreator(t *testing.T) {
 	db := setupSOPSchedulerAudienceTestDB(t)
 	agent := createSchedulerAgent(t, db, SOPTriggerAuto, model.JSONMap{})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 
 	if got := executionCustomerIDs(t, db, agent.ID); len(got) != 0 {
@@ -380,7 +380,7 @@ func TestSOPScheduler_AudienceQueryFailureDoesNotFallBackToCreator(t *testing.T)
 		"audience_confirmed": true,
 	})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 
 	if got := executionCustomerIDs(t, db, agent.ID); len(got) != 0 {
@@ -398,7 +398,7 @@ func TestSOPScheduler_AudienceFirstRoundPreviewsOnly(t *testing.T) {
 		"audience": map[string]any{"segments": []any{model.RFMSegmentChampion}},
 	})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 
 	if got := executionCustomerIDs(t, db, agent.ID); len(got) != 0 {
@@ -437,7 +437,7 @@ func TestSOPScheduler_ConfirmedAudienceDispatchesEachCustomer(t *testing.T) {
 		"audience_confirmed": true,
 	})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 
 	got := executionCustomerIDs(t, db, agent.ID)
@@ -464,7 +464,7 @@ func TestSOPScheduler_ConfirmedAudienceOnlyDispatchesOnce(t *testing.T) {
 		"audience_confirmed": true,
 	})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 	s.dispatchAutoSOPs(context.Background())
 
@@ -485,7 +485,7 @@ func TestSOPScheduler_AudienceLimitCapsExecutions(t *testing.T) {
 		"audience_confirmed": true,
 	})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 
 	if got := executionCustomerIDs(t, db, agent.ID); len(got) != 2 {
@@ -501,7 +501,7 @@ func TestSOPScheduler_StaticCustomerIDsStillWork(t *testing.T) {
 		"customer_ids": []any{"x-1", "x-2"},
 	})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 
 	if got := executionCustomerIDs(t, db, agent.ID); len(got) != 2 {
@@ -536,7 +536,7 @@ func TestSOPScheduler_RunningBudgetClampsRound(t *testing.T) {
 	seedSchedulerChampion(t, db, "c-2", 90)
 	seedSchedulerChampion(t, db, "c-3", 80)
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchAutoSOPs(context.Background())
 
 	got := executionCustomerIDs(t, db, agent.ID)
@@ -563,7 +563,7 @@ func TestSOPScheduler_ScheduledAudiencePreviewSurvivesLastRunAt(t *testing.T) {
 		"interval_minutes": float64(60),
 	})
 
-	s := NewSOPScheduler(NewSOPService(db, nil), db, time.Hour)
+	s := NewSOPScheduler(NewSOPService(nil), time.Hour)
 	s.dispatchScheduledSOPs(context.Background())
 
 	if got := executionCustomerIDs(t, db, agent.ID); len(got) != 0 {

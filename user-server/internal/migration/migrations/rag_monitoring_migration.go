@@ -90,7 +90,6 @@ func (m *RagMonitoringMigration) createRagMetricsDaily(ctx context.Context) erro
 	return m.db.WithContext(ctx).Exec(stmt).Error
 }
 
-//
 // 注意：删除监控表会丢失历史数据，但业务核心数据（knowledge_documents 等）不受影响
 // 私域部署: rag_alerts 由 v3.17 单独 DROP, 本 Down 不再处理
 func (m *RagMonitoringMigration) Down(ctx context.Context) error {

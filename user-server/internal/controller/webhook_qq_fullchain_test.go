@@ -304,9 +304,9 @@ func setupQQFullchain(t *testing.T) *qqFullchainEnv {
 
 	// 引擎装配：dispatcher=nil（SOP 命中即回，不触 LLM）；intent=nil 走 fallback(unknown)
 	// → SOP 分支要求 Intent != unknown，故注入规则意图识别 mock。
-	engine := service.NewSalesEngine(database, nil, &simIntentRecognizer{}, nil, nil, nil, nil, nil)
+	engine := service.NewSalesEngine(nil, &simIntentRecognizer{}, nil, nil, nil, nil, nil)
 	withLayer1FlagForQQ(t, "1")
-	lr := service.NewLayerRouter(database, nil, repository.NewSOPTemplateRepository(database), nil, nil, service.NewSOPTemplateService(database, nil))
+	lr := service.NewLayerRouter(nil, repository.NewSOPTemplateRepository(database), nil, nil, service.NewSOPTemplateService())
 	engine.SetLayerRouter(context.Background(), lr)
 	orch := service.NewSmartCSOrchestrator(engine, service.DefaultOrchestratorConfig(), nil)
 
@@ -315,7 +315,7 @@ func setupQQFullchain(t *testing.T) *qqFullchainEnv {
 	// 其 aiTrigger = webhookSvc（AITrigger 接口），webhookSvc.ingressSvc = bridgeIngressSvc。
 	// 测试复刻该接线：入站消息 → dispatchQQ → webhookSvc.ingressSvc(=bridge ingress)
 	// → persist → triggerAIForEvent → aiTrigger(=webhookSvc).TriggerInboundAI → AI。
-	webhookSvc := service.NewWebhookService(database)
+	webhookSvc := service.NewWebhookService()
 	bridgeIngress := service.NewInboxIngressService()
 	bridgeIngress.SetAITrigger(webhookSvc)
 	bridgeIngress.SetInboxService(service.NewInboxService())
@@ -606,7 +606,7 @@ func TestQQFullchain_MsgSeqMonotonic(t *testing.T) {
 	env := setupQQFullchain(t)
 	defer env.webhook.Stop(context.Background())
 
-	integration := service.NewQQIntegrationService(env.db)
+	integration := service.NewQQIntegrationService()
 	if seq := integration.NextMsgSeq("seq-msg"); seq != 1 {
 		t.Errorf("first seq = %d", seq)
 	}

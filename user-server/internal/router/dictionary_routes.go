@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 // setupDictionaryRoutes 注册业务字典路由。
@@ -19,7 +21,7 @@ import (
 // 对客服和坐席恒空（前端吞掉 403，症状是"页面打开了但选项目是空的"）。
 // 写侧留硬守卫：新增/改词条是全局治理动作，与"这页能不能渲染"无关。
 func setupDictionaryRoutes(plainAuth, admin *gin.RouterGroup, db *gorm.DB) {
-	svc := service.NewDictionaryService(db)
+	svc := service.NewDictionaryService(repository.NewDictionaryRepository(db))
 	ctrl := controller.NewDictionaryController(svc)
 
 	// 只读下发挂 plainAuth：终端页面渲染存量行时需要同一份值域，

@@ -187,6 +187,39 @@ func RiskGateBlockDecorator(t Tool, grants AgentGrantReader, observer RiskObserv
 	}
 }
 
+// RiskStatRow 是一条可落库的观察计数（D-2）。
+//
+// 与 RiskToolCount 的分工：后者是"每个工具一行"的报告形状，前者按
+// (tool_name, decision, reason, wildcard) 拆开，才存得下 reason 归因——
+// 转 default-deny 前运营要知道 would_deny 是"没配白名单"还是"配了但没这个工具"。
+// 落库载体是 platform_config_kv 的 JSON 值（实例级、无租户分域），不另建表。
+type RiskStatRow struct {
+	ToolName   string    `json:"tool_name"`
+	Decision   string    `json:"decision"` // allowed | would_deny
+	Reason     string    `json:"reason"`
+	Wildcard   bool      `json:"wildcard,omitempty"`
+	Count      int64     `json:"count"`
+	LastSeenAt time.Time `json:"last_seen_at"`
+	Level      string    `json:"level,omitempty"`
+	Declared   bool      `json:"declared"`
+}
+
+// 判定结果的两个落库取值。刻意不写 "deny"：本层在 shadow 态从不拒绝，
+// 存进去的必须是"若转阻断会被拦"这一层含义。
+const (
+	RiskDecisionAllowed   = "allowed"
+	RiskDecisionWouldDeny = "would_deny"
+)
+
+// riskStatKey 是计数聚合键。wildcard 单独进键：它是 would_deny 的一个子集，
+// 不与普通拒绝混在一起才能还原 WildcardDeny。
+type riskStatKey struct {
+	toolName string
+	decision string
+	reason   string
+	wildcard bool
+}
+
 // RiskToolCount 单个工具的观察累计。
 type RiskToolCount struct {
 	ToolName  string `json:"tool_name"`
@@ -203,19 +236,26 @@ type RiskToolCount struct {
 //
 // 快照有界是必须的：每条工具调用都留一行的话，不设上限就是一个跟着流量线性长的内存泄漏。
 // 计数则相反，必须无界且不清零，否则攒不出"这批 Agent 里有多少会被拦"。
-// 两者都不落库 ⇒ 进程重启即归零，报告里用 observations_persisted=false 显式说明。
+//
+// D-2 起计数可以定期 flush 到 platform_config_kv（StatRows/RestoreStats），但本类型
+// **不接触 DB**：持久化时机与载体由 app 层装配，观察层只负责给出累计快照。
 type MemoryRiskObserver struct {
 	mu       sync.Mutex
 	max      int
 	kept     []RiskDecision
 	counters map[string]*RiskToolCount
+	statRows map[riskStatKey]*RiskStatRow
 }
 
 func NewMemoryRiskObserver(max int) *MemoryRiskObserver {
 	if max <= 0 {
 		max = 1000
 	}
-	return &MemoryRiskObserver{max: max, counters: make(map[string]*RiskToolCount)}
+	return &MemoryRiskObserver{
+		max:      max,
+		counters: make(map[string]*RiskToolCount),
+		statRows: make(map[riskStatKey]*RiskStatRow),
+	}
 }
 
 func (o *MemoryRiskObserver) Observe(ctx context.Context, d RiskDecision) {
@@ -243,6 +283,42 @@ func (o *MemoryRiskObserver) Observe(ctx context.Context, d RiskDecision) {
 		if d.AgentWildcard {
 			c.WildcardDeny++
 		}
+	}
+	o.observeStatLocked(d)
+}
+
+// observeStatLocked 把一次判定折进按 reason 拆开的可落库计数。调用方已持锁。
+func (o *MemoryRiskObserver) observeStatLocked(d RiskDecision) {
+	if d.ToolName == "" {
+		return
+	}
+	if o.statRows == nil {
+		o.statRows = make(map[riskStatKey]*RiskStatRow)
+	}
+	decision := RiskDecisionAllowed
+	if d.WouldDeny {
+		decision = RiskDecisionWouldDeny
+	}
+	key := riskStatKey{toolName: d.ToolName, decision: decision, reason: d.Reason, wildcard: d.AgentWildcard}
+	row, ok := o.statRows[key]
+	if !ok {
+		row = &RiskStatRow{
+			ToolName: d.ToolName,
+			Decision: decision,
+			Reason:   d.Reason,
+			Wildcard: d.AgentWildcard,
+			Level:    string(d.Level),
+			Declared: d.Declared,
+		}
+		o.statRows[key] = row
+	}
+	row.Count++
+	at := d.At
+	if at.IsZero() {
+		at = time.Now()
+	}
+	if at.After(row.LastSeenAt) {
+		row.LastSeenAt = at
 	}
 }
 
@@ -272,10 +348,106 @@ func (o *MemoryRiskObserver) Counts() map[string]RiskToolCount {
 	return out
 }
 
+// StatRows 返回按 (tool, decision, reason, wildcard) 拆开的累计快照，供落库 flush。
+//
+// 顺序确定（工具名/decision/reason），两次 flush 的 JSON 只在实际计数变化时才不同，
+// 便于运维直接 diff 或人工核对。空快照返回 nil。
+func (o *MemoryRiskObserver) StatRows() []RiskStatRow {
+	if o == nil {
+		return nil
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if len(o.statRows) == 0 {
+		return nil
+	}
+	out := make([]RiskStatRow, 0, len(o.statRows))
+	for _, row := range o.statRows {
+		out = append(out, *row)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ToolName != out[j].ToolName {
+			return out[i].ToolName < out[j].ToolName
+		}
+		if out[i].Decision != out[j].Decision {
+			return out[i].Decision < out[j].Decision
+		}
+		if out[i].Reason != out[j].Reason {
+			return out[i].Reason < out[j].Reason
+		}
+		return !out[i].Wildcard && out[j].Wildcard
+	})
+	return out
+}
+
+// RestoreStats 把启动期从库里读回的累计合并进本实例。
+//
+// 只允许在观察层开始接流量**之前**调用一次：它是"累加"语义（不是赋值），
+// 重复调用会把历史计数翻倍。落库写的是绝对累计值（内存 = 历史 + 本进程新增），
+// 因此下一轮重启读回的仍是同一个总量。
+//
+// 合法的 decision 只有 allowed|would_deny；无法识别的行直接丢弃而不是猜一个，
+// 否则一条坏数据会被读成"某个从没观察过的工具被拒过"。
+func (o *MemoryRiskObserver) RestoreStats(rows []RiskStatRow) {
+	if o == nil || len(rows) == 0 {
+		return
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.statRows == nil {
+		o.statRows = make(map[riskStatKey]*RiskStatRow)
+	}
+	for _, r := range rows {
+		if r.ToolName == "" || r.Count <= 0 {
+			continue
+		}
+		if r.Decision != RiskDecisionAllowed && r.Decision != RiskDecisionWouldDeny {
+			continue
+		}
+		key := riskStatKey{toolName: r.ToolName, decision: r.Decision, reason: r.Reason, wildcard: r.Wildcard}
+		row, ok := o.statRows[key]
+		if !ok {
+			row = &RiskStatRow{
+				ToolName: r.ToolName,
+				Decision: r.Decision,
+				Reason:   r.Reason,
+				Wildcard: r.Wildcard,
+				Level:    r.Level,
+				Declared: r.Declared,
+			}
+			o.statRows[key] = row
+		}
+		row.Count += r.Count
+		if r.LastSeenAt.After(row.LastSeenAt) {
+			row.LastSeenAt = r.LastSeenAt
+		}
+		if row.Level == "" {
+			row.Level = r.Level
+		}
+		if !row.Declared {
+			row.Declared = r.Declared
+		}
+
+		c, ok := o.counters[r.ToolName]
+		if !ok {
+			c = &RiskToolCount{ToolName: r.ToolName, Level: r.Level, Declared: r.Declared}
+			o.counters[r.ToolName] = c
+		}
+		c.Calls += r.Count
+		if r.Decision == RiskDecisionWouldDeny {
+			c.WouldDeny += r.Count
+			if r.Wildcard {
+				c.WildcardDeny += r.Count
+			}
+		}
+	}
+}
+
 // RiskReport 是 AC③ 的产出：P9 转阻断前的评审材料。
 //
 // 静态面（tools/by_level/undeclared）每次请求都从当前注册表实算，重启不丢；
-// 动态面（counts）只有进程内的观察期数据，所以带 observations_persisted=false。
+// 动态面（counts）在 D-2 之后可由装配层周期落库并在启动时读回，observations_persisted
+// 如实报告这一层接没接上：false 时 counts 只代表本进程，不能拿来跨重启对比。
 // 只看静态面会得出"45 个工具全声明了，可以阻断"的结论，而真正的阻断依据是
 // "哪些 Agent 被逐条授权过哪些高危工具" —— 因此每个 high_write 工具都带授权 Agent 数，
 // 且 agent_whitelist_configured=0 时 explicitly 报出来（那时 would_deny 必然是 100%）。
@@ -322,7 +494,10 @@ type RiskReportTool struct {
 //
 // grants 允许为 nil（未接权限检查器的退化场景），此时授权列全 0 且
 // agent_whitelist_configured_agents=0，报告读起来就是"没有任何授权依据"。
-func BuildRiskReport(registry *ToolRegistry, grants AgentGrantReader, obs *MemoryRiskObserver, mode string, blocksNow bool, flagEnv string) RiskReport {
+//
+// persisted 由装配层传入（D-2：计数是否已接到 platform_config_kv 的周期 flush），
+// 不由本函数探测：tooluse 不认识存储，硬在这里判会造出第二处事实源。
+func BuildRiskReport(registry *ToolRegistry, grants AgentGrantReader, obs *MemoryRiskObserver, mode string, blocksNow bool, flagEnv string, persisted bool) RiskReport {
 	report := RiskReport{
 		Mode:                  mode,
 		BlocksWhenDenied:      blocksNow,
@@ -332,7 +507,7 @@ func BuildRiskReport(registry *ToolRegistry, grants AgentGrantReader, obs *Memor
 		HighWrite:             []string{},
 		Tools:                 []RiskReportTool{},
 		Counts:                []RiskToolCount{},
-		ObservationsPersisted: false,
+		ObservationsPersisted: persisted,
 	}
 	if registry == nil {
 		return report

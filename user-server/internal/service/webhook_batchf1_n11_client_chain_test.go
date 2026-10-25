@@ -98,7 +98,7 @@ func TestN11_ClientChain_Telegram400NotRetryable(t *testing.T) {
 	}
 
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{}, &DelayedOutboundReply{})
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	p := &ParsedPayload{EventID: "evt-n11-chain-400", Sender: "sender-n11-chain-400"}
 	hub := &model.MessageHub{ConversationID: "8608489012"}

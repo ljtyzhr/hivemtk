@@ -56,7 +56,7 @@ func (r *douyinCardStatsRepository) CountCardViews(ctx context.Context, cardID u
 }
 
 // applyDouyinStatsGroupBy 分桶表达式必须在 SELECT 与 GROUP BY 里逐字一致
-//（否则 PG 报 42803）；与 applyXiaohongshuStatsGroupBy 需同步修改。
+// （否则 PG 报 42803）；与 applyXiaohongshuStatsGroupBy 需同步修改。
 func applyDouyinStatsGroupBy(query *gorm.DB, groupBy string) *gorm.DB {
 	bucket := "DATE(created_at)"
 	switch groupBy {

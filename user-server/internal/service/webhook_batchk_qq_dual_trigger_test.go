@@ -76,7 +76,7 @@ func TestBatchK_QQHandleJobDoesNotDoubleTriggerAI(t *testing.T) {
 	}).Error; err != nil {
 		t.Fatalf("seed qq account: %v", err)
 	}
-	ws := NewWebhookService(db)
+	ws := NewWebhookService()
 	t.Cleanup(func() { ws.Stop(context.Background()) })
 
 	tr := &fakeAITrigger{}

@@ -23,7 +23,11 @@ type dialogueMemoryRepository struct {
 }
 
 func NewDialogueMemoryRepository() DialogueMemoryRepository {
-	return &dialogueMemoryRepository{db: _db.GetDB()}
+	// 全局句柄未装配（早期启动/单测）时返回 nil，保持 service 侧「repo 未装配」旧语义。
+	if db := _db.GetDB(); db != nil {
+		return &dialogueMemoryRepository{db: db}
+	}
+	return nil
 }
 
 func NewDialogueMemoryRepositoryWithDB(db *gorm.DB) DialogueMemoryRepository {

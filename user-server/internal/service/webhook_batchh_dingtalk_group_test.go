@@ -51,7 +51,7 @@ func batchHSetup(t *testing.T) (*DingTalkAppService, *fakeAITrigger, *gorm.DB, u
 	ingress.cache = mc
 	tr := &fakeAITrigger{}
 	ingress.SetAITrigger(tr)
-	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), tr, db, acc.ID
+	return NewDingTalkAppService(&WebhookService{ingressSvc: ingress}), tr, db, acc.ID
 }
 
 // batchHPayload 造一条官方形态的群聊机器人回调。over 里 value 为 nil 表示**删掉该字段**，

@@ -4,7 +4,7 @@ import "time"
 
 // IntentLog 精细意图识别日志
 //
-// OPT-DB-10：intent_logs 物理表已并入统一意图表 intent_records（source='fine_grained'），
+// intent_logs 物理表已并入统一意图表 intent_records（source='fine_grained'），
 // 本结构为 intent_records 的列映射视图，不再是独立物理表。
 // 列结构由迁移 v3.22.3（IntentMergeMigration）保证，禁止加入 automigrate 清单，
 // 否则 AutoMigrate 会重建 intent_logs 造成双表回潮。

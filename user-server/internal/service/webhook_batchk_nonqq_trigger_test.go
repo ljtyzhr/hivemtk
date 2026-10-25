@@ -145,7 +145,7 @@ func TestBatchK_NonQQHomeChannelsTriggerAIExactlyOnce(t *testing.T) {
 
 			salesEntry := batchKSalesEngineEntryCounter(t)
 
-			ws := NewWebhookService(db)
+			ws := NewWebhookService()
 			t.Cleanup(func() { ws.Stop(context.Background()) })
 
 			tr := &fakeAITrigger{}

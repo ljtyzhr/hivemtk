@@ -32,7 +32,7 @@ func setupDomainPoolController(t *testing.T) (*DomainPoolController, *gin.Engine
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
 	ctrl := NewDomainPoolController(
-		service.NewDomainPoolService(database),
+		service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)),
 		service.NewDomainHealthService(database, domainPoolRepo),
 	)
 	router := gin.New()
@@ -102,7 +102,7 @@ func TestDomainPoolController_Create_MissingDomain(t *testing.T) {
 func TestDomainPoolController_Update_Success(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	router := gin.New()
 
 	domainPool := model.DomainPool{
@@ -152,7 +152,7 @@ func TestDomainPoolController_Update_InvalidJSON(t *testing.T) {
 func TestDomainPoolController_Delete_Success(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	router := gin.New()
 
 	domainPool := model.DomainPool{
@@ -191,7 +191,7 @@ func TestDomainPoolController_Delete_InvalidID(t *testing.T) {
 func TestDomainPoolController_GetByID_Success(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	router := gin.New()
 
 	domainPool := model.DomainPool{
@@ -244,7 +244,7 @@ func TestDomainPoolController_GetByID_NotFound(t *testing.T) {
 func TestDomainPoolController_List_Success(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	router := gin.New()
 
 	domainPools := []model.DomainPool{
@@ -285,7 +285,7 @@ func TestDomainPoolController_List_EmptyList(t *testing.T) {
 func TestDomainPoolController_List_WithFilters(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	router := gin.New()
 
 	domainPools := []model.DomainPool{
@@ -311,7 +311,7 @@ func TestDomainPoolController_List_WithFilters(t *testing.T) {
 func TestDomainPoolController_CheckDomain_Success(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	router := gin.New()
 
 	domainPool := model.DomainPool{
@@ -350,7 +350,7 @@ func TestDomainPoolController_CheckDomain_InvalidID(t *testing.T) {
 func TestDomainPoolController_CheckAllDomains_Success(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	router := gin.New()
 
 	domainPool := model.DomainPool{
@@ -375,7 +375,7 @@ func TestDomainPoolController_CheckAllDomains_Success(t *testing.T) {
 func TestDomainPoolController_NewDomainPoolController(t *testing.T) {
 	database := setupDomainPoolTestDB(t)
 	domainPoolRepo := repository.NewDomainPoolRepository(database)
-	ctrl := NewDomainPoolController(service.NewDomainPoolService(database), service.NewDomainHealthService(database, domainPoolRepo))
+	ctrl := NewDomainPoolController(service.NewDomainPoolService(repository.NewDomainPoolRepository(database), repository.NewDomainBlacklistRepository(database)), service.NewDomainHealthService(database, domainPoolRepo))
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}

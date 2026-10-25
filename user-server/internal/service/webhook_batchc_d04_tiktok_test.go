@@ -149,7 +149,7 @@ func TestVerifyTiktokWebhook_HeaderNameIsCaseInsensitive(t *testing.T) {
 // tiktok 走官方 t=/s= HMAC，抖音走官方 hex(sha1(client_secret ‖ body))（批G 取到原文，见 §16.1）。
 func TestWebhookService_Verify_TiktokNotSharedWithDouyinBranch(t *testing.T) {
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	if err := db.Create(&model.IntegrationAccount{Platform: string(ChannelTiktok), APISecret: d04TiktokSecret, Status: 1}).Error; err != nil {
@@ -191,7 +191,7 @@ func TestWebhookService_Verify_TiktokNotSharedWithDouyinBranch(t *testing.T) {
 // 与这里的 hex 永不相等，结果是一条合法抖音回调被一个无关头挤掉。
 func TestWebhookService_Verify_DouyinIgnoresLarkHeader(t *testing.T) {
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	if err := db.Create(&model.IntegrationAccount{Platform: string(ChannelDouyin), APISecret: d04DouyinSecret, Status: 1}).Error; err != nil {
@@ -218,7 +218,7 @@ func TestWebhookService_Verify_DouyinIgnoresLarkHeader(t *testing.T) {
 // 必须判「验签失败」且不留事件行；官方口径才允许进漏斗。
 func TestWebhookService_Receive_Tiktok_LegacySignatureRejected(t *testing.T) {
 	db := newD03DispatchDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	if err := db.Create(&model.IntegrationAccount{Platform: string(ChannelTiktok), APISecret: d04TiktokSecret, Status: 1}).Error; err != nil {
@@ -278,7 +278,7 @@ func TestWebhookService_Receive_Tiktok_LegacySignatureRejected(t *testing.T) {
 // 反向：真带 from.user_id 的消息事件必须照常落库，别把修复做成新的丢消息洞。
 func TestDispatchDouyin_SenderlessEventWritesNoHubRow(t *testing.T) {
 	db := newD03DispatchDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	ctx := context.Background()

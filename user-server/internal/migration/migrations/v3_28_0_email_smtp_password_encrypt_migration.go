@@ -3,6 +3,7 @@ package migrations
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"hivemtk-user/internal/migration"
 	"hivemtk-user/internal/pkg/crypto"
@@ -75,6 +76,13 @@ func (m *EmailSmtpPasswordEncryptMigration) Up(ctx context.Context) error {
 }
 
 func (m *EmailSmtpPasswordEncryptMigration) Down(ctx context.Context) error {
-
-	return fmt.Errorf("不支持回滚: 密码解密回明文是安全倒退")
+	// 显式 no-op：把密码解密回明文是安全倒退，所以"撤销"这一步什么都不做
+	// （数据继续保持密文，安全方向上的默认值）。
+	//
+	// 为什么不是 `return error`：Down 报错会让 POST /api/migration/rollback 整链
+	// 中止在这条上（后续迁移一条都不退），而这条本来就不需要退任何对象——
+	// 用失败表达"没什么可退"会把降级能力整体锁死。口径同 down_drop_policy.go：
+	// 降级只撤自己 Up 新建的对象，撤不了就不动。
+	log.Printf("[migration v3.28.0] 放弃回滚：密码解密回明文是安全倒退（Down 为显式 no-op，密文保持）")
+	return nil
 }

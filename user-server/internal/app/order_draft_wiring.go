@@ -229,7 +229,7 @@ func InitOrderDraftRuntime(db *gorm.DB) *OrderDraftRuntime {
 			svc = service.NewOrderDraftService()
 		}
 	case orderDraftShadow:
-		svc = service.NewOrderDraftServiceShadow(cfg, db)
+		svc = service.NewOrderDraftServiceShadow(cfg)
 	}
 
 	rt := &OrderDraftRuntime{

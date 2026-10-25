@@ -148,14 +148,10 @@ func TestVisitorChatService_ResolveCardChannel(t *testing.T) {
 	)
 	db.SetTestDB(database)
 
-	engine := NewSalesEngine(
-		database,
-		nil,
-		nil, nil, nil, nil, nil, nil,
-	)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	orch := NewSmartCSOrchestrator(engine, DefaultOrchestratorConfig(), nil)
 	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
-	visitorSvc := NewVisitorChatService(context.Background(), database, channelSvc, orch, nil)
+	visitorSvc := NewVisitorChatService(channelSvc, orch, nil)
 
 	for platform := range expectedCardMetas {
 		t.Run(platform, func(t *testing.T) {
@@ -217,10 +213,10 @@ func TestVisitorChatService_OpenSessionWithVisitorMeta(t *testing.T) {
 	)
 	db.SetTestDB(database)
 
-	engine := NewSalesEngine(database, nil, nil, nil, nil, nil, nil, nil)
+	engine := NewSalesEngine(nil, nil, nil, nil, nil, nil, nil)
 	orch := NewSmartCSOrchestrator(engine, DefaultOrchestratorConfig(), nil)
 	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
-	visitorSvc := NewVisitorChatService(context.Background(), database, channelSvc, orch, nil)
+	visitorSvc := NewVisitorChatService(channelSvc, orch, nil)
 
 	cases := []struct {
 		name        string

@@ -27,8 +27,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // webhookIntegrations 各渠道出站/外呼 service 的构造工厂（E-4 webhook 域下沉，
@@ -123,7 +121,12 @@ func (b *tokenBucket) allow(ctx context.Context) bool {
 
 type WebhookChannel string
 
-func NewWebhookService(db *gorm.DB) *WebhookService {
+// NewWebhookService 构造 webhook 服务。
+//
+// 句柄由各 repository 自取全局库（测试用 db.SetTestDB／testutil 换库），
+// 构造器不经手 *gorm.DB；未装配库时仍可构造，是否连上由 connected() 判。
+func NewWebhookService() *WebhookService {
+	db := repository.GetDB()
 	guardInsecureWebhookAtStartup()
 	wecomRepo := repository.NewWeComAccountRepository()
 	if db != nil {
@@ -149,6 +152,10 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 	if db != nil {
 		feishuRepo.SetDB(context.Background(), db)
 	}
+	feishuMsgRepo := repository.NewFeishuMessageRepository()
+	if db != nil {
+		feishuMsgRepo.SetDB(context.Background(), db)
+	}
 	waRepo := repository.NewWhatsAppCloudAccountRepository()
 	if db != nil {
 		waRepo.SetDB(context.Background(), db)
@@ -172,15 +179,15 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 		eventRepo:         eventRepo,
 		accountRepo:       accountRepo,
 		wecomRepo:         wecomRepo,
-		integration:       NewWeComIntegrationService(db),
-		feishuIntegration: NewFeishuIntegrationService(db),
-		tgIntegration:     NewTelegramIntegrationService(db),
-		waIntegration:     NewWhatsAppCloudIntegrationService(db),
-		qqIntegration:     NewQQIntegrationService(db),
-		wechatIntegration: NewWechatService(db),
+		integration:       NewWeComIntegrationService(),
+		feishuIntegration: NewFeishuIntegrationService(feishuRepo, feishuMsgRepo),
+		tgIntegration:     NewTelegramIntegrationService(telegramRepo),
+		waIntegration:     NewWhatsAppCloudIntegrationService(waRepo),
+		qqIntegration:     NewQQIntegrationService(),
+		wechatIntegration: NewWechatService(),
 		telegramRepo:      telegramRepo,
 		qqRepo:            qqRepo,
-		tgGate:            NewTelegramGateService(db),
+		tgGate:            NewTelegramGateService(),
 		feishuRepo:        feishuRepo,
 		waRepo:            waRepo,
 		messageHubRepo:    messageHubRepo,
@@ -189,13 +196,13 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 		delayedRepo:       repository.NewDelayedOutboundRepository(db),
 		ingressSvc:        NewInboxIngressService(),
 		integrations: webhookIntegrations{
-			feishu: func() *FeishuIntegrationService { return NewFeishuIntegrationService(db) },
-			tg:     func() *TelegramIntegrationService { return NewTelegramIntegrationService(db) },
-			wa:     func() *WhatsAppCloudIntegrationService { return NewWhatsAppCloudIntegrationService(db) },
-			qq:     func() *QQIntegrationService { return NewQQIntegrationService(db) },
-			wechat: func() *WechatService { return NewWechatService(db) },
+			feishu: func() *FeishuIntegrationService { return NewFeishuIntegrationService(feishuRepo, feishuMsgRepo) },
+			tg:     func() *TelegramIntegrationService { return NewTelegramIntegrationService(telegramRepo) },
+			wa:     func() *WhatsAppCloudIntegrationService { return NewWhatsAppCloudIntegrationService(waRepo) },
+			qq:     func() *QQIntegrationService { return NewQQIntegrationService() },
+			wechat: func() *WechatService { return NewWechatService() },
 			waCloud: func() *WhatsAppCloudService {
-				return NewWhatsAppCloudService(db)
+				return NewWhatsAppCloudService(waRepo)
 			},
 		},
 		rlBuckets:   make(map[string]*tokenBucket),
@@ -226,31 +233,20 @@ func (s *WebhookService) SetIngressSvc(ingress *InboxIngressService) {
 	}
 }
 
-// dbHandle E-4 webhook 域下沉（2026-10-24）后 service 层取 DB 的**唯一**合法口：
-// 从 eventRepo（构造器必设）回拿句柄，且只用于给同域 repo 注入——
-// 不再兜底全局 repository.GetDB()（隐式全局句柄正是 E-4 要消灭的形状），
-// 不再直接构造下游 service（走 integrations 工厂）。
-//
-// 为什么还留这个口而不是全数搬进构造器：ensureReposFromDB 的懒建语义
-// （messageHubRepo 等四件在 dispatch 首用时才建）是既有行为，测试构造
-// （NewWebhookService(testDB)）依赖它把 repo 建齐；把四件全搬进构造器
-// 会改变"未装配 DB 时 service 照常可构造"的行为。句柄的**持有者**是 repo，
-// service 只在装配 repo 的瞬间经手——与 knowledge 域样板同一取向。
-func (s *WebhookService) dbHandle() *gorm.DB {
-	if s == nil || s.eventRepo == nil {
-		return nil
-	}
-	return s.eventRepo.GetDB()
-}
-
 // connected 装配判据：eventRepo 有没有 DB。原先 lazyDB()==nil 的 9 处判装配
 // 全部改走这一句——service 不再自己拿句柄比 nil。
 func (s *WebhookService) connected() bool {
 	return s != nil && s.eventRepo != nil && s.eventRepo.Connected()
 }
 
+// ensureReposFromDB 懒建四件下游 repo：句柄只在装配瞬间从 eventRepo（构造器必设）
+// 取一次——持有者是 repo，service 不存字段。放到 dispatch 首用时建是既有行为，
+// 这里不提前到构造器。
 func (s *WebhookService) ensureReposFromDB(ctx context.Context) {
-	db := s.dbHandle()
+	if s == nil || s.eventRepo == nil {
+		return
+	}
+	db := s.eventRepo.GetDB()
 	if db == nil {
 		return
 	}
@@ -281,7 +277,7 @@ func (a webhookIngressAdapter) HandleIngressMessage(ctx context.Context, event *
 		return nil
 	}
 	_, err := a.svc.HandleIngressMessage(ctx, event)
-	if err != nil && (strings.Contains(err.Error(), "UNIQUE") || strings.Contains(err.Error(), "duplicate")) {
+	if err != nil && repository.IsDuplicateKeyErr(err) {
 
 		return nil
 	}
@@ -559,7 +555,7 @@ func (s *WebhookService) Receive(ctx context.Context, req *ReceiveRequest) (*Rec
 			// 场景：Redis 去重仅 5 分钟 TTL，而 Telegram 对非 2xx 的重试窗口远超 5 分钟，
 			// 长窗口重发会撞这里。必须按"重复事件"幂等放行（accepted=true），
 			// 否则 accepted=false 会让 TG 无限重试同一 update。
-			if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(err.Error(), "23505") {
+			if repository.IsDuplicateKeyErr(err) {
 				return &ReceiveResult{Accepted: true, Duplicate: true, EventID: payload.EventID}, nil
 			}
 			return &ReceiveResult{Accepted: false, Reason: "persist error: " + err.Error()}, nil
@@ -698,7 +694,7 @@ func (s *WebhookService) Verify(ctx context.Context, channel WebhookChannel, acc
 				logInsecureWebhookBypass("wecom", accountID, err)
 				return true, nil
 			}
-			return false, fmt.Errorf("wecom token missing: %v", err)
+			return false, fmt.Errorf("wecom token missing: %w", err)
 		}
 		return verifyWeCom(token, aesKey, body, query)
 	case ChannelWechat:

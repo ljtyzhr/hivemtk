@@ -217,7 +217,7 @@ func TestDingTalkReceiveMessage_CapturesSessionWebhookAndTriggersAI(t *testing.T
 	tr := &fakeAITrigger{}
 	ingress.SetAITrigger(tr)
 	webhookSvc := &WebhookService{ingressSvc: ingress}
-	dtSvc := NewDingTalkAppService(db, webhookSvc)
+	dtSvc := NewDingTalkAppService(webhookSvc)
 
 	// 与 dtLiveRobotMsg 同一口径：createAt 现在是真实时序锚点，钉死在 2023 的夹具会被
 	// 中台钩子3 判成历史堆积（只落库、不触发 AI）；会话 id 也必须一次一换，
@@ -335,7 +335,7 @@ func TestDispatchFeishu_DecryptsEncryptedEvent(t *testing.T) {
 	}
 	raw, _ := json.Marshal(map[string]string{"encrypt": enc})
 
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	p := &ParsedPayload{EventID: "fs-enc-1"}
 	hub, derr := svc.dispatchFeishu(context.Background(), "1", p, raw)

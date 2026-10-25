@@ -143,7 +143,7 @@ func setupDingTalkFullchain(t *testing.T) *dtFullchainEnv {
 		t.Fatalf("seed dingtalk account: %v", err)
 	}
 
-	webhookSvc := service.NewWebhookService(database)
+	webhookSvc := service.NewWebhookService()
 	ingress := service.NewInboxIngressService()
 	ingress.SetInboxService(service.NewInboxService())
 	webhookSvc.SetIngressSvc(ingress)
@@ -151,7 +151,7 @@ func setupDingTalkFullchain(t *testing.T) *dtFullchainEnv {
 	gin.SetMode(gin.TestMode)
 	g := gin.New()
 	ctrl := NewWebhookController(webhookSvc)
-	ctrl.SetDingTalkAppService(service.NewDingTalkAppService(database, webhookSvc))
+	ctrl.SetDingTalkAppService(service.NewDingTalkAppService(webhookSvc))
 	ctrl.RegisterRoutes(g)
 
 	return &dtFullchainEnv{

@@ -13,6 +13,7 @@ import (
 	"hivemtk-user/internal/model"
 	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,7 @@ func newSSOTestRouter(t *testing.T, cfg *config.AppConfig) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	public := r.Group("/api")
-	setupSSORoutes(public, controller.NewSSOController(service.NewSSOService(database)))
+	setupSSORoutes(public, controller.NewSSOController(service.NewSSOService(repository.NewSSOIdentityRepository(database), repository.NewSystemConfigKVRepositoryWithDB(database))))
 	return r
 }
 
@@ -48,7 +49,7 @@ func newSSOConfigTestRouter(t *testing.T, cfg *config.AppConfig) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	admin := r.Group("/api")
-	ssoCtrl := controller.NewSSOController(service.NewSSOService(database))
+	ssoCtrl := controller.NewSSOController(service.NewSSOService(repository.NewSSOIdentityRepository(database), repository.NewSystemConfigKVRepositoryWithDB(database)))
 	setupSSORoutes(admin, ssoCtrl)
 	setupSSOConfigRoutes(admin, ssoCtrl)
 	return r

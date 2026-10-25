@@ -5,8 +5,6 @@ import (
 	"errors"
 	"sort"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
 )
@@ -49,8 +47,8 @@ type DictionaryService struct {
 	repo dictionaryRepo
 }
 
-func NewDictionaryService(db *gorm.DB) *DictionaryService {
-	return &DictionaryService{repo: repository.NewDictionaryRepository(db)}
+func NewDictionaryService(repo *repository.DictionaryRepository) *DictionaryService {
+	return &DictionaryService{repo: repo}
 }
 
 // NewDictionaryServiceWithRepo 用注入的仓储构造（测试用）。

@@ -67,11 +67,11 @@ type tuningService struct {
 }
 
 // NewTuningService 构造服务(注入所有 tuning 仓储)
-func NewTuningService(db *gorm.DB) TuningService {
+func NewTuningService(signalRepo *repository.ConfidenceSignalRepository, calibRepo *repository.ConfidenceCalibrationRepository, policyRepo *repository.ThresholdPolicyRepository) TuningService {
 	return &tuningService{
-		signalRepo:   repository.NewConfidenceSignalRepositoryWithDB(db),
-		calibRepo:    repository.NewConfidenceCalibrationRepositoryWithDB(db),
-		policyRepo:   repository.NewThresholdPolicyRepositoryWithDB(db),
+		signalRepo:   signalRepo,
+		calibRepo:    calibRepo,
+		policyRepo:   policyRepo,
 		scoreRepo:    repository.NewHumanizeScoreRepository(),
 		baselineRepo: repository.NewChampionBaselineRepository(),
 		lowQRepo:     repository.NewLowQualitySampleRepository(),

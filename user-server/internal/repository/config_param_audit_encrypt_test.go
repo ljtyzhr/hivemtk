@@ -10,7 +10,7 @@ import (
 	"hivemtk-user/internal/secrets"
 )
 
-// 本文件锁的是 OPT-SEC-04 残项的契约：config_params 的变更审计里存着 API Key 一类的
+// 本文件锁的是 残项的契约：config_params 的变更审计里存着 API Key 一类的
 // 敏感参数（分组见 config_param_group_key_unique 的复合唯一键），审计表明文留痕等于
 // 把历史密钥全量抄进一张运维只读视图。
 //

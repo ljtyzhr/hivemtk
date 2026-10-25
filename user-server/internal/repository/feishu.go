@@ -16,6 +16,11 @@ func NewFeishuAccountRepository() *FeishuAccountRepository {
 	return &FeishuAccountRepository{db: _db.GetDB()}
 }
 
+// NewFeishuAccountRepositoryWithDB 用显式句柄构造（装配点/测试注入用，避免与进程全局句柄混用）
+func NewFeishuAccountRepositoryWithDB(db *gorm.DB) *FeishuAccountRepository {
+	return &FeishuAccountRepository{db: db}
+}
+
 func (r *FeishuAccountRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -108,6 +113,11 @@ func NewFeishuMessageRepository() *FeishuMessageRepository {
 	return &FeishuMessageRepository{db: _db.GetDB()}
 }
 
+// NewFeishuMessageRepositoryWithDB 用显式句柄构造（装配点/测试注入用）
+func NewFeishuMessageRepositoryWithDB(db *gorm.DB) *FeishuMessageRepository {
+	return &FeishuMessageRepository{db: db}
+}
+
 func (r *FeishuMessageRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -195,6 +205,11 @@ type WhatsAppCloudAccountRepository struct {
 
 func NewWhatsAppCloudAccountRepository() *WhatsAppCloudAccountRepository {
 	return &WhatsAppCloudAccountRepository{db: _db.GetDB()}
+}
+
+// NewWhatsAppCloudAccountRepositoryWithDB 用显式句柄构造（装配点/测试注入用）
+func NewWhatsAppCloudAccountRepositoryWithDB(db *gorm.DB) *WhatsAppCloudAccountRepository {
+	return &WhatsAppCloudAccountRepository{db: db}
 }
 
 func (r *WhatsAppCloudAccountRepository) SetDB(ctx context.Context, db *gorm.DB) {

@@ -12,6 +12,8 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/repository"
 )
 
 func setupRagHealthTestDB(t *testing.T) *gorm.DB {
@@ -27,7 +29,7 @@ func setupRagHealthTestDB(t *testing.T) *gorm.DB {
 // TestRagHealth_NewService 测试服务构造
 func TestRagHealth_NewService(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 	if svc == nil {
 		t.Fatal("Expected non-nil service")
 	}
@@ -63,7 +65,7 @@ func TestRagHealth_NewService_NilReceiver(t *testing.T) {
 // TestRagHealth_GetHealth_Empty 测试空数据（应为 D 级低分）
 func TestRagHealth_GetHealth_Empty(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 	r, err := svc.GetHealth(context.Background(), 0)
 	if err != nil {
 		t.Fatalf("GetHealth failed: %v", err)
@@ -90,7 +92,7 @@ func TestRagHealth_GetHealth_Empty(t *testing.T) {
 // TestRagHealth_GetHealth_Perfect 测试完美场景（A 级）
 func TestRagHealth_GetHealth_Perfect(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	for i := 0; i < 10; i++ {
 		log := &model.RagQueryLog{
@@ -167,7 +169,7 @@ func TestRagHealth_GetHealth_Perfect(t *testing.T) {
 // TestRagHealth_GetHealth_LowRecall 测试低召回场景
 func TestRagHealth_GetHealth_LowRecall(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	log := &model.RagQueryLog{
 		Query:          "low",
@@ -203,7 +205,7 @@ func TestRagHealth_GetHealth_LowRecall(t *testing.T) {
 // TestRagHealth_GetHealth_HighLatency 测试高延迟场景
 func TestRagHealth_GetHealth_HighLatency(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	log := &model.RagQueryLog{
 		Query:          "slow",
@@ -236,7 +238,7 @@ func TestRagHealth_GetHealth_HighLatency(t *testing.T) {
 // TestRagHealth_GetHealth_EmbeddingFailure 测试向量化失败
 func TestRagHealth_GetHealth_EmbeddingFailure(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	for i := 0; i < 5; i++ {
 		status := kbmodel.EmbedStatusIndexed
@@ -268,7 +270,7 @@ func TestRagHealth_GetHealth_EmbeddingFailure(t *testing.T) {
 // TestRagHealth_GetHealth_ActiveAlerts 测试有活跃预警场景
 func TestRagHealth_GetHealth_ActiveAlerts(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 	now := time.Now()
 
 	for i := 0; i < 5; i++ {
@@ -306,7 +308,7 @@ func TestRagHealth_GetHealth_ActiveAlerts(t *testing.T) {
 // TestRagHealth_GetHealth_CustomWindow 测试自定义窗口
 func TestRagHealth_GetHealth_CustomWindow(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	log := &model.RagQueryLog{
 		Query:          "old",
@@ -351,7 +353,7 @@ func TestRagHealth_GetHealth_CustomWindow(t *testing.T) {
 // TestRagHealth_GetHealthCached 测试缓存命中
 func TestRagHealth_GetHealthCached(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	r1, err := svc.GetHealthCached(context.Background(), time.Hour)
 	if err != nil {
@@ -394,7 +396,7 @@ func TestRagHealth_GetHealthCached(t *testing.T) {
 // TestRagHealth_GetHealthCached_ConcurrentSafe 测试并发安全
 func TestRagHealth_GetHealthCached_ConcurrentSafe(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	const N = 10
 	var wg sync.WaitGroup
@@ -481,7 +483,7 @@ func TestRagHealth_BuildHealthSummary(t *testing.T) {
 
 // TestRagHealth_ComputeDimensions_AllHealthy 测试全健康维度
 func TestRagHealth_ComputeDimensions_AllHealthy(t *testing.T) {
-	svc := NewRagHealthService(setupRagHealthTestDB(t), nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(setupRagHealthTestDB(t)), nil)
 	recall := &RecallMetrics{
 		TotalQueries: 10,
 		AvgRecall:    1.0,
@@ -503,7 +505,7 @@ func TestRagHealth_ComputeDimensions_AllHealthy(t *testing.T) {
 
 // TestRagHealth_ComputeDimensions_AllCritical 测试全 critical 维度
 func TestRagHealth_ComputeDimensions_AllCritical(t *testing.T) {
-	svc := NewRagHealthService(setupRagHealthTestDB(t), nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(setupRagHealthTestDB(t)), nil)
 	recall := &RecallMetrics{
 		TotalQueries: 0,
 	}
@@ -552,7 +554,7 @@ func TestRagHealth_MakeDimension(t *testing.T) {
 // TestRagHealth_ClearCache 测试清缓存
 func TestRagHealth_ClearCache(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	_, _ = svc.GetHealthCached(context.Background(), time.Hour)
 	if svc.cached == nil {
@@ -568,7 +570,7 @@ func TestRagHealth_ClearCache(t *testing.T) {
 // TestRagHealth_GetHealth_NegativeWindow 测试负窗口（应使用默认）
 func TestRagHealth_GetHealth_NegativeWindow(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 	r, err := svc.GetHealth(context.Background(), -1*time.Hour)
 	if err != nil {
 		t.Fatalf("GetHealth failed: %v", err)
@@ -581,7 +583,7 @@ func TestRagHealth_GetHealth_NegativeWindow(t *testing.T) {
 // TestRagHealth_GetHealth_BGrade 测试 B 级场景
 func TestRagHealth_GetHealth_BGrade(t *testing.T) {
 	db := setupRagHealthTestDB(t)
-	svc := NewRagHealthService(db, nil)
+	svc := NewRagHealthService(repository.NewRagHealthRepository(db), nil)
 
 	log := &model.RagQueryLog{
 		Query:          "mid",

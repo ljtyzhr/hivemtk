@@ -81,14 +81,23 @@ type tenantSSOEntry struct {
 	adapters map[string]sso.Adapter
 }
 
-// NewSSOService 从全局配置构建 SSO 服务（生产入口）
-func NewSSOService(db *gorm.DB) *SSOService {
+// NewSSOService 生产入口：仓储由装配点注入。
+//
+// 刻意**不接收 *gorm.DB**（五层架构 §3.2：Service 直访 db 被阻断）。调用方写：
+//
+//	service.NewSSOService(
+//	    repository.NewSSOIdentityRepository(db),
+//	    repository.NewSystemConfigKVRepositoryWithDB(db),
+//	)
+//
+// 这样"哪个连接用在哪"只出现在装配点一处，service 自己既不握句柄、也不决定连接。
+func NewSSOService(identityRepo repository.SSOIdentityRepository, kv repository.SystemConfigKVRepository) *SSOService {
 	svc := NewSSOServiceWithRepos(
 		config.GetAppConfig().SSO,
 		repository.NewSystemUserRepository(),
-		repository.NewSSOIdentityRepository(db),
+		identityRepo,
 	)
-	svc.kv = repository.NewSystemConfigKVRepositoryWithDB(db)
+	svc.kv = kv
 	return svc
 }
 

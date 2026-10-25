@@ -10,7 +10,7 @@ import (
 )
 
 func newDeliveryTracker() *SmsDeliveryTrackerService {
-	return NewSmsDeliveryTrackerService(nil, nil, nil)
+	return NewSmsDeliveryTrackerService(nil, nil)
 }
 
 // 1) 构造

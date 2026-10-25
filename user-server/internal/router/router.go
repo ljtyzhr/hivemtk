@@ -239,7 +239,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 	r.Use(middleware.AuditMiddleware())
 
-	liveCodeController := controller.NewLiveCodeController(service.NewLiveCodeService(gormDB))
+	liveCodeController := controller.NewLiveCodeController(service.NewLiveCodeService())
 
 	platformCtrl := controller.NewPlatformController()
 
@@ -342,11 +342,11 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		aiAgentRepoGlobal,
 	)
 
-	service.InitAssetResolver(gormDB)
+	service.InitAssetResolver(repository.NewLocalAssetRepository(gormDB))
 
 	// SSO 服务只建一次：登录页/回调（公开档）与租户自配 IdP 读写（admin 档）共用
 	// 同一份按租户缓存的适配器集合。
-	ssoCtrl := controller.NewSSOController(service.NewSSOService(gormDB))
+	ssoCtrl := controller.NewSSOController(service.NewSSOService(repository.NewSSOIdentityRepository(gormDB), repository.NewSystemConfigKVRepositoryWithDB(gormDB)))
 
 	public := r.Group("/api")
 	{
@@ -616,13 +616,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupWhatsappRoutes(auth, gormDB)
 
-		whatsappCloudSvc = service.NewWhatsAppCloudService(gormDB)
+		whatsappCloudSvc = service.NewWhatsAppCloudService(repository.NewWhatsAppCloudAccountRepositoryWithDB(gormDB))
 		setupWhatsAppCloudRoutes(auth, whatsappCloudSvc, gormDB)
 
-		webhookSvc = service.NewWebhookService(gormDB)
+		webhookSvc = service.NewWebhookService()
 		webhookSvc.SetAgentBindingService(context.Background(), channelBindingSvcGlobal)
 		webhookSvc.SetSmartOrchestrator(context.Background(), orchestrator)
-		dingtalkAppSvc = service.NewDingTalkAppService(gormDB, webhookSvc)
+		dingtalkAppSvc = service.NewDingTalkAppService(webhookSvc)
 
 		setupDingTalkAppRoutes(auth, dingtalkAppSvc)
 
@@ -773,7 +773,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		if bridgeIngressSvc != nil {
 			bridgeIngressSvc.SetInboxService(service.NewInboxService())
 			logger.Infof("[Bridge] bridge InboxService 已注入（统一收件箱会话同步已连通）")
-			bridgeIngressSvc.SetLeadMining(service.NewLeadMiningService(gormDB))
+			bridgeIngressSvc.SetLeadMining(service.NewLeadMiningService(repository.NewClueRepositoryWithDB(gormDB)))
 			logger.Infof("[Bridge] bridge LeadMining 已注入（线索发掘异步监听已连通）")
 		}
 
@@ -904,7 +904,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	webhookCtrl := controller.NewWebhookController(webhookSvc)
 	webhookCtrl.SetWhatsAppCloudService(whatsappCloudSvc)
 	webhookCtrl.SetDingTalkAppService(dingtalkAppSvc)
-	webhookCtrl.SetFeishuService(service.NewFeishuService(gormDB))
+	webhookCtrl.SetFeishuService(service.NewFeishuService(repository.NewFeishuAccountRepositoryWithDB(gormDB)))
 	webhookCtrl.SetSalesEngine(engine)
 	webhookCtrl.SetSmartOrchestrator(orchestrator)
 	webhookCtrl.SetLangResolver(langResolver)
@@ -912,8 +912,8 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 	webhookCtrl.SetAgentBindingService(channelBindingSvcGlobal)
 
-	go service.ReconcileTelegramWebhooks(service.NewTelegramService(gormDB))
-	service.StartGateSweeper(gormDB)
+	go service.ReconcileTelegramWebhooks(service.NewTelegramService(repository.NewTelegramAccountRepositoryWithDB(gormDB)))
+	service.StartGateSweeper(service.NewTelegramGateService())
 
 	platform := r.Group("/api/platform")
 	platform.Use(middleware.InitGuard())

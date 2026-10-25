@@ -26,7 +26,7 @@ func setupShortLinkServiceTestDB(t *testing.T) *gorm.DB {
 }
 
 func newTestShortLinkService(db *gorm.DB) ShortLinkService {
-	return NewShortLinkService(db)
+	return NewShortLinkService(repository.NewShortLinkRepository(db), repository.NewDomainPoolRepository(db), repository.NewShortLinkAccessRepository(db))
 }
 
 func newTestShortLinkAccessRepository(db *gorm.DB) repository.ShortLinkAccessRepository {
@@ -37,7 +37,7 @@ func newTestShortLinkAccessRepository(db *gorm.DB) repository.ShortLinkAccessRep
 func TestNewShortLinkService(t *testing.T) {
 	database := setupShortLinkServiceTestDB(t)
 
-	service := NewShortLinkService(database)
+	service := NewShortLinkService(repository.NewShortLinkRepository(database), repository.NewDomainPoolRepository(database), repository.NewShortLinkAccessRepository(database))
 	if service == nil {
 		t.Error("Expected non-nil service")
 	}

@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -51,9 +52,18 @@ func (r *RedisCache) scopeKey(ctx context.Context, key string) string {
 }
 
 // Get 获取缓存
+//
+// E-6b 契约统一（规划 §4.6b 第 1 条）：未命中时返回包内哨兵 cache.ErrCacheMiss
+// （redis.Nil 在本方法内部转换），与 MemoryCache.Get 同一哨兵——
+// 调用方不再需要"两腿各判一个错误"的双哨兵分支（errors.Is 兼容保留：
+// 已有调用方的 redis.Nil 判断仍绿，但新调用方只写 ErrCacheMiss 即可）。
 func (r *RedisCache) Get(ctx context.Context, key string) (string, error) {
 	key = r.scopeKey(ctx, key)
-	return r.client.Get(ctx, key).Result()
+	v, err := r.client.Get(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", ErrCacheMiss
+	}
+	return v, err
 }
 
 // Set 设置缓存
@@ -105,9 +115,16 @@ func (r *RedisCache) RPush(ctx context.Context, key string, value any, expiratio
 }
 
 // LPop 从列表头部弹出
+//
+// E-6b 契约统一：未命中/空列表返回 ErrCacheMiss（redis.Nil 内部转换），
+// 与 MemoryCache.LPop 同一哨兵。
 func (r *RedisCache) LPop(ctx context.Context, key string) (string, error) {
 	key = r.scopeKey(ctx, key)
-	return r.client.LPop(ctx, key).Result()
+	v, err := r.client.LPop(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", ErrCacheMiss
+	}
+	return v, err
 }
 
 // LRange 获取列表区间
@@ -177,10 +194,15 @@ func (r *RedisCache) Exists(ctx context.Context, key string) (bool, error) {
 }
 
 // GetJSON 获取 JSON 缓存并反序列化
+//
+// E-6b 契约统一：未命中返回 ErrCacheMiss（与 Get 同一哨兵）。
 func (r *RedisCache) GetJSON(ctx context.Context, key string, dest any) error {
 	key = r.scopeKey(ctx, key)
 	data, err := r.client.Get(ctx, key).Bytes()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return ErrCacheMiss
+		}
 		return err
 	}
 	return json.Unmarshal(data, dest)

@@ -8,13 +8,12 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
-	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 // SessionTTLCron 会话 TTL 自动关闭定时任务
 type SessionTTLCron struct {
 	sessionSvc *CustomerSessionService
-	db         *gorm.DB
 	stopCh     chan struct{}
 	stopOnce   sync.Once
 	wg         sync.WaitGroup
@@ -31,9 +30,6 @@ func NewSessionTTLCron(sessionSvc *CustomerSessionService) *SessionTTLCron {
 	c := &SessionTTLCron{
 		sessionSvc: sessionSvc,
 		stopCh:     make(chan struct{}),
-	}
-	if sessionSvc.sessionRepo != nil {
-		c.db = sessionSvc.sessionRepo.GetDB(context.Background())
 	}
 	c.wg.Add(1)
 	go c.run(context.Background())
@@ -76,7 +72,7 @@ func (c *SessionTTLCron) run(ctx context.Context) {
 }
 
 func (c *SessionTTLCron) tryTriggerWithDBWait(ctx context.Context) {
-	if c.sessionSvc == nil || c.db == nil {
+	if c.sessionSvc == nil || !repository.DBReady() {
 		return
 	}
 	// 模块闸（FR-5.6，派发时刻判定）：每跳检查一次；customer 模块
@@ -87,7 +83,7 @@ func (c *SessionTTLCron) tryTriggerWithDBWait(ctx context.Context) {
 	}
 	// 多租户模式下，需以租户扇出方式逐租户执行
 	if tenant.IsMultiTenant() {
-		_, _ = tenant.Fanout(ctx, c.db, func(ctx context.Context, _ uint) (int64, error) {
+		_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
 			return c.trigger(ctx)
 		})
 		return

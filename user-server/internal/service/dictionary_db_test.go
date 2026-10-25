@@ -8,6 +8,8 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"hivemtk-user/internal/repository"
 )
 
 // newDictionaryDBFixture 起一个带字典两表的真库。
@@ -17,7 +19,7 @@ func newDictionaryDBFixture(t *testing.T) (*DictionaryService, *gorm.DB) {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	return NewDictionaryService(database), database
+	return NewDictionaryService(repository.NewDictionaryRepository(database)), database
 }
 
 // TestDictionaryDBSeedableAndReadBack 真库路径：建表 → Upsert 落库 → 读回 DB 版。

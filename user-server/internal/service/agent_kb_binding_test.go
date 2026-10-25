@@ -97,7 +97,7 @@ func TestUnbind_CrossTenantReportsNotFound(t *testing.T) {
 		t.Fatalf("预置对方租户绑定失败: %v", err)
 	}
 
-	svc := NewAgentKBBindingService(database)
+	svc := NewAgentKBBindingService()
 	ctxA := tenant.WithTenantID(context.Background(), 91)
 	if err := svc.Unbind(ctxA, 1, 100); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("跨租户 Unbind 期望 ErrRecordNotFound，实际: %v", err)
@@ -206,7 +206,7 @@ func TestBatchBind_NilDB_NoDBFallback(t *testing.T) {
 // 这些非 nil 的 typed nil 指针, 因此 svc.bindingRepo != nil (但 svc.bindingRepo.db == nil)
 // 这里不强校验 repo 字段, 因为 typed nil pointer 与 nil interface 在 Go 中语义不同
 func TestNewAgentKBBindingService_NilDB(t *testing.T) {
-	svc := NewAgentKBBindingService(nil)
+	svc := NewAgentKBBindingService()
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}

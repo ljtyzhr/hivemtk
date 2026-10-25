@@ -197,7 +197,7 @@ func setupKBCanaryDB(t *testing.T) *gorm.DB {
 // newKBForCacheTest 建一行 KB 并返回其十进制 ID 字符串（ragcache 的 kb_id 口径）。
 func newKBForCacheTest(t *testing.T, database *gorm.DB, code string) *model.KnowledgeBase {
 	t.Helper()
-	svc := NewKnowledgeBaseService(database)
+	svc := NewKnowledgeBaseService()
 	enabled := true
 	kb := &model.KnowledgeBase{
 		KBCode: code, Type: model.KnowledgeBaseTypeFAQ, Name: "灰度库",
@@ -218,7 +218,7 @@ func newKBForCacheTest(t *testing.T, database *gorm.DB, code string) *model.Know
 func TestKBCanary_TwoVersionsCoexistAndRollbackNeedsNoReingest(t *testing.T) {
 	database := setupKBCanaryDB(t)
 	ctx := context.Background()
-	svc := NewKnowledgeBaseService(database)
+	svc := NewKnowledgeBaseService()
 	kb := newKBForCacheTest(t, database, "kb-canary-e2e")
 
 	cacheSvc := ragcache.NewFAQAnswerCacheService(
@@ -360,7 +360,7 @@ func TestKBCanary_TwoVersionsCoexistAndRollbackNeedsNoReingest(t *testing.T) {
 func TestKBCanary_VersionSwitchDoesNotTouchUpdatedAt(t *testing.T) {
 	database := setupKBCanaryDB(t)
 	ctx := context.Background()
-	svc := NewKnowledgeBaseService(database)
+	svc := NewKnowledgeBaseService()
 	kb := newKBForCacheTest(t, database, "kb-canary-updated-at")
 
 	updatedAtBefore, err := readKBUpdatedAt(ctx, database, kb.ID)
@@ -391,7 +391,7 @@ func readKBUpdatedAt(ctx context.Context, database *gorm.DB, id uint) (out time.
 func TestKBCanary_PublishAndSetCanaryInputRules(t *testing.T) {
 	database := setupKBCanaryDB(t)
 	ctx := context.Background()
-	svc := NewKnowledgeBaseService(database)
+	svc := NewKnowledgeBaseService()
 	kb := newKBForCacheTest(t, database, "kb-canary-inputs")
 
 	if _, err := svc.PublishKBVersion(ctx, kb.ID, -3); err == nil {

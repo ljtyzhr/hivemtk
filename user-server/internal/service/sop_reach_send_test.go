@@ -72,7 +72,7 @@ func newReachSendFixture(t *testing.T) *reachSendFixture {
 		&model.RecoveryQueue{},
 	)
 	approvalSvc := NewApprovalRequestService(repository.NewApprovalRequestRepositoryWithDB(db), nil)
-	bridge := NewApprovalResumeBridge(approvalSvc, db)
+	bridge := NewApprovalResumeBridge(approvalSvc)
 	if bridge == nil {
 		t.Fatal("NewApprovalResumeBridge 传了服务却返回 nil")
 	}
@@ -619,8 +619,8 @@ func TestReachSendEndToEnd_ApproveThenFireSendsExactlyOnce(t *testing.T) {
 	}
 
 	// 换一批内存对象续跑：等于换进程（T-P3-02 的同一口径）。
-	disp := NewSOPExecutionDispatcher(f.db, NewSOPService(f.db, nil), NewNodeExecutorRegistry(), nil)
-	NewSOPOutboxDispatcher(f.db, senderFunc(func(task *dispatchTask) {
+	disp := NewSOPExecutionDispatcher(NewSOPService(nil), NewNodeExecutorRegistry(), nil)
+	NewSOPOutboxDispatcher(senderFunc(func(task *dispatchTask) {
 		disp.processTask(ctx, 0, task)
 	})).processDueTimers(ctx)
 	drainReachQueue(t, disp)

@@ -421,8 +421,8 @@ func TestTriggerTelegramJoinSales_ShouldNotTriggerWhenAIDisabled(t *testing.T) {
 func TestWebhookService_Receive_TelegramJoinEvent(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
 	t.Setenv("ALLOW_INSECURE_TELEGRAM_WEBHOOK", "true")
-	db := setupTelegramTestDB(t)
-	svc := NewWebhookService(db)
+	setupTelegramTestDB(t)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	payload := []byte(`{

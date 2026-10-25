@@ -42,7 +42,7 @@ func TestSSEDashboardRoutesWireDashboardSSEHandlers(t *testing.T) {
 		t.Error("DashboardSSEController 未被实例化")
 	}
 	// 统计服务必须由 router 注入：不注入就退化成零值快照，「实时」二字落空
-	if !strings.Contains(text, "service.NewDashboardStatsService(db)") {
+	if !strings.Contains(text, "service.NewDashboardStatsService()") {
 		t.Error("DashboardStatsService 未注入：SSE 会恒推零值快照")
 	}
 }

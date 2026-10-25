@@ -7,7 +7,6 @@ import (
 )
 
 // NormalizeCustomerIDFromMessageHub 从 message_hub 消息中归一化客户标识。
-// 取代原 unified_inbox/inbox.go 内部 inboxCustomerID 包级函数（Deprecated 内存收件箱）。
 // 供 inbox_ingress / message_hub / reconciliation 等多包复用，避免各包各自实现归一规则。
 func NormalizeCustomerIDFromMessageHub(msg *model.MessageHub) string {
 	if msg == nil {

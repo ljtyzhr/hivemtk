@@ -10,6 +10,8 @@ import (
 
 	"hivemtk-user/internal/aiagent/agent/tooluse"
 	"hivemtk-user/internal/service"
+
+	"hivemtk-user/internal/repository"
 )
 
 // NewReachToolDepsWithAdapter 创建触达工具依赖（带真实 Adapter，打通全部业务渠道）。
@@ -23,7 +25,7 @@ func NewReachToolDepsWithAdapter(db *gorm.DB, adapter tooluse.ReachAdapter) tool
 	tooluse.SetComplianceReminderHook(service.LogComplianceReminder)
 	return tooluse.ReachToolDeps{
 		Adapter:      adapter,
-		Pipeline:     &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(db)},
+		Pipeline:     &reachBatchPipelineAdapter{svc: service.NewReachPipelineService(repository.NewReachPipelineRepository(db))},
 		DB:           db,
 		SendPipeline: newReachSendPipeline(adapter),
 	}

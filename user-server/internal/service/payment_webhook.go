@@ -154,7 +154,7 @@ func ParseOrderWebhookPayment(body map[string]any, platform, orderID string) (Re
 		in.PaidAt = parsed
 	}
 
-	// reason（E-10，2026-10-24）：退款原因。只在 status=refunded 时有业务含义，
+	// reason：退款原因。只在 status=refunded 时有业务含义，
 	// 但形状校验对任何状态都做——渠道把 reason 配在 confirmed 载荷里说明
 	// 契约两边各说各话，按半份契约记钱正是白名单要挡的那种坏法。
 	// 非字符串拒而不忽略；超长在此层就拒，不让它走到 service 再炸——

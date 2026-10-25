@@ -124,8 +124,8 @@ func InitAgentLifecycles(gormDB *gorm.DB, engine *service.SalesEngine) {
 	sopSvc := service.GetSOPService()
 	if sopSvc == nil {
 		// 优先复用全局单例（与 /api/sop* 路由同一份状态）；启动顺序上拿不到时自建一份，
-		// 与 service_routes.go 里既有的 NewSOPService(db, nil) 同一口径。
-		sopSvc = service.NewSOPService(gormDB, llm.GetGlobalDispatcher())
+		// 与 service_routes.go 里既有的 NewSOPService(nil) 同一口径。
+		sopSvc = service.NewSOPService(llm.GetGlobalDispatcher())
 	}
 	rt := NewAgentLifecycleRuntime(
 		service.NewAIAgentServiceWithRepo(repository.NewAIAgentRepositoryWithDB(gormDB)),

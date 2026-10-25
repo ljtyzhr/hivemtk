@@ -46,7 +46,7 @@ func setupLiveCodeRouter(ctrl *LiveCodeController) *gin.Engine {
 
 func TestLiveCodeController_GetList_Success(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -61,7 +61,7 @@ func TestLiveCodeController_GetList_Success(t *testing.T) {
 
 func TestLiveCodeController_GetList_DefaultParams(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -76,7 +76,7 @@ func TestLiveCodeController_GetList_DefaultParams(t *testing.T) {
 
 func TestLiveCodeController_GetList_WithFilters(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -91,7 +91,7 @@ func TestLiveCodeController_GetList_WithFilters(t *testing.T) {
 
 func TestLiveCodeController_Create_InvalidJSON(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -107,7 +107,7 @@ func TestLiveCodeController_Create_InvalidJSON(t *testing.T) {
 
 func TestLiveCodeController_Create_Success(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -132,7 +132,7 @@ func TestLiveCodeController_Create_Success(t *testing.T) {
 
 func TestLiveCodeController_GetByID_NotFound(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -147,7 +147,7 @@ func TestLiveCodeController_GetByID_NotFound(t *testing.T) {
 
 func TestLiveCodeController_Update_InvalidJSON(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -163,7 +163,7 @@ func TestLiveCodeController_Update_InvalidJSON(t *testing.T) {
 
 func TestLiveCodeController_Delete_Success(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -178,7 +178,7 @@ func TestLiveCodeController_Delete_Success(t *testing.T) {
 
 func TestLiveCodeController_GetStats_InvalidID(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -193,7 +193,7 @@ func TestLiveCodeController_GetStats_InvalidID(t *testing.T) {
 
 func TestLiveCodeController_GetStats_Success(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -208,7 +208,7 @@ func TestLiveCodeController_GetStats_Success(t *testing.T) {
 
 func TestLiveCodeController_GenerateQRCode_InvalidJSON(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -224,7 +224,7 @@ func TestLiveCodeController_GenerateQRCode_InvalidJSON(t *testing.T) {
 
 func TestLiveCodeController_GetQRCodes_Success(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -239,7 +239,7 @@ func TestLiveCodeController_GetQRCodes_Success(t *testing.T) {
 
 func TestLiveCodeController_GetQRStats_Success(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -254,7 +254,7 @@ func TestLiveCodeController_GetQRStats_Success(t *testing.T) {
 
 func TestLiveCodeController_Share_Success(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 
@@ -270,7 +270,7 @@ func TestLiveCodeController_Share_Success(t *testing.T) {
 
 func TestLiveCodeController_RedirectLiveCode_NotFound(t *testing.T) {
 	setupLiveCodeTestDB(t)
-	service := service.NewLiveCodeService(db.GetDB())
+	service := service.NewLiveCodeService()
 	ctrl := NewLiveCodeController(service)
 	router := setupLiveCodeRouter(ctrl)
 

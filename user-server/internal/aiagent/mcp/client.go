@@ -119,7 +119,7 @@ func (c *Client) call(ctx context.Context, method string, params any, out any) e
 		c.sessionID = sid
 		c.mu.Unlock()
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		c.recordFailure()

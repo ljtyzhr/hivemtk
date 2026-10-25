@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
@@ -54,11 +52,11 @@ const (
 
 // NewSOPOutboxDispatcher 创建 Outbox 调度器
 //
-// 构造函数签名保持 db *gorm.DB 不变以兼容调用方，内部用 db 创建 repository。
-func NewSOPOutboxDispatcher(db *gorm.DB, execDispatcher SOPDispatchSender) *SOPOutboxDispatcher {
+// 句柄由 repository 自取全局库。
+func NewSOPOutboxDispatcher(execDispatcher SOPDispatchSender) *SOPOutboxDispatcher {
 	return &SOPOutboxDispatcher{
-		timerRepo:      repository.NewSOPTimerRepository(db),
-		eventRepo:      repository.NewSOPExecEventRepository(db),
+		timerRepo:      repository.NewSOPTimerRepositoryDefault(),
+		eventRepo:      repository.NewSOPExecEventRepositoryDefault(),
 		execDispatcher: execDispatcher,
 		tickInterval:   5 * time.Second,
 		batchSize:      100,
@@ -439,12 +437,12 @@ type SOPStuckDetector struct {
 
 // NewSOPStuckDetector 创建卡死检测器
 //
-// 构造函数签名保持 db *gorm.DB 不变以兼容调用方，内部用 db 创建 repository。
-func NewSOPStuckDetector(db *gorm.DB, execDispatcher SOPDispatchSender) *SOPStuckDetector {
+// 句柄由 repository 自取全局库。
+func NewSOPStuckDetector(execDispatcher SOPDispatchSender) *SOPStuckDetector {
 	return &SOPStuckDetector{
-		execRepo:          repository.NewSopExecutionRepository(db),
-		timerRepo:         repository.NewSOPTimerRepository(db),
-		eventRepo:         repository.NewSOPExecEventRepository(db),
+		execRepo:          repository.NewSopExecutionRepositoryDefault(),
+		timerRepo:         repository.NewSOPTimerRepositoryDefault(),
+		eventRepo:         repository.NewSOPExecEventRepositoryDefault(),
 		execDispatcher:    execDispatcher,
 		maxIdleTime:       30 * time.Minute,
 		maxExecTime:       24 * time.Hour,
@@ -652,9 +650,9 @@ var (
 )
 
 // InitSOPOutboxDispatcher 初始化全局 Outbox 调度器
-func InitSOPOutboxDispatcher(db *gorm.DB, execDispatcher *SOPExecutionDispatcher) *SOPOutboxDispatcher {
+func InitSOPOutboxDispatcher(execDispatcher *SOPExecutionDispatcher) *SOPOutboxDispatcher {
 	outboxOnce.Do(func() {
-		globalOutboxDispatcher = NewSOPOutboxDispatcher(db, execDispatcher)
+		globalOutboxDispatcher = NewSOPOutboxDispatcher(execDispatcher)
 		globalOutboxDispatcher.Start(context.Background())
 	})
 	return globalOutboxDispatcher
@@ -666,9 +664,9 @@ func GetSOPOutboxDispatcher() *SOPOutboxDispatcher {
 }
 
 // InitSOPStuckDetector 初始化全局卡死检测器
-func InitSOPStuckDetector(db *gorm.DB, execDispatcher *SOPExecutionDispatcher) *SOPStuckDetector {
+func InitSOPStuckDetector(execDispatcher *SOPExecutionDispatcher) *SOPStuckDetector {
 	stuckOnce.Do(func() {
-		globalStuckDetector = NewSOPStuckDetector(db, execDispatcher)
+		globalStuckDetector = NewSOPStuckDetector(execDispatcher)
 		globalStuckDetector.Start(context.Background())
 	})
 	return globalStuckDetector

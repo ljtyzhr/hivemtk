@@ -4,8 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/aiagent/embedding"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -48,30 +46,28 @@ func NewLocalConfidenceEmbedder() confidencesvc.Embedder {
 //     传 nil 时回退本地零依赖投影 Embedding，避免 CtxRelev 恒为中性值 0.5
 //
 // 返回全局单例，可多次调用但仅第一次生效
-func InitConfidenceAggregator(db *gorm.DB, embedder confidencesvc.Embedder) *confidencesvc.ConfidenceAggregator {
+func InitConfidenceAggregator(policyRepo *repository.ThresholdPolicyRepository, signalRepo *repository.ConfidenceSignalRepository, calibRepo *repository.ConfidenceCalibrationRepository, embedder confidencesvc.Embedder) *confidencesvc.ConfidenceAggregator {
 	confidenceAggregatorOnce.Do(func() {
-		confidenceAggregator = buildConfidenceAggregator(db, embedder)
+		confidenceAggregator = buildConfidenceAggregator(policyRepo, signalRepo, calibRepo, embedder)
 	})
 	return confidenceAggregator
 }
 
-func buildConfidenceAggregator(db *gorm.DB, embedder confidencesvc.Embedder) *confidencesvc.ConfidenceAggregator {
+func buildConfidenceAggregator(policyRepo *repository.ThresholdPolicyRepository, signalRepo *repository.ConfidenceSignalRepository, calibRepo *repository.ConfidenceCalibrationRepository, embedder confidencesvc.Embedder) *confidencesvc.ConfidenceAggregator {
 	if embedder == nil {
 		embedder = NewLocalConfidenceEmbedder()
 		logger.Warnf("[confidence] embedder 未注入，回退本地零依赖 Embedding 引擎（1024 维随机投影）")
 	}
 	collector := confidencesvc.NewSignalCollector(embedder)
 
-	calibrator := confidencesvc.NewCalibrator(repository.NewConfidenceCalibrationRepositoryWithDB(db))
+	calibrator := confidencesvc.NewCalibrator(calibRepo)
 
 	aggregator := confidencesvc.NewDefaultWeightedAggregator()
 
 	vetoChain := confidencesvc.NewVetoChain()
 
-	policyEngine := confidencesvc.NewThresholdPolicyEngine(repository.NewThresholdPolicyRepositoryWithDB(db))
+	policyEngine := confidencesvc.NewThresholdPolicyEngine(policyRepo)
 	calc := confidencesvc.NewDynamicThresholdCalculator(policyEngine)
-
-	signalRepo := repository.NewConfidenceSignalRepositoryWithDB(db)
 
 	agg := confidencesvc.NewConfidenceAggregator(collector, calibrator, aggregator, vetoChain, calc, signalRepo)
 

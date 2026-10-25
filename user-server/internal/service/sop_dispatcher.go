@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
@@ -216,7 +214,7 @@ func (p *SOPRetryPolicy) Backoff(ctx context.Context, attempt int) time.Duration
 // NewSOPExecutionDispatcher 创建调度器
 //
 // 不会自动启动 Worker，需调用 Start 启动。
-func NewSOPExecutionDispatcher(db *gorm.DB, sopSvc *SOPService, registry *NodeExecutorRegistry, cfg *SOPDispatcherConfig) *SOPExecutionDispatcher {
+func NewSOPExecutionDispatcher(sopSvc *SOPService, registry *NodeExecutorRegistry, cfg *SOPDispatcherConfig) *SOPExecutionDispatcher {
 	if cfg == nil {
 		// cfg 传 nil（cmd/api/main.go:380 就是这么调的）时按参数中心组装，
 		// 读不到才回落 DefaultSOPDispatcherConfig 的常量。
@@ -234,9 +232,9 @@ func NewSOPExecutionDispatcher(db *gorm.DB, sopSvc *SOPService, registry *NodeEx
 
 	d := &SOPExecutionDispatcher{
 		registry:      registry,
-		execRepo:      repository.NewSopExecutionRepository(db),
-		agentRepo:     repository.NewSopAgentRepository(db),
-		eventRepo:     repository.NewSOPExecEventRepository(db),
+		execRepo:      repository.NewSopExecutionRepositoryDefault(),
+		agentRepo:     repository.NewSopAgentRepositoryDefault(),
+		eventRepo:     repository.NewSOPExecEventRepositoryDefault(),
 		msgRepo:       repository.NewSessionMessageRepository(),
 		sessionRepo:   repository.NewCustomerSessionRepository(),
 		sopService:    sopSvc,
@@ -253,7 +251,8 @@ func NewSOPExecutionDispatcher(db *gorm.DB, sopSvc *SOPService, registry *NodeEx
 	}
 
 	deps := &SOPNodeExecutorDeps{
-		DB:          db,
+		ExecRepo:    d.execRepo,
+		TimerRepo:   repository.NewSOPTimerRepositoryDefault(),
 		WSHub:       nil,
 		MsgRepo:     d.msgRepo,
 		SessionRepo: d.sessionRepo,
@@ -928,10 +927,10 @@ var (
 )
 
 // InitSOPExecutionDispatcher 初始化全局调度器
-func InitSOPExecutionDispatcher(db *gorm.DB, sopSvc *SOPService, cfg *SOPDispatcherConfig) *SOPExecutionDispatcher {
+func InitSOPExecutionDispatcher(sopSvc *SOPService, cfg *SOPDispatcherConfig) *SOPExecutionDispatcher {
 	sopDispatcherOnce.Do(func() {
 		registry := NewNodeExecutorRegistry()
-		globalSOPDispatcher = NewSOPExecutionDispatcher(db, sopSvc, registry, cfg)
+		globalSOPDispatcher = NewSOPExecutionDispatcher(sopSvc, registry, cfg)
 		globalSOPDispatcher.Start(context.Background())
 	})
 	return globalSOPDispatcher

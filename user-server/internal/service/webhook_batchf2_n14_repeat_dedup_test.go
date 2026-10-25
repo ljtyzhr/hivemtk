@@ -43,7 +43,7 @@ func TestN14_RepeatedContentWithDistinctWAMIDsIsNotDropped(t *testing.T) {
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
@@ -166,5 +166,5 @@ func n14SetupDingTalk(t *testing.T) (*DingTalkAppService, uint, *gorm.DB) {
 	t.Cleanup(mc.Close)
 	ingress := NewInboxIngressService()
 	ingress.cache = mc
-	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), acc.ID, db
+	return NewDingTalkAppService(&WebhookService{ingressSvc: ingress}), acc.ID, db
 }

@@ -37,7 +37,10 @@ func TestCollectorUpsertDedup(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go func() { defer wg.Done(); c.Emit(Event{Question: "怎么申请退款？", Source: model.UQSourceLowConfidence}) }()
+		go func() {
+			defer wg.Done()
+			c.Emit(Event{Question: "怎么申请退款？", Source: model.UQSourceLowConfidence})
+		}()
 	}
 	wg.Wait()
 

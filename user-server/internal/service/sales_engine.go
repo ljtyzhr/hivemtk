@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type AgentToolExecutor interface {
@@ -99,9 +97,6 @@ func DefaultSalesEngineConfig() *SalesEngineConfig {
 }
 
 func NewSalesEngine(
-
-	db *gorm.DB,
-
 	dispatcher *llm.Dispatcher,
 
 	intent IntentRecognizerInterface,
@@ -119,7 +114,7 @@ func NewSalesEngine(
 ) *SalesEngine {
 	polisher := NewHumanizePolisher()
 	return &SalesEngine{
-		sessionMsgRepo: repository.NewSessionMessageRepositoryWithDB(db),
+		sessionMsgRepo: repository.NewSessionMessageRepository(),
 		dispatcher:     dispatcher,
 		intent:         intent,
 		memory:         memory,

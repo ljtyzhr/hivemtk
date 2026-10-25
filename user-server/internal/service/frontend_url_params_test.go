@@ -17,10 +17,10 @@ func newFrontendURLParamFixture(t *testing.T) *ConfigParamService {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	if err := SeedConfigParams(context.Background(), database); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := NewConfigParamService(database)
+	svc := NewConfigParamService()
 	SetGlobalForTest(svc)
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	return svc
@@ -66,10 +66,10 @@ func TestGetFrontendBaseURLTenantOverride(t *testing.T) {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	if err := SeedConfigParams(context.Background(), database); err != nil {
+	if err := SeedConfigParams(context.Background()); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}
-	svc := NewConfigParamService(database)
+	svc := NewConfigParamService()
 	SetGlobalForTest(svc)
 	t.Cleanup(func() { SetGlobalForTest(nil) })
 	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })

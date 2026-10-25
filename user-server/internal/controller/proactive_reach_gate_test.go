@@ -20,6 +20,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -61,7 +62,7 @@ func newGateWiredReachAPI(t *testing.T, db *gorm.DB, gate service.ReachPreSendCh
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	sent := &[]string{}
-	svc := service.NewProactiveReachService(db, nil)
+	svc := service.NewProactiveReachService(repository.NewProactiveReachRepository(db), repository.NewCustomerDoNotContactRepository(db), nil)
 	svc.SetSMSRegistry(func() (func(ctx context.Context, phone, content, templateID string, params map[string]string) (string, error), error) {
 		return func(_ context.Context, phone, _, _ string, _ map[string]string) (string, error) {
 			*sent = append(*sent, phone)

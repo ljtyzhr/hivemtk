@@ -41,9 +41,9 @@ func NewDouyinCardService(db any) DouyinCardService {
 	gormDB := db.(*gorm.DB)
 	return &douyinCardService{
 		repo:              repository.NewDouyinCardRepository(gormDB),
-		statsService:      NewDouyinCardStatsService(gormDB),
-		shortLinkService:  NewShortLinkService(gormDB),
-		domainPoolService: NewDomainPoolService(gormDB),
+		statsService:      NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(gormDB)),
+		shortLinkService:  NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)),
+		domainPoolService: NewDomainPoolService(repository.NewDomainPoolRepository(gormDB), repository.NewDomainBlacklistRepository(gormDB)),
 		templateService:   template.NewTemplateService("internal/template"),
 	}
 }
@@ -281,7 +281,7 @@ func (s *douyinCardService) GenerateShortLink(ctx context.Context, card *model.D
 	}
 	generateResp, err := s.shortLinkService.GenerateShortCode(ctx, generateReq)
 	if err != nil {
-		return fmt.Errorf("生成短码失败: %v", err)
+		return fmt.Errorf("生成短码失败: %w", err)
 	}
 
 	logger.Infof("生成的短码: %s", generateResp.ShortCode)
@@ -306,7 +306,7 @@ func (s *douyinCardService) GenerateShortLink(ctx context.Context, card *model.D
 
 	shortLinkResp, err := s.shortLinkService.Create(ctx, shortLinkReq)
 	if err != nil {
-		return fmt.Errorf("创建短链失败: %v", err)
+		return fmt.Errorf("创建短链失败: %w", err)
 	}
 
 	logger.Infof("创建的短链ID: %d", shortLinkResp.ID)
@@ -314,14 +314,14 @@ func (s *douyinCardService) GenerateShortLink(ctx context.Context, card *model.D
 	card.ShortLinkID = shortLinkResp.ID
 	_, err = s.repo.Update(ctx, card)
 	if err != nil {
-		return fmt.Errorf("更新卡片短链ID失败: %v", err)
+		return fmt.Errorf("更新卡片短链ID失败: %w", err)
 	}
 
 	logger.Infof("更新卡片短链ID成功: %d", card.ShortLinkID)
 
 	updatedCard, err := s.repo.GetByID(ctx, card.ID)
 	if err != nil {
-		return fmt.Errorf("获取更新后的卡片失败: %v", err)
+		return fmt.Errorf("获取更新后的卡片失败: %w", err)
 	}
 
 	if updatedCard.ShortLinkID != shortLinkResp.ID {

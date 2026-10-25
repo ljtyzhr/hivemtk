@@ -222,7 +222,8 @@ func TestWebhookService_VerifyWechat_WrongSig(t *testing.T) {
 
 func TestWebhookService_Receive_EmptyBody(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	s := NewWebhookService(setupWebhookTestDB(t))
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	r, err := s.Receive(context.Background(), &ReceiveRequest{Channel: ChannelDouyin, AccountID: "a1", Body: nil})
 	if err != nil {
@@ -235,7 +236,7 @@ func TestWebhookService_Receive_EmptyBody(t *testing.T) {
 
 func TestWebhookService_Receive_NoAccount(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	s := NewWebhookService(setupWebhookTestDB(t))
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	r, _ := s.Receive(context.Background(), &ReceiveRequest{Channel: ChannelDouyin, Body: []byte("{}")})
 	if r.Accepted {
@@ -245,8 +246,8 @@ func TestWebhookService_Receive_NoAccount(t *testing.T) {
 
 func TestWebhookService_Receive_Douyin_NoSecretInsecureBypass(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	body := []byte(`{"event_id":"e1","event_type":"message","content":"hi"}`)
 	r, err := s.Receive(context.Background(), &ReceiveRequest{Channel: ChannelDouyin, AccountID: "a1", Body: body})
@@ -263,8 +264,8 @@ func TestWebhookService_Receive_Douyin_NoSecretInsecureBypass(t *testing.T) {
 
 func TestWebhookService_Receive_Duplicate(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	body := []byte(`{"event_id":"dup1","event_type":"message","content":"hi"}`)
 	r1, _ := s.Receive(context.Background(), &ReceiveRequest{Channel: ChannelDouyin, AccountID: "a1", Body: body})
@@ -279,8 +280,8 @@ func TestWebhookService_Receive_Duplicate(t *testing.T) {
 
 func TestWebhookService_Receive_GeneratedEventID(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	body := []byte(`{"content":"hi"}`)
 	r, _ := s.Receive(context.Background(), &ReceiveRequest{Channel: ChannelDouyin, AccountID: "a1", Body: body})
@@ -297,8 +298,8 @@ func TestWebhookService_Receive_GeneratedEventID(t *testing.T) {
 
 func TestWebhookService_Receive_DefaultEventType(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	eventID := fmt.Sprintf("e1-%d", time.Now().UnixNano())
 	body := []byte(fmt.Sprintf(`{"event_id":"%s","content":"hi"}`, eventID))
@@ -313,8 +314,8 @@ func TestWebhookService_Receive_DefaultEventType(t *testing.T) {
 
 func TestWebhookService_Receive_InvalidJSON(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	r, _ := s.Receive(context.Background(), &ReceiveRequest{Channel: ChannelDouyin, AccountID: "a1", Body: []byte("not json")})
 	if r.Accepted {
@@ -331,7 +332,7 @@ func TestWebhookService_Receive_DouyinOfficialSha1(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
 	db := setupWebhookTestDB(t)
 	db.Create(&model.IntegrationAccount{Platform: "douyin", APISecret: "secret123", Status: 1})
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	body := []byte(`{"event_id":"d1","content":"hi"}`)
@@ -348,7 +349,7 @@ func TestWebhookService_Receive_DouyinOfficialSha1(t *testing.T) {
 func TestWebhookService_Receive_HMAC_BadSig(t *testing.T) {
 	db := setupWebhookTestDB(t)
 	db.Create(&model.IntegrationAccount{Platform: "douyin", APISecret: "secret123", Status: 1})
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	body := []byte(`{"event_id":"d1"}`)
@@ -369,7 +370,7 @@ func TestWebhookService_Receive_HMAC_BadSig(t *testing.T) {
 func TestWebhookService_Receive_UnsupportedChannelRejected(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	cases := []struct {
@@ -434,7 +435,8 @@ func TestWebhookService_Receive_UnsupportedChannelRejected(t *testing.T) {
 // TestWebhookService_Receive_EmptyChannelRejected 空渠道不得再被兜底成 custom 收下。
 func TestWebhookService_Receive_EmptyChannelRejected(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	s := NewWebhookService(setupWebhookTestDB(t))
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	r, _ := s.Receive(context.Background(), &ReceiveRequest{AccountID: "a1", Body: []byte(`{"event_id":"no-chan"}`)})
 	if r.Accepted {
@@ -449,7 +451,7 @@ func TestWebhookService_Receive_EmptyChannelRejected(t *testing.T) {
 // 能力闸只是不再受理它们的入站，验签实现留到 D-04 按官方口径替换。
 func TestWebhookService_Verify_GenericHMAC(t *testing.T) {
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 
 	for _, ch := range []WebhookChannel{ChannelKuaishou, ChannelXiaohongshu, ChannelXianyu} {
@@ -484,8 +486,8 @@ func TestWebhookService_Receive_WeCom(t *testing.T) {
 
 func TestWebhookService_Receive_RateLimit(t *testing.T) {
 	t.Setenv("ALLOW_INSECURE_WEBHOOK", "true")
-	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	key := "douyin:rl-test"
 	b := &tokenBucket{capacity: 5, refillRate: 0, tokens: 0, lastRefill: time.Now()}
@@ -554,7 +556,7 @@ func TestWebhookService_GenerateEventID_Stable(t *testing.T) {
 
 func TestWebhookService_DispatchToUnified_InsertsRow(t *testing.T) {
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	um := &model.UnifiedMessage{MessageID: "msg_x", Platform: "douyin", Content: "hi"}
 	if err := s.dispatchToUnified(context.Background(), um); err != nil {
@@ -569,7 +571,7 @@ func TestWebhookService_DispatchToUnified_InsertsRow(t *testing.T) {
 
 func TestWebhookService_HandleJob_MarksProcessed(t *testing.T) {
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	evt := &model.WebhookEvent{Platform: "custom", EventID: "h1", EventType: "message", RawData: "{}", Processed: false}
 	db.Create(evt)
@@ -586,7 +588,7 @@ func TestWebhookService_HandleJob_MarksProcessed(t *testing.T) {
 
 func TestWebhookService_HandleJob_BadJSON(t *testing.T) {
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	evt := &model.WebhookEvent{Platform: "custom", EventID: "h2", EventType: "message"}
 	db.Create(evt)
@@ -601,7 +603,8 @@ func TestWebhookService_HandleJob_BadJSON(t *testing.T) {
 }
 
 func TestWebhookService_QueueLen(t *testing.T) {
-	s := NewWebhookService(setupWebhookTestDB(t))
+	setupWebhookTestDB(t)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	if s.QueueLen(context.Background()) != 0 {
 		t.Errorf("expected empty queue, got %d", s.QueueLen(context.Background()))
@@ -610,7 +613,7 @@ func TestWebhookService_QueueLen(t *testing.T) {
 
 func TestWebhookService_PendingCount(t *testing.T) {
 	db := setupWebhookTestDB(t)
-	s := NewWebhookService(db)
+	s := NewWebhookService()
 	defer s.Stop(context.Background())
 	db.Create(&model.WebhookEvent{Platform: "c", EventID: "p1", EventType: "e", Processed: false})
 	db.Create(&model.WebhookEvent{Platform: "c", EventID: "p2", EventType: "e", Processed: true})

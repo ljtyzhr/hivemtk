@@ -91,12 +91,12 @@ func setupRagRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	ragConfigCtrl := knowledgectrl.NewRagConfigController(ragService)
 	ragConfigCtrl.RegisterRoutes(auth)
 
-	ragMetricsSvc := service.NewRagMetricsService(gormDB)
-	ragHealthSvc := service.NewRagHealthService(gormDB, ragMetricsSvc)
+	ragMetricsSvc := service.NewRagMetricsService(repository.NewRagMetricsRepository(gormDB))
+	ragHealthSvc := service.NewRagHealthService(repository.NewRagHealthRepository(gormDB), ragMetricsSvc)
 	ragHealthCtrl := controller.NewRagHealthController(ragHealthSvc)
 	ragHealthCtrl.RegisterRoutes(auth)
 
-	ragRecallCtrl := controller.NewRagRecallMonitorController(service.NewRagRecallMonitorService(gormDB, 0, 0), ragMetricsSvc)
+	ragRecallCtrl := controller.NewRagRecallMonitorController(service.NewRagRecallMonitorService(repository.NewRagRecallMonitorRepository(gormDB), 0, 0), ragMetricsSvc)
 	ragRecallCtrl.RegisterRoutes(auth)
 }
 
@@ -191,7 +191,7 @@ func setupI18nRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 
 func setupTuningRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	tuning := auth.Group("/admin/tuning")
-	ctrl := controller.NewTuningController(service.NewTuningService(gormDB))
+	ctrl := controller.NewTuningController(service.NewTuningService(repository.NewConfidenceSignalRepositoryWithDB(gormDB), repository.NewConfidenceCalibrationRepositoryWithDB(gormDB), repository.NewThresholdPolicyRepositoryWithDB(gormDB)))
 
 	tuning.GET("/confidence/signals", ctrl.ListConfidenceSignals)
 	tuning.GET("/confidence/signals/:id", ctrl.GetConfidenceSignal)

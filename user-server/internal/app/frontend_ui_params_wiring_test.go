@@ -36,9 +36,9 @@ func TestWiredFrontendUIKeysExistInSeed(t *testing.T) {
 // 断言打在 Probe 上而不是只打「Wire 返回了几条」：后者在键名写错组时也能全绿
 // （Get* 读不到行就回兜底，静默且无声）。
 func TestWireFrontendUIConfigParamsReachesReader(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{})
-	require.NoError(t, appsvc.SeedConfigParams(t.Context(), db))
-	appsvc.SetGlobalForTest(appsvc.NewConfigParamService(db))
+	testutil.NewTestDBOrSkip(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{})
+	require.NoError(t, appsvc.SeedConfigParams(t.Context()))
+	appsvc.SetGlobalForTest(appsvc.NewConfigParamService())
 	// provider 里捕获的是这个 service 实例；置回 nil 让残留闭包回落到无库 stub，
 	// 而不是继续读一条已被本用例改过的行去喂下一个用例。
 	t.Cleanup(func() { appsvc.SetGlobalForTest(nil) })

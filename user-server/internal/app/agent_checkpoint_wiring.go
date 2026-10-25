@@ -58,7 +58,7 @@ func InitAgentCheckpointStore(db *gorm.DB) {
 	}
 	globalAgentCheckpointStoreOnce.Do(func() {
 		globalAgentCheckpointStore = &agentCheckpointStore{
-			repo: service.NewAgentCheckpointRepository(db),
+			repo: repository.NewAgentCheckpointRepository(db),
 		}
 		state := "off"
 		if service.CheckpointEnabled() {

@@ -11,6 +11,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
+
+	"hivemtk-user/internal/repository"
 )
 
 func newDictCtrl() *DictionaryController {
@@ -82,7 +84,7 @@ func TestDictionaryGetDictionaryUnknownParent(t *testing.T) {
 	if database == nil {
 		t.Skip("no test DB")
 	}
-	ctrl := NewDictionaryController(service.NewDictionaryService(database))
+	ctrl := NewDictionaryController(service.NewDictionaryService(repository.NewDictionaryRepository(database)))
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

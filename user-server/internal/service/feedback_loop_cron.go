@@ -42,7 +42,7 @@ func NewFeedbackLoopCron(db *gorm.DB, components *FeedbackLoopComponents) *Feedb
 	go c.runPromptIteratorDaily(context.Background())
 	go c.runBanditConvergence(context.Background())
 	go c.runOptimizerCycle(context.Background())
-	go c.runBanditRewardReflux(context.Background(), db)
+	go c.runBanditRewardReflux(context.Background())
 	return c
 }
 

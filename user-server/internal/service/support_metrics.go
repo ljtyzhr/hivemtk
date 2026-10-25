@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
 )
@@ -21,8 +19,8 @@ type supportMetricsService struct {
 }
 
 // NewSupportMetricsService 构造客服支持度量服务。
-func NewSupportMetricsService(db *gorm.DB) SupportMetricsService {
-	return &supportMetricsService{repo: repository.NewSupportMetricsRepository(db)}
+func NewSupportMetricsService(repo repository.SupportMetricsRepository) SupportMetricsService {
+	return &supportMetricsService{repo: repo}
 }
 
 // Available 数据层是否可用。

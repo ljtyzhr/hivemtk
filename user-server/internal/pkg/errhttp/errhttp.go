@@ -47,17 +47,11 @@ func isNotFoundError(err error) bool {
 	if err == nil {
 		return false
 	}
-	// 上游/渠道失败**不是**"记录不存在"。
-	//
-	// 这一段是必需的：下面的文本判定是"整条错误链里含'不存在'或'not found'就算"，
-	// 而渠道侧的原文常常自带这些词 —— 阿里云短信回
-	// "Specified access key is not found."、腾讯回 "key not found" ——
-	// 于是"密钥填错了"被翻译成 404「记录不存在」，把操作者引去查记录而不是改密钥。
-	//
-	// 判据不能是"文本里有没有 not found"（那正是错的地方），
-	// 必须是错误**自己声明**它是上游失败：带 5xxx 平台/内部类业务码的 BizError
-	// （见 bizerr.IsUpstreamFailure）。service 层用
-	// bizerr.Wrap(bizerr.CodePlatformUnavail, ...) 标记渠道错误。
+	// 上游/渠道失败**不是**"记录不存在"。渠道侧错误原文常自带 "not found"
+	// （如阿里云 "Specified access key is not found."），仅按文本判定会把"密钥填错"
+	// 误翻成 404。因此必须先看错误是否自己声明为上游失败：带 5xxx 平台/内部类
+	// 业务码的 BizError（见 bizerr.IsUpstreamFailure；service 层用
+	// bizerr.Wrap(bizerr.CodePlatformUnavail, ...) 标记）。
 	if bizerr.IsUpstreamFailure(err) {
 		return false
 	}

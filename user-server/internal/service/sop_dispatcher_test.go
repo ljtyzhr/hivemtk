@@ -144,7 +144,7 @@ func TestSOPOutboxDispatcher_ProcessDueTimers_FiresPendingTimers(t *testing.T) {
 		},
 	}
 
-	outbox := NewSOPOutboxDispatcher(db, nil)
+	outbox := NewSOPOutboxDispatcher(nil)
 	outbox.execDispatcher = mockDispatcher
 	outbox.processDueTimers(context.Background())
 
@@ -189,7 +189,7 @@ func TestSOPOutboxDispatcher_ProcessDueTimers_SkipsFutureTimers(t *testing.T) {
 			atomic.AddInt32(&dispatchedCount, 1)
 		},
 	}
-	outbox := NewSOPOutboxDispatcher(db, nil)
+	outbox := NewSOPOutboxDispatcher(nil)
 	outbox.execDispatcher = mockDispatcher
 	outbox.processDueTimers(context.Background())
 
@@ -237,7 +237,7 @@ func TestSOPOutboxDispatcher_ProcessDueTimers_MultiInstanceIdempotent(t *testing
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			o := NewSOPOutboxDispatcher(db, nil)
+			o := NewSOPOutboxDispatcher(nil)
 			o.execDispatcher = mockDispatcher
 			o.processDueTimers(context.Background())
 		}()
@@ -273,7 +273,7 @@ func TestSOPStuckDetector_ScanSkipsRunningExecution(t *testing.T) {
 		},
 	}
 
-	detector := NewSOPStuckDetector(db, nil)
+	detector := NewSOPStuckDetector(nil)
 	detector.execDispatcher = mockDispatcher
 	detector.SetMaxIdleTime(context.Background(), 30*time.Minute)
 	detector.scanStuckExecutions(context.Background())
@@ -317,7 +317,7 @@ func TestSOPStuckDetector_ScanSkipsWaitNodeWithPendingTimer(t *testing.T) {
 		},
 	}
 
-	detector := NewSOPStuckDetector(db, nil)
+	detector := NewSOPStuckDetector(nil)
 	detector.execDispatcher = mockDispatcher
 	detector.SetMaxIdleTime(context.Background(), 30*time.Minute)
 	detector.scanStuckExecutions(context.Background())
@@ -356,7 +356,7 @@ func TestSOPStuckDetector_ScanRecoversTrulyStuckExecution(t *testing.T) {
 		},
 	}
 
-	detector := NewSOPStuckDetector(db, nil)
+	detector := NewSOPStuckDetector(nil)
 	detector.execDispatcher = mockDispatcher
 	detector.SetMaxIdleTime(context.Background(), 30*time.Minute)
 	detector.scanStuckExecutions(context.Background())

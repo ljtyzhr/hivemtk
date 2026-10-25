@@ -332,12 +332,13 @@ func (s *smsService) SendSms(ctx context.Context, req *dto.SmsSendRequest) error
 		return err
 	}
 
-	sentTime, errCode, errMsg, err := s.dispatchToProvider(ctx, req.Phone, req.Content, config.DefaultProvider)
+	sentTime, errCode, errMsg, msgID, err := s.dispatchToProvider(ctx, req.Phone, req.Content, config.DefaultProvider)
 	if err != nil {
 		record.Status = "failed"
 		record.ErrorCode = errCode
 		record.ErrorMsg = errMsg
 		record.SendTime = &time.Time{}
+		record.MsgID = msgID
 		_ = s.repo.UpdateSmsRecord(ctx, record)
 		// 渠道错误必须**声明**自己是上游失败（bizerr 5xxx），不能只把渠道原文抛出去。
 		//
@@ -354,6 +355,7 @@ func (s *smsService) SendSms(ctx context.Context, req *dto.SmsSendRequest) error
 
 	record.SendTime = &sentTime
 	record.Status = "sent"
+	record.MsgID = msgID
 
 	return s.repo.UpdateSmsRecord(ctx, record)
 }
@@ -363,17 +365,20 @@ func (s *smsService) SendSms(ctx context.Context, req *dto.SmsSendRequest) error
 // 存在的意义只是让那一行"failed"在页面与导出里不再是空白。
 const smsErrCodeUnspecified = "unspecified_error"
 
-func (s *smsService) dispatchToProvider(ctx context.Context, phone, content, provider string) (time.Time, string, string, error) {
+// dispatchToProvider 第 4 个返回值是运营商消息号（阿里云 BizId／腾讯 SerialNo／华为 smsId）。
+// 渠道没给时为空串——它落进 SmsRecord.MsgID，是送达回执 webhook 回连台账的唯一 join 键；
+// 失败腿也带回来（部分渠道失败响应里仍带单号，排障时能对上）。
+func (s *smsService) dispatchToProvider(ctx context.Context, phone, content, provider string) (time.Time, string, string, string, error) {
 	var sentTime time.Time
-	var errCode, errMsg string
+	var errCode, errMsg, msgID string
 	var err error
 	switch provider {
 	case "aliyun":
-		sentTime, errCode, errMsg, err = s.sendAliyun(ctx, phone, content)
+		sentTime, errCode, errMsg, msgID, err = s.sendAliyun(ctx, phone, content)
 	case "tencent":
-		sentTime, errCode, errMsg, err = s.sendTencent(ctx, phone, content)
+		sentTime, errCode, errMsg, msgID, err = s.sendTencent(ctx, phone, content)
 	case "huawei":
-		sentTime, errCode, errMsg, err = s.sendHuawei(ctx, phone, content)
+		sentTime, errCode, errMsg, msgID, err = s.sendHuawei(ctx, phone, content)
 	default:
 		err = fmt.Errorf("unknown sms provider: %s", provider)
 	}
@@ -389,16 +394,16 @@ func (s *smsService) dispatchToProvider(ctx context.Context, phone, content, pro
 			errCode = smsErrCodeUnspecified
 		}
 	}
-	return sentTime, errCode, errMsg, err
+	return sentTime, errCode, errMsg, msgID, err
 }
 
-func (s *smsService) sendAliyun(ctx context.Context, phone, content string) (time.Time, string, string, error) {
+func (s *smsService) sendAliyun(ctx context.Context, phone, content string) (time.Time, string, string, string, error) {
 	cfg, err := s.repo.GetAliyunConfig(ctx)
 	if err != nil {
-		return time.Time{}, "", "", err
+		return time.Time{}, "", "", "", err
 	}
 	if cfg.AccessKeyID == "" || cfg.AccessKeySecret == "" {
-		return time.Time{}, "", "", errors.New("aliyun sms config missing")
+		return time.Time{}, "", "", "", errors.New("aliyun sms config missing")
 	}
 
 	apiURL := s.aliyunAPIURL
@@ -443,7 +448,7 @@ func (s *smsService) sendAliyun(ctx context.Context, phone, content string) (tim
 		break
 	}
 	if resp == nil {
-		return time.Time{}, "", "", fmt.Errorf("aliyun sms request failed after retries: %w", lastErr)
+		return time.Time{}, "", "", "", fmt.Errorf("aliyun sms request failed after retries: %w", lastErr)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -455,21 +460,23 @@ func (s *smsService) sendAliyun(ctx context.Context, phone, content string) (tim
 		BizID     string `json:"BizId"`
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
-		return time.Time{}, "", "", fmt.Errorf("decode aliyun response: %w", err)
+		return time.Time{}, "", "", "", fmt.Errorf("decode aliyun response: %w", err)
 	}
 	if result.Code != "OK" {
-		return time.Time{}, result.Code, result.Message, fmt.Errorf("aliyun sms error: %s", result.Message)
+		return time.Time{}, result.Code, result.Message, "", fmt.Errorf("aliyun sms error: %s", result.Message)
 	}
-	return time.Now(), result.Code, result.Message, nil
+	// BizId 是这条短信在阿里云侧的身份，状态报告回执带的就是它——
+	// 不交回台账，回执永远找不到对应的外发行，送达率对不上账。
+	return time.Now(), result.Code, result.Message, result.BizID, nil
 }
 
-func (s *smsService) sendTencent(ctx context.Context, phone, content string) (time.Time, string, string, error) {
+func (s *smsService) sendTencent(ctx context.Context, phone, content string) (time.Time, string, string, string, error) {
 	cfg, err := s.repo.GetTencentConfig(ctx)
 	if err != nil {
-		return time.Time{}, "", "", err
+		return time.Time{}, "", "", "", err
 	}
 	if cfg.SecretID == "" || cfg.SecretKey == "" {
-		return time.Time{}, "", "", errors.New("tencent sms config missing")
+		return time.Time{}, "", "", "", errors.New("tencent sms config missing")
 	}
 
 	apiHost := "sms.tencentcloudapi.com"
@@ -513,7 +520,7 @@ func (s *smsService) sendTencent(ctx context.Context, phone, content string) (ti
 
 	req, err := http.NewRequest("POST", apiURL, strings.NewReader(string(bodyBytes)))
 	if err != nil {
-		return time.Time{}, "", "", err
+		return time.Time{}, "", "", "", err
 	}
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Host", apiHost)
@@ -524,7 +531,7 @@ func (s *smsService) sendTencent(ctx context.Context, phone, content string) (ti
 
 	resp, err := httpclient.Client.Do(req)
 	if err != nil {
-		return time.Time{}, "", "", err
+		return time.Time{}, "", "", "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -536,25 +543,34 @@ func (s *smsService) sendTencent(ctx context.Context, phone, content string) (ti
 				Message string `json:"Message"`
 			} `json:"Error"`
 			RequestID string `json:"RequestId"`
+			// SendStatusSet 按手机号逐条回执；本服务一次只发一个号码，取第一条的
+			// SerialNo 作为消息号（状态报告回执的 message_id 就是它）。
+			SendStatusSet []struct {
+				SerialNo string `json:"SerialNo"`
+			} `json:"SendStatusSet"`
 		} `json:"Response"`
 	}
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		return time.Time{}, "", "", fmt.Errorf("decode tencent response: %w", err)
+		return time.Time{}, "", "", "", fmt.Errorf("decode tencent response: %w", err)
 	}
 	if result.Response.Error.Code != "" {
-		return time.Time{}, result.Response.Error.Code, result.Response.Error.Message,
+		return time.Time{}, result.Response.Error.Code, result.Response.Error.Message, "",
 			fmt.Errorf("tencent sms error: %s", result.Response.Error.Message)
 	}
-	return time.Now(), "OK", "OK", nil
+	serialNo := ""
+	if len(result.Response.SendStatusSet) > 0 {
+		serialNo = result.Response.SendStatusSet[0].SerialNo
+	}
+	return time.Now(), "OK", "OK", serialNo, nil
 }
 
-func (s *smsService) sendHuawei(ctx context.Context, phone, content string) (time.Time, string, string, error) {
+func (s *smsService) sendHuawei(ctx context.Context, phone, content string) (time.Time, string, string, string, error) {
 	cfg, err := s.repo.GetHuaweiConfig(ctx)
 	if err != nil {
-		return time.Time{}, "", "", err
+		return time.Time{}, "", "", "", err
 	}
 	if cfg.AppKey == "" || cfg.AppSecret == "" {
-		return time.Time{}, "", "", errors.New("huawei sms config missing")
+		return time.Time{}, "", "", "", errors.New("huawei sms config missing")
 	}
 
 	apiURL := s.huaweiAPIURL
@@ -570,7 +586,7 @@ func (s *smsService) sendHuawei(ctx context.Context, phone, content string) (tim
 
 	req, err := http.NewRequest("POST", apiURL, strings.NewReader(string(bodyBytes)))
 	if err != nil {
-		return time.Time{}, "", "", err
+		return time.Time{}, "", "", "", err
 	}
 	auth := base64.StdEncoding.EncodeToString([]byte(cfg.AppKey + ":" + cfg.AppSecret))
 	req.Header.Set("Content-Type", "application/json")
@@ -579,7 +595,7 @@ func (s *smsService) sendHuawei(ctx context.Context, phone, content string) (tim
 
 	resp, err := httpclient.Client.Do(req)
 	if err != nil {
-		return time.Time{}, "", "", err
+		return time.Time{}, "", "", "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -587,14 +603,23 @@ func (s *smsService) sendHuawei(ctx context.Context, phone, content string) (tim
 	var result struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
+		// result 按手机号逐条回执；一次只发一个号码，取第一条的 smsId（华为侧
+		// 状态报告回执按它关联）。旧网关不回 result 时为空串，台账行停在 sent。
+		Result []struct {
+			SmsID string `json:"smsId"`
+		} `json:"result"`
 	}
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		return time.Time{}, "", "", fmt.Errorf("decode huawei response: %w", err)
+		return time.Time{}, "", "", "", fmt.Errorf("decode huawei response: %w", err)
 	}
 	if result.Code != "000000" {
-		return time.Time{}, result.Code, result.Message, fmt.Errorf("huawei sms error: %s", result.Message)
+		return time.Time{}, result.Code, result.Message, "", fmt.Errorf("huawei sms error: %s", result.Message)
 	}
-	return time.Now(), "OK", "OK", nil
+	smsID := ""
+	if len(result.Result) > 0 {
+		smsID = result.Result[0].SmsID
+	}
+	return time.Now(), "OK", "OK", smsID, nil
 }
 
 func (s *smsService) ResendSms(ctx context.Context, id uint) error {
@@ -635,11 +660,12 @@ func (s *smsService) ResendSms(ctx context.Context, id uint) error {
 		return err
 	}
 
-	sentTime, errCode, errMsg, err := s.dispatchToProvider(ctx, record.Phone, record.Content, config.DefaultProvider)
+	sentTime, errCode, errMsg, msgID, err := s.dispatchToProvider(ctx, record.Phone, record.Content, config.DefaultProvider)
 	if err != nil {
 		record.Status = "failed"
 		record.ErrorCode = errCode
 		record.ErrorMsg = errMsg
+		record.MsgID = msgID
 		_ = s.repo.UpdateSmsRecord(ctx, record)
 		// 与 SendSms 同一口径：渠道错误必须**声明**自己是上游失败（bizerr 5xxx），
 		// 不能把渠道原文直接抛出去 —— 原文常自带 "not found"，
@@ -652,6 +678,9 @@ func (s *smsService) ResendSms(ctx context.Context, id uint) error {
 
 	record.SendTime = &sentTime
 	record.Status = "sent"
+	// 重发拿到的是新单号，覆盖旧行上的旧值——旧单号对应的那次发送已作废，
+	// 留着会让回执错连到这一行。
+	record.MsgID = msgID
 
 	return s.repo.UpdateSmsRecord(ctx, record)
 }

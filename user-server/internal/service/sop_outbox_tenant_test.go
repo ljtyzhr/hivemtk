@@ -77,7 +77,7 @@ func TestSOPOutboxDispatcher_ProcessDueTimers_FansOutPerTenant(t *testing.T) {
 		},
 	}
 
-	outbox := NewSOPOutboxDispatcher(db, nil)
+	outbox := NewSOPOutboxDispatcher(nil)
 	outbox.execDispatcher = mockDispatcher
 	// 生产同款入口：loop 传的是 context.Background()（无租户）。
 	outbox.processDueTimers(context.Background())
@@ -130,7 +130,7 @@ func TestSOPStuckDetector_Scan_FansOutPerTenant(t *testing.T) {
 		},
 	}
 
-	detector := NewSOPStuckDetector(db, nil)
+	detector := NewSOPStuckDetector(nil)
 	detector.execDispatcher = mockDispatcher
 	detector.SetMaxIdleTime(context.Background(), 30*time.Minute)
 	// 生产同款入口：loop 传的是 context.Background()（无租户）。
@@ -167,7 +167,7 @@ func TestSOPStuckDetector_Scan_OnModeSkipsInactiveTenant(t *testing.T) {
 	}
 
 	var dispatchedCount int32
-	detector := NewSOPStuckDetector(db, nil)
+	detector := NewSOPStuckDetector(nil)
 	detector.execDispatcher = &mockExecDispatcher{
 		dispatchFn: func(task *dispatchTask) { atomic.AddInt32(&dispatchedCount, 1) },
 	}

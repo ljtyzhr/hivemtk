@@ -1,6 +1,6 @@
-// Package apperr 机器可读错误分类（借鉴 catbus errors.ts 模式）。
+// Package apperr 机器可读错误分类。
 //
-// 目标：让调用方（ReAct Agent、MCP 客户端、前端）拿到的不只是文案，还有
+// 目标：让调用方拿到的不只是文案，还有
 // 稳定的错误类别 + 是否可重试 + 下一步建议，驱动自动化决策而不是盲试。
 package apperr
 

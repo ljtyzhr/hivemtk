@@ -9,8 +9,6 @@ import (
 	"hivemtk-user/internal/repository"
 
 	"context"
-
-	"gorm.io/gorm"
 )
 
 // KuaishouCardStatsService 快手卡片统计服务
@@ -19,8 +17,8 @@ type KuaishouCardStatsService struct {
 }
 
 // NewKuaishouCardStatsService 创建快手卡片统计服务实例
-func NewKuaishouCardStatsService(db *gorm.DB) *KuaishouCardStatsService {
-	return &KuaishouCardStatsService{repo: repository.NewKuaishouCardStatsRepository(db)}
+func NewKuaishouCardStatsService(repo repository.KuaishouCardStatsRepository) *KuaishouCardStatsService {
+	return &KuaishouCardStatsService{repo: repo}
 }
 
 // GetCardStats 获取单个快手卡片的统计数据

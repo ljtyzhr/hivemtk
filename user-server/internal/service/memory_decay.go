@@ -6,8 +6,6 @@ import (
 	"runtime/debug"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -130,13 +128,16 @@ func RunMemoryDecayJob(ctx context.Context, repo *repository.MemoryDecayReposito
 // 会 fail-closed（一行也读不到、每小时静默空转），用 SystemScope 强扫则是拿"后台任务"
 // 当万能钥匙、绕开整套隔离。tenant.Fanout 两头都不碰：off 模式给默认租户 ctx，on 模式
 // 逐个租户给 ctx，单租户失败不阻断其余租户（见 fanout.go 的取舍说明）。
-func RunMemoryDecayAllTenants(ctx context.Context, db *gorm.DB, dryRun bool) (*MemoryDecayStats, error) {
+//
+// 五层边界（架构 §3.2）：入口收仓储而不是 *gorm.DB——原实参 db 只用来建
+// MemoryDecayRepository 和喂 tenant.Fanout，而 Fanout 的 db 形参不参与任何查询
+// （隔离靠 ctx 里的租户绑定），于是服务层不再需要句柄。repo 为 nil 时返回零统计。
+func RunMemoryDecayAllTenants(ctx context.Context, repo *repository.MemoryDecayRepository, dryRun bool) (*MemoryDecayStats, error) {
 	stats := &MemoryDecayStats{DryRun: dryRun}
-	if db == nil {
+	if repo == nil {
 		return stats, nil
 	}
-	repo := repository.NewMemoryDecayRepository(db)
-	_, err := tenant.Fanout(ctx, db, func(tctx context.Context, _ uint) (int64, error) {
+	_, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
 		one, jerr := RunMemoryDecayJob(tctx, repo, dryRun)
 		if jerr != nil {
 			return 0, jerr
@@ -153,8 +154,9 @@ func RunMemoryDecayAllTenants(ctx context.Context, db *gorm.DB, dryRun bool) (*M
 }
 
 // StartMemoryDecayLoop L-4：后台周期衰减归档循环（panic recover + 周期 tick）
-// interval <=0 时取默认 1h；ctx 取消时退出；单轮 panic 不终止循环
-func StartMemoryDecayLoop(ctx context.Context, db *gorm.DB, interval time.Duration) {
+// interval <=0 时取默认 1h；ctx 取消时退出；单轮 panic 不终止循环。
+// repo 由装配点（cmd/api/main.go）从句柄构造后注入，本包不再收 *gorm.DB。
+func StartMemoryDecayLoop(ctx context.Context, repo *repository.MemoryDecayRepository, interval time.Duration) {
 	if interval <= 0 {
 		interval = time.Hour
 	}
@@ -171,19 +173,19 @@ func StartMemoryDecayLoop(ctx context.Context, db *gorm.DB, interval time.Durati
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				runMemoryDecayOnce(ctx, db)
+				runMemoryDecayOnce(ctx, repo)
 			}
 		}
 	}()
 }
 
-func runMemoryDecayOnce(ctx context.Context, db *gorm.DB) {
+func runMemoryDecayOnce(ctx context.Context, repo *repository.MemoryDecayRepository) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Errorf("[MemoryDecay] 单轮 panic: %v\n%s", r, debug.Stack())
 		}
 	}()
-	stats, err := RunMemoryDecayAllTenants(ctx, db, false)
+	stats, err := RunMemoryDecayAllTenants(ctx, repo, false)
 	if err != nil {
 		logger.Warnf("[MemoryDecay] 衰减归档失败: %v", err)
 		return

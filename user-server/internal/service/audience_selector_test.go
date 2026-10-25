@@ -17,9 +17,19 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
+
+// newAudienceSelectorForTest 用测试库装配三个源（生产侧走 NewAudienceSelector 的全局句柄）。
+func newAudienceSelectorForTest(database *gorm.DB) *AudienceSelector {
+	return NewAudienceSelectorWithSources(
+		repository.NewCustomerRFMRepositoryWithDB(database),
+		repository.NewCustomerTagAssignmentRepositoryWithDB(database),
+		repository.NewChurnScoreRepository(database),
+	)
+}
 
 func setupAudienceTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -95,7 +105,7 @@ func TestAudience_SelectBySegment(t *testing.T) {
 	seedAudienceRFM(t, database, "c-2", model.RFMSegmentChampion, 90)
 	seedAudienceRFM(t, database, "c-3", model.RFMSegmentLoyal, 80)
 
-	sel, err := NewAudienceSelectorWithDB(database).
+	sel, err := newAudienceSelectorForTest(database).
 		Select(context.Background(), AudienceConfig{Segments: []string{model.RFMSegmentChampion}})
 	if err != nil {
 		t.Fatalf("Select 失败: %v", err)
@@ -116,7 +126,7 @@ func TestAudience_SelectByTag(t *testing.T) {
 	seedAudienceTag(t, database, "c-2", "vip")
 	seedAudienceTag(t, database, "c-3", "normal")
 
-	sel, err := NewAudienceSelectorWithDB(database).
+	sel, err := newAudienceSelectorForTest(database).
 		Select(context.Background(), AudienceConfig{Tags: []string{"vip"}})
 	if err != nil {
 		t.Fatalf("Select 失败: %v", err)
@@ -148,7 +158,7 @@ func TestAudience_ChurnBelowThreshold(t *testing.T) {
 	seedAudienceChurn(t, database, "c-1", 0.10)
 	seedAudienceChurn(t, database, "c-2", 0.90)
 
-	sel, err := NewAudienceSelectorWithDB(database).
+	sel, err := newAudienceSelectorForTest(database).
 		Select(context.Background(), AudienceConfig{MaxPAlive: 0.3})
 	if err != nil {
 		t.Fatalf("Select 失败: %v", err)
@@ -162,7 +172,7 @@ func TestAudience_ChurnBelowThreshold(t *testing.T) {
 func TestAudience_DeadSourceIsNotSilentZero(t *testing.T) {
 	t.Run("表空=源没在跑", func(t *testing.T) {
 		database := setupAudienceTestDB(t)
-		sel, err := NewAudienceSelectorWithDB(database).
+		sel, err := newAudienceSelectorForTest(database).
 			Select(context.Background(), AudienceConfig{MaxPAlive: 0.3})
 		if err != nil {
 			t.Fatalf("Select 失败: %v", err)
@@ -178,7 +188,7 @@ func TestAudience_DeadSourceIsNotSilentZero(t *testing.T) {
 	t.Run("有行但无人符合", func(t *testing.T) {
 		database := setupAudienceTestDB(t)
 		seedAudienceChurn(t, database, "c-1", 0.90)
-		sel, err := NewAudienceSelectorWithDB(database).
+		sel, err := newAudienceSelectorForTest(database).
 			Select(context.Background(), AudienceConfig{MaxPAlive: 0.3})
 		if err != nil {
 			t.Fatalf("Select 失败: %v", err)
@@ -199,7 +209,7 @@ func TestAudience_DeadSourceIsNotSilentZero(t *testing.T) {
 func TestAudience_SegmentSourceDiagnostics(t *testing.T) {
 	t.Run("rfm 表全空", func(t *testing.T) {
 		database := setupAudienceTestDB(t)
-		sel, err := NewAudienceSelectorWithDB(database).
+		sel, err := newAudienceSelectorForTest(database).
 			Select(context.Background(), AudienceConfig{Segments: []string{model.RFMSegmentChampion}})
 		if err != nil {
 			t.Fatalf("Select 失败: %v", err)
@@ -212,7 +222,7 @@ func TestAudience_SegmentSourceDiagnostics(t *testing.T) {
 	t.Run("该层没人", func(t *testing.T) {
 		database := setupAudienceTestDB(t)
 		seedAudienceRFM(t, database, "c-1", model.RFMSegmentLoyal, 70)
-		sel, err := NewAudienceSelectorWithDB(database).
+		sel, err := newAudienceSelectorForTest(database).
 			Select(context.Background(), AudienceConfig{Segments: []string{model.RFMSegmentChampion}})
 		if err != nil {
 			t.Fatalf("Select 失败: %v", err)
@@ -228,7 +238,7 @@ func TestAudience_SegmentSourceDiagnostics(t *testing.T) {
 	t.Run("tag 无人命中", func(t *testing.T) {
 		database := setupAudienceTestDB(t)
 		seedAudienceTag(t, database, "c-1", "vip")
-		sel, err := NewAudienceSelectorWithDB(database).
+		sel, err := newAudienceSelectorForTest(database).
 			Select(context.Background(), AudienceConfig{Tags: []string{"no-such-tag"}})
 		if err != nil {
 			t.Fatalf("Select 失败: %v", err)
@@ -249,7 +259,7 @@ func TestAudience_TwoConditionsIntersect(t *testing.T) {
 	seedAudienceTag(t, database, "c-2", "vip")
 	seedAudienceTag(t, database, "c-3", "vip")
 
-	sel, err := NewAudienceSelectorWithDB(database).
+	sel, err := newAudienceSelectorForTest(database).
 		Select(context.Background(), AudienceConfig{
 			Segments: []string{model.RFMSegmentChampion},
 			Tags:     []string{"vip"},
@@ -267,7 +277,7 @@ func TestAudience_LimitClampedAndTruncated(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			seedAudienceRFM(t, database, "lim-"+strconv.Itoa(i), model.RFMSegmentChampion, 100-i)
 		}
-		sel, err := NewAudienceSelectorWithDB(database).
+		sel, err := newAudienceSelectorForTest(database).
 			Select(context.Background(), AudienceConfig{
 				Segments: []string{model.RFMSegmentChampion},
 				Limit:    2,
@@ -299,7 +309,7 @@ func TestAudience_LimitClampedAndTruncated(t *testing.T) {
 		if err := database.CreateInBatches(rows, 200).Error; err != nil {
 			t.Fatalf("批量 seed 失败: %v", err)
 		}
-		sel, err := NewAudienceSelectorWithDB(database).
+		sel, err := newAudienceSelectorForTest(database).
 			Select(context.Background(), AudienceConfig{
 				Segments: []string{model.RFMSegmentChampion},
 				Limit:    99999,
@@ -322,7 +332,7 @@ func TestAudience_NoConditionSelectsNobody(t *testing.T) {
 	database := setupAudienceTestDB(t)
 	seedAudienceRFM(t, database, "c-1", model.RFMSegmentChampion, 100)
 
-	sel, err := NewAudienceSelectorWithDB(database).Select(context.Background(), AudienceConfig{})
+	sel, err := newAudienceSelectorForTest(database).Select(context.Background(), AudienceConfig{})
 	if err != nil {
 		t.Fatalf("Select 失败: %v", err)
 	}
@@ -343,7 +353,7 @@ func TestAudience_PropagatesQueryError(t *testing.T) {
 	if err := database.Migrator().DropTable(&model.CustomerRFM{}); err != nil {
 		t.Fatalf("drop customer_rfm 失败: %v", err)
 	}
-	_, err := NewAudienceSelectorWithDB(database).
+	_, err := newAudienceSelectorForTest(database).
 		Select(context.Background(), AudienceConfig{Segments: []string{model.RFMSegmentChampion}})
 	if err == nil {
 		t.Fatal("读不到表时 Select 必须返回 err，回 (空, nil) 就是吞错")

@@ -7,10 +7,11 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 )
 
 func TestProactiveReachService_PickChannel_OutboundChannels(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{})
 	customer := &model.Customer{
 		UnifiedID: "phone:13800138000",
 		Phone:     "13800138000",
@@ -44,7 +45,7 @@ func TestProactiveReachService_PickChannel_OutboundChannels(t *testing.T) {
 
 // TestProactiveReachService_PickChannel_NilDB_OutboundChannels 验证 nil DB 下出站渠道仍可用
 func TestProactiveReachService_PickChannel_NilDB_OutboundChannels(t *testing.T) {
-	svc := NewProactiveReachService(nil, &defaultAccountLookup{repo: nil})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &defaultAccountLookup{repo: nil})
 	customer := &model.Customer{
 		UnifiedID: "phone:13800138000",
 		Phone:     "13800138000",
@@ -60,7 +61,7 @@ func TestProactiveReachService_PickChannel_NilDB_OutboundChannels(t *testing.T) 
 
 // TestProactiveReachService_PickChannel_SkipsEmptyIdentity 验证无身份的渠道被跳过
 func TestProactiveReachService_PickChannel_SkipsEmptyIdentity(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{supported: map[string]bool{"wechat": true}})
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{supported: map[string]bool{"wechat": true}})
 	customer := &model.Customer{
 		UnifiedID: "phone:13800138000",
 		Phone:     "13800138000",
@@ -74,7 +75,7 @@ func TestProactiveReachService_PickChannel_SkipsEmptyIdentity(t *testing.T) {
 
 // TestProactiveReachService_PickChannel_UsesAccountLookup 验证需要账号的渠道走 lookup
 func TestProactiveReachService_PickChannel_UsesAccountLookup(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{
 		supported: map[string]bool{"telegram": true},
 		results:   map[string]string{"telegram": "42"},
 	})
@@ -93,7 +94,7 @@ func TestProactiveReachService_PickChannel_UsesAccountLookup(t *testing.T) {
 
 // TestProactiveReachService_PickChannel_NoActiveAccount 验证 lookup 返回空时报错
 func TestProactiveReachService_PickChannel_NoActiveAccount(t *testing.T) {
-	svc := NewProactiveReachService(nil, &mockAccountLookup{
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), &mockAccountLookup{
 		supported: map[string]bool{"telegram": true},
 		results:   map[string]string{"telegram": ""},
 	})

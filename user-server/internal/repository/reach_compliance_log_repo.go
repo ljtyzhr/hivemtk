@@ -13,6 +13,11 @@ type ReachComplianceLogRepository struct {
 	db *gorm.DB
 }
 
+// NewReachComplianceLogRepositoryDefault 默认构造（全局句柄；与传 GetDB() 同语义）。
+func NewReachComplianceLogRepositoryDefault() *ReachComplianceLogRepository {
+	return NewReachComplianceLogRepository(GetDB())
+}
+
 func NewReachComplianceLogRepository(db *gorm.DB) *ReachComplianceLogRepository {
 	return &ReachComplianceLogRepository{db: db}
 }

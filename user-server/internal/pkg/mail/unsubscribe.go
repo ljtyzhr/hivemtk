@@ -1,9 +1,8 @@
 // unsubscribe.go 退订出口的两种表现形态（头部机器可读 + 正文人可读），两条发信路径共用。
 //
-// 为什么放在 mail 包：本项目有两条独立的 SMTP 出口 —— 单封投递走
-// internal/email/service.sendActualEmail，营销群发走 internal/pkg/cron.EmailListCron → 本包。
-// 判据写在任何一条路径的包里，另一条都会各写一份，然后各自漂移；
-// 而"漂移"在合规头上不表现为报错，表现为某些邮件没有退订出口且没人知道。
+// 放在 mail 包的原因：本项目有两条独立的 SMTP 出口（单封投递与营销群发），
+// 判据写进任何一条路径的包里都会被另一条各自复制一份然后漂移；
+// 而漂移在合规头上不表现为报错，表现为某些邮件没有退订出口且没人知道。
 package mail
 
 import (
@@ -14,9 +13,7 @@ import (
 )
 
 // Option 在信真正写出去之前对消息做一次追加设置。
-//
-// 做成可变参数而不是给 SendMail 再加两个 string 形参：本包已有两个调用方
-// （群发 cron 与反馈告警），只有前者需要退订出口，后者不该被迫传空串。
+// 做成可变参数而不是加 string 形参：现有调用方中只有部分需要退订出口。
 type Option func(*gomail.Message)
 
 const (
@@ -28,11 +25,10 @@ const (
 // linkUsable 判"这条链接能不能进头部"。
 //
 // 退订链接的 base 取自 SERVER_BASE_URL —— 一个不由代码产生的值。两道风险各拦一次：
-//   - CR/LF：头部值里出现换行就能在收件人看不见的地方劈出发信行（SMTP 注入面）；
-//   - 非可打印 ASCII 与空格：gomail 会把这种头值编成 RFC 2047 encoded-word
-//     （实测 `=?UTF-8?q?<https://=E4=BE=8B=E5=AD=90...?= =?UTF-8?q?=3Dx>?=`，中间还带空格），
-//     而 List-Unsubscribe 是结构化头，收件端不认 encoded-word。那种头存在等于不存在，
-//     偏偏 List-Unsubscribe-Post 会被读成"承诺了一键退订" —— 静默失效比缺失更难查。
+//   - CR/LF：头部值里出现换行就能劈出发信行（SMTP 注入面）；
+//   - 非可打印 ASCII 与空格：gomail 会把这种头值编成 RFC 2047 encoded-word，
+//     而 List-Unsubscribe 是结构化头，收件端不认 encoded-word —— 那种头存在等于不存在，
+//     且 List-Unsubscribe-Post 会被读成"承诺了一键退订"，静默失效比缺失更难查。
 //
 // 正文页脚用更宽的一条腿（linkReadable）：它不走头编码，中文域名链接照样可点。
 func linkUsable(link string) bool {
@@ -76,9 +72,8 @@ func Unsubscribe(link string) Option {
 }
 
 // AppendUnsubscribeFooter 在正文尾部补一段人可读的退订入口。
-//
-// 只有头部链接的话，收件人在纯文本视图里看不到任何退订字样 —— 而"找不到退订入口"
-// 正是举报（spam complaint）的主要触发条件，举报率才是压域名信誉的那个数。
+// 只有头部链接的话，纯文本视图收件人看不到退订字样，而"找不到退订入口"
+// 正是 spam 举报的主要触发条件。
 func AppendUnsubscribeFooter(body, link string) string {
 	if !linkReadable(link) {
 		return body

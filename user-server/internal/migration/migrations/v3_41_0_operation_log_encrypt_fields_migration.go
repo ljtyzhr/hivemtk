@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// OperationLogEncryptFieldsMigration OPT-SEC-04：operation_logs 敏感字段（IP / User-Agent）
+// OperationLogEncryptFieldsMigration ：operation_logs 敏感字段（IP / User-Agent）
 // 落库加密配套的列宽扩展。
 //
 // dbencrypt.Encrypt 产出 `enc:v1:{base64(AES-256-GCM)}` 密文：

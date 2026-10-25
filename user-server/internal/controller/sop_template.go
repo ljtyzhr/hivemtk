@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/middleware"
@@ -48,6 +49,13 @@ func (c *SOPTemplateController) RegisterRoutes(router *gin.RouterGroup) {
 // @Router    /api/sop-templates [get]
 // List 列表查询
 func (c *SOPTemplateController) List(ctx *gin.Context) {
+	// P0-3：kb_id 不许被静默忽略（同 faq.go List 的同一条判据：
+	// sop_templates 没有 kb_id 归属列，静默丢弃参数 = 显示错数据）。
+	if strings.TrimSpace(ctx.Query("kb_id")) != "" {
+		response.Error(ctx, http.StatusBadRequest,
+			"kb_id 过滤不支持：SOP 模板列表是全局列表（sop_templates 无 kb_id 归属）；按知识库预览请用 GET /api/knowledge-bases/:id/items")
+		return
+	}
 	page, pageSize, err := pagination.Parse(ctx)
 	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())

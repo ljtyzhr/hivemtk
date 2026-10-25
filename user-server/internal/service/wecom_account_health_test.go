@@ -26,7 +26,7 @@ func setupWeComHealthTestDB(t *testing.T) *gorm.DB {
 
 func newWeComHealthService(t *testing.T) (*WeComAccountHealthService, *gorm.DB) {
 	db := setupWeComHealthTestDB(t)
-	return NewWeComAccountHealthService(db), db
+	return NewWeComAccountHealthService(), db
 }
 
 func mkWeComAccount(id uint) *model.WeComAccount {
@@ -892,7 +892,7 @@ func TestSyncAccountState_OnlineRestores(t *testing.T) {
 func TestWeComIntegration_IngestMessage(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, conv, err := integ.IngestMessage(context.Background(), &IngestRequest{
 
 		AccountID:      1,
@@ -920,7 +920,7 @@ func TestWeComIntegration_IngestMessage(t *testing.T) {
 func TestWeComIntegration_IngestAccumulate(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	for i := 0; i < 3; i++ {
 		integ.IngestMessage(context.Background(), &IngestRequest{
 
@@ -945,7 +945,7 @@ func TestWeComIntegration_IngestAccumulate(t *testing.T) {
 func TestWeComIntegration_IngestGroupMessage(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, _, err := integ.IngestMessage(context.Background(), &IngestRequest{
 
 		AccountID:      1,
@@ -968,8 +968,8 @@ func TestWeComIntegration_IngestGroupMessage(t *testing.T) {
 
 // 72. 集成 - 缺 account
 func TestWeComIntegration_MissingAccount(t *testing.T) {
-	_, db := newWeComHealthService(t)
-	integ := NewWeComIntegrationService(db)
+	newWeComHealthService(t)
+	integ := NewWeComIntegrationService()
 	_, _, err := integ.IngestMessage(context.Background(), &IngestRequest{})
 	if err == nil {
 		t.Error("expected error")
@@ -978,8 +978,8 @@ func TestWeComIntegration_MissingAccount(t *testing.T) {
 
 // 73. 集成 - 缺 user
 func TestWeComIntegration_MissingUser(t *testing.T) {
-	_, db := newWeComHealthService(t)
-	integ := NewWeComIntegrationService(db)
+	newWeComHealthService(t)
+	integ := NewWeComIntegrationService()
 	_, _, err := integ.IngestMessage(context.Background(), &IngestRequest{})
 	if err == nil {
 		t.Error("expected error")
@@ -990,7 +990,7 @@ func TestWeComIntegration_MissingUser(t *testing.T) {
 func TestWeComIntegration_AutoMsgID(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, _, err := integ.IngestMessage(context.Background(), &IngestRequest{
 
 		AccountID:      1,
@@ -1009,7 +1009,7 @@ func TestWeComIntegration_AutoMsgID(t *testing.T) {
 func TestWeComIntegration_AutoConvID(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, _, _ := integ.IngestMessage(context.Background(), &IngestRequest{
 
 		AccountID:      1,
@@ -1025,7 +1025,7 @@ func TestWeComIntegration_AutoConvID(t *testing.T) {
 func TestWeComIntegration_Idempotent(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	_, _, _ = integ.IngestMessage(context.Background(), &IngestRequest{
 
 		Content: "x", MsgID: "dup-1",
@@ -1043,7 +1043,7 @@ func TestWeComIntegration_Idempotent(t *testing.T) {
 func TestWeComIntegration_SendMessage(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, err := integ.SendMessage(context.Background(), &WeComSendRequest{
 		AccountID:      1,
 		ExternalUserID: "ext-001",
@@ -1061,7 +1061,7 @@ func TestWeComIntegration_SendMessage(t *testing.T) {
 func TestWeComIntegration_SendAI(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, _ := integ.SendMessage(context.Background(), &WeComSendRequest{
 		AccountID:      1,
 		ExternalUserID: "ext-001",
@@ -1082,7 +1082,7 @@ func TestWeComIntegration_SendQuotaExceeded(t *testing.T) {
 	a1.DailyMsgUsed = 500
 	a1.DailyMsgQuota = 500
 	db.Create(a1)
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	_, err := integ.SendMessage(context.Background(), &WeComSendRequest{
 		AccountID:      1,
 		ExternalUserID: "ext-001",
@@ -1099,7 +1099,7 @@ func TestWeComIntegration_SendBanned(t *testing.T) {
 	a1 := mkWeComAccount(1)
 	a1.LoginState = WeComLoginBanned
 	db.Create(a1)
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	_, err := integ.SendMessage(context.Background(), &WeComSendRequest{
 		AccountID:      1,
 		ExternalUserID: "ext-001",
@@ -1112,8 +1112,8 @@ func TestWeComIntegration_SendBanned(t *testing.T) {
 
 // 81. 集成 - Send 无可用账号
 func TestWeComIntegration_SendNoAccount(t *testing.T) {
-	_, db := newWeComHealthService(t)
-	integ := NewWeComIntegrationService(db)
+	newWeComHealthService(t)
+	integ := NewWeComIntegrationService()
 	_, err := integ.SendMessage(context.Background(), &WeComSendRequest{
 		AccountID:      1,
 		ExternalUserID: "ext-001",
@@ -1128,7 +1128,7 @@ func TestWeComIntegration_SendNoAccount(t *testing.T) {
 func TestWeComIntegration_UpdateStatusBanned(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	integ.UpdateAccountStatus(context.Background(), 1, WeComLoginBanned, "")
 	var a model.WeComAccount
 	db.First(&a, 1)
@@ -1141,7 +1141,7 @@ func TestWeComIntegration_UpdateStatusBanned(t *testing.T) {
 func TestWeComIntegration_UpdateStatusOffline(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	integ.UpdateAccountStatus(context.Background(), 1, WeComLoginOffline, "")
 	var a model.WeComAccount
 	db.First(&a, 1)
@@ -1157,7 +1157,7 @@ func TestWeComIntegration_UpdateStatusOnline(t *testing.T) {
 	a1.Weight = 0
 	a1.LoginState = WeComLoginBanned
 	db.Create(a1)
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	integ.UpdateAccountStatus(context.Background(), 1, WeComLoginOnline, "")
 	var a model.WeComAccount
 	db.First(&a, 1)
@@ -1170,7 +1170,7 @@ func TestWeComIntegration_UpdateStatusOnline(t *testing.T) {
 func TestWeComIntegration_ListAccountsWithHealth(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	list, err := integ.ListAccountsWithHealth(context.Background())
 	if err != nil {
 		t.Fatalf("list: %v", err)
@@ -1186,7 +1186,7 @@ func TestWeComIntegration_ListAccountsWithHealth_Multiple(t *testing.T) {
 	for i := uint(1); i <= 5; i++ {
 		db.Create(mkWeComAccount(i))
 	}
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	list, _ := integ.ListAccountsWithHealth(context.Background())
 	if len(list) != 5 {
 		t.Errorf("expected 5, got %d", len(list))
@@ -1201,7 +1201,7 @@ func TestWeComIntegration_ListAccountsWithHealth_WithHealth(t *testing.T) {
 		AccountID: 1,
 		QuotaUsed: 0, QuotaTotal: 100, SuccessRate: 100, ErrorCount: 0,
 	})
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	list, _ := integ.ListAccountsWithHealth(context.Background())
 	if len(list) != 1 || list[0].Health == nil {
 		t.Error("expected health to be included")
@@ -1212,7 +1212,7 @@ func TestWeComIntegration_ListAccountsWithHealth_WithHealth(t *testing.T) {
 func TestWeComIntegration_ReceiveCallback(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, conv, err := integ.ReceiveCallback(context.Background(), &ReceiveCallbackRequest{
 		AccountID: 1,
 		FromUser:  "ext-001",
@@ -1230,7 +1230,7 @@ func TestWeComIntegration_ReceiveCallback(t *testing.T) {
 func TestWeComIntegration_ReceiveCallbackGroup(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, _, _ := integ.ReceiveCallback(context.Background(), &ReceiveCallbackRequest{
 		AccountID: 1,
 		FromUser:  "ext-002",
@@ -1243,8 +1243,8 @@ func TestWeComIntegration_ReceiveCallbackGroup(t *testing.T) {
 
 // 90. 集成 - ReceiveCallback 缺字段
 func TestWeComIntegration_ReceiveCallbackMissing(t *testing.T) {
-	_, db := newWeComHealthService(t)
-	integ := NewWeComIntegrationService(db)
+	newWeComHealthService(t)
+	integ := NewWeComIntegrationService()
 	_, _, err := integ.ReceiveCallback(context.Background(), &ReceiveCallbackRequest{
 		Content: "x", MsgID: "y",
 	})
@@ -1255,7 +1255,7 @@ func TestWeComIntegration_ReceiveCallbackMissing(t *testing.T) {
 
 // 91. 初始化服务
 func TestInitWeComAccountHealthService(t *testing.T) {
-	svc1 := InitWeComAccountHealthService(nil)
+	svc1 := InitWeComAccountHealthService()
 	svc2 := GetWeComAccountHealthService()
 	if svc1 != svc2 {
 		t.Error("expected same instance")
@@ -1388,7 +1388,7 @@ func TestListHealthHistory_PageSizeLimit(t *testing.T) {
 func TestWeComIntegration_IngestReceivedAt(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	now := time.Now()
 	hubMsg, _, _ := integ.IngestMessage(context.Background(), &IngestRequest{
 
@@ -1416,7 +1416,7 @@ func TestComputeHealthScore_MultipleBounds(t *testing.T) {
 func TestWeComIntegration_SendMedia(t *testing.T) {
 	_, db := newWeComHealthService(t)
 	db.Create(mkWeComAccount(1))
-	integ := NewWeComIntegrationService(db)
+	integ := NewWeComIntegrationService()
 	hubMsg, _ := integ.SendMessage(context.Background(), &WeComSendRequest{
 		AccountID:      1,
 		ExternalUserID: "ext-001",

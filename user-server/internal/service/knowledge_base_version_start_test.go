@@ -75,7 +75,7 @@ func readKBVersion(t *testing.T, database *gorm.DB, id uint) int {
 func TestKBVersionStart_NewKBStartsAtOneOnBothPaths(t *testing.T) {
 	database := setupKBCanaryDB(t)
 	ctx := context.Background()
-	svc := NewKnowledgeBaseService(database)
+	svc := NewKnowledgeBaseService()
 
 	if !dropKBVersionColumnDefault(t, database) {
 		t.Fatal("列默认值没被摘掉 ⇒ 下面两条断言都退化成「DDL 兜的」，本用例什么都没测")
@@ -109,7 +109,7 @@ func TestKBVersionStart_NewKBStartsAtOneOnBothPaths(t *testing.T) {
 func TestKBVersionStart_ExplicitVersionSurvivesTheFold(t *testing.T) {
 	database := setupKBCanaryDB(t)
 	ctx := context.Background()
-	svc := NewKnowledgeBaseService(database)
+	svc := NewKnowledgeBaseService()
 	if !dropKBVersionColumnDefault(t, database) {
 		t.Fatal("列默认值没被摘掉 ⇒ 显式号与默认号分不开，本用例什么都没测")
 	}

@@ -29,7 +29,7 @@ func newKBHandlerRouter(t *testing.T) (*gin.Engine, *gorm.DB, uint) {
 	gin.SetMode(gin.TestMode)
 	// rag_answer_cache 也要建：KBVersionInfo 会数各命名空间的行数，缺表就是 500。
 	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.AgentKBBinding{}, &model.RAGAnswerCache{})
-	ctrl := &KnowledgeBaseController{svc: service.NewKnowledgeBaseService(database)}
+	ctrl := &KnowledgeBaseController{svc: service.NewKnowledgeBaseService()}
 	router := gin.New()
 	// 与 router/service_routes.go 同一前缀挂法（/api/knowledge-bases）。
 	ctrl.RegisterRoutes(router.Group("/api"))

@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// 变更审计里的改前/改后值默认加密落库（OPT-SEC-04 残项，与 api_logs 同一把钥匙）。
+// 变更审计里的改前/改后值默认加密落库（残项，与 api_logs 同一把钥匙）。
 //
 // 为什么审计表也要加密：config_params 里存着 API Key 一类的敏感参数（见
 // config_param_group_key_unique 的复合唯一键分组），明文留痕等于把当前与历史
@@ -30,13 +30,18 @@ func encryptAuditValues(oldValue, newValue string) (string, string) {
 //
 // 与 0.4 的 ErrKVStoreUnavailable / 0.5 的 ErrSystemConfigStoreUnavailable 同一口径：
 // 返回 error 而不是让 gorm 的 nil DB 在 WithContext 上 panic。装配顺序出错
-// （setupConfigParamRoutes 早于 SeedConfigParams、或 NewConfigParamService(nil)）时
+// （setupConfigParamRoutes 早于 SeedConfigParams、或 NewConfigParamService()）时
 // 这条路径必然被走到，panic 会把一次配置面故障放大成整站起不来。
 var ErrConfigParamStoreUnavailable = errors.New("config_params: 未装配数据库句柄")
 
 // ConfigParamRepository 动态参数仓储
 type ConfigParamRepository struct {
 	db *gorm.DB
+}
+
+// NewConfigParamRepositoryDefault 默认构造（全局句柄；与传 GetDB() 同语义）。
+func NewConfigParamRepositoryDefault() *ConfigParamRepository {
+	return NewConfigParamRepository(GetDB())
 }
 
 func NewConfigParamRepository(db *gorm.DB) *ConfigParamRepository {

@@ -9,27 +9,24 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
+// MessageHubSummaryAggregationService message_hub → msg_hourly_summary 小时聚合。
+//
+// 五层边界（架构 §3.2）：本服务只持仓储，不持 *gorm.DB。原构造器收 db 只为
+// 建一个仓储，另外存下来供租户扇出用——而 tenant.Fanout 的 db 形参实际未被使用
+// （扇出只认 ctx 里的租户绑定），所以句柄整体去掉，装配点给仓储即可。
 type MessageHubSummaryAggregationService struct {
 	repo      repository.MessageHubSummaryRepository
 	batchSize int
-	db        *gorm.DB
 }
 
-func NewMessageHubSummaryAggregationService(database *gorm.DB) *MessageHubSummaryAggregationService {
+// NewMessageHubSummaryAggregationService 由装配点注入仓储（句柄到仓储的转换在装配层完成）。
+func NewMessageHubSummaryAggregationService(repo repository.MessageHubSummaryRepository) *MessageHubSummaryAggregationService {
 	return &MessageHubSummaryAggregationService{
-		repo:      repository.NewMessageHubSummaryRepository(database),
+		repo:      repo,
 		batchSize: 50000,
-		db:        database,
 	}
-}
-
-// GetDB 返回底层 DB（用于租户扇出场景）
-func (s *MessageHubSummaryAggregationService) GetDB() *gorm.DB {
-	return s.db
 }
 
 // RunOnce 消费自上次水位线以来的全部新消息并累加进 summary 表。
@@ -124,12 +121,12 @@ var hubSummaryAggCronInst *hubSummaryAggCron
 // StartMessageHubSummaryAggCron 由 main 显式调用（原 init() 副作用装配的是 nil DB：
 // repo 非空但句柄为空 ⇒ RunOnce 每 5 分钟报一次 invalid db，水位线永不推进，
 // msg_hourly_summary 在任何真实进程里从未产出行）。
-// database 为空时不装配：宁可没有汇总，也不要再起一个只会报错的哑 cron。
-func StartMessageHubSummaryAggCron(database *gorm.DB) {
-	if database == nil || hubSummaryAggCronInst != nil {
+// repo 为 nil（装配点没拿到 DB）时不装配：宁可没有汇总，也不要再起一个只会报错的哑 cron。
+func StartMessageHubSummaryAggCron(repo repository.MessageHubSummaryRepository) {
+	if repo == nil || hubSummaryAggCronInst != nil {
 		return
 	}
-	hubSummaryAggCronInst = startHubSummaryAggCron(NewMessageHubSummaryAggregationService(database))
+	hubSummaryAggCronInst = startHubSummaryAggCron(NewMessageHubSummaryAggregationService(repo))
 }
 
 func startHubSummaryAggCron(svc *MessageHubSummaryAggregationService) *hubSummaryAggCron {
@@ -151,9 +148,11 @@ func (c *hubSummaryAggCron) run(ctx context.Context) {
 		case <-c.stopCh:
 			return
 		case <-ticker.C:
-			// 多租户模式下，需以租户扇出方式逐租户执行聚合
+			// 多租户模式下，需以租户扇出方式逐租户执行聚合。
+			// Fanout 的 db 形参不参与任何查询（隔离靠 ctx 里的租户绑定，
+			// 见 pkg/tenant/fanout.go），服务层因此没有理由再握一个句柄传进来。
 			if tenant.IsMultiTenant() {
-				_, _ = tenant.Fanout(ctx, c.svc.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+				_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
 					return c.svc.RunOnce(ctx)
 				})
 			} else {

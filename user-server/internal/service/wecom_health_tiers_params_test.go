@@ -99,7 +99,7 @@ func TestRuntimeWeComSuccessRateTiersClampsOutOfOrder(t *testing.T) {
 			}
 		}
 		// 冷缓存：参数服务按 group.key 缓存 60s，否则读到上一格的旧值。
-		SetGlobalForTest(NewConfigParamService(db))
+		SetGlobalForTest(NewConfigParamService())
 	}
 
 	cases := []struct {
@@ -149,7 +149,7 @@ func TestRuntimeWeComQuotaTiersClampsOutOfOrder(t *testing.T) {
 				t.Fatalf("写 %s=%s 失败：%v", kv[0], kv[1], err)
 			}
 		}
-		SetGlobalForTest(NewConfigParamService(db))
+		SetGlobalForTest(NewConfigParamService())
 	}
 
 	cases := []struct {

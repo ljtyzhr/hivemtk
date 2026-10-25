@@ -42,8 +42,8 @@ func NewKuaishouCardService(db any) KuaishouCardService {
 	gormDB := db.(*gorm.DB)
 	return &kuaishouCardService{
 		repo:              repository.NewKuaishouCardRepository(gormDB),
-		shortLinkService:  NewShortLinkService(gormDB),
-		domainPoolService: NewDomainPoolService(gormDB),
+		shortLinkService:  NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)),
+		domainPoolService: NewDomainPoolService(repository.NewDomainPoolRepository(gormDB), repository.NewDomainBlacklistRepository(gormDB)),
 		templateService:   template.NewTemplateService("internal/template"),
 	}
 }

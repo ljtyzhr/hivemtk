@@ -17,6 +17,11 @@ type liveCodeClickLogRepository struct {
 	db *gorm.DB
 }
 
+// NewLiveCodeClickLogRepositoryDefault 默认构造（全局句柄）。
+func NewLiveCodeClickLogRepositoryDefault() LiveCodeClickLogRepository {
+	return NewLiveCodeClickLogRepository(GetDB())
+}
+
 func NewLiveCodeClickLogRepository(db *gorm.DB) LiveCodeClickLogRepository {
 	return &liveCodeClickLogRepository{db: db}
 }

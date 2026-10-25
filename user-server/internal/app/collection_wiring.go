@@ -86,8 +86,22 @@ func InitCollectionRuntime(db *gorm.DB) *service.CollectionJob {
 	// 变量名带 collection 前缀是给台账门看的：项15 用 `AttachReachGate(reach)` 锁定
 	// 挽回队列那一个装配点，这边若同名，两个装配点在 grep 里就分不开（"只装了一边"
 	// 正是这一族最容易发生又最难发现的漏法）。
-	collectionReach := service.NewProactiveReachService(db, nil)
-	service.BindProactiveReachSenders(collectionReach, db)
+	// 仓储与外发腿都在这里构造，service 只拿对象（不拿 DB 句柄，见五层架构 §3.2）。
+	collectionReach := service.NewProactiveReachService(
+		repository.NewProactiveReachRepository(db),
+		repository.NewCustomerDoNotContactRepository(db),
+		nil,
+	)
+	service.BindProactiveReachSenders(collectionReach, service.ProactiveReachSenderSet{
+		Telegram: service.NewTelegramIntegrationService(repository.NewTelegramAccountRepositoryWithDB(db)),
+		WhatsApp: service.NewWhatsAppCloudIntegrationService(repository.NewWhatsAppCloudAccountRepositoryWithDB(db)),
+		Feishu: service.NewFeishuIntegrationService(
+			repository.NewFeishuAccountRepositoryWithDB(db),
+			repository.NewFeishuMessageRepositoryWithDB(db),
+		),
+		WeCom:  service.NewWeComIntegrationService(),
+		Wechat: service.NewWechatService(),
+	})
 	gated := AttachReachGate(collectionReach)
 	if !gated {
 		LogReachGateSkippedAssemblyPoint("app.InitCollectionRuntime")

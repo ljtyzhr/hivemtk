@@ -28,6 +28,11 @@ type liveCodeQRRepository struct {
 	db *gorm.DB
 }
 
+// NewLiveCodeQRRepositoryDefault 默认构造（全局句柄）。
+func NewLiveCodeQRRepositoryDefault() LiveCodeQRRepository {
+	return NewLiveCodeQRRepository(GetDB())
+}
+
 func NewLiveCodeQRRepository(db *gorm.DB) LiveCodeQRRepository {
 	return &liveCodeQRRepository{db: db}
 }

@@ -6,35 +6,40 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 )
 
 // AssetStoreService 商店化域服务
 type AssetStoreService struct {
-	db *gorm.DB
+	repo *repository.AssetStoreRepository
 }
 
-// NewAssetStoreService 构造
-func NewAssetStoreService(db *gorm.DB) *AssetStoreService {
-	return &AssetStoreService{db: db}
+// NewAssetStoreService 构造（句柄由 repository 自取全局库）
+func NewAssetStoreService() *AssetStoreService {
+	return &AssetStoreService{repo: repository.NewAssetStoreRepositoryDefault()}
 }
 
 // AssetStoreSubmitLimit 7 天提审限额（Chrome Web Store 新账号限额对齐）
 const AssetStoreSubmitLimit = 10
+
+// storeCtx 本域对外签名不带 ctx（既有调用面），查询按无超时上下文发出——
+// 与下沉前"s.db 直连（不带 ctx）"的行为一致。
+func storeCtx() context.Context { return context.Background() }
 
 // CreateListing 创建上架单（draft）
 func (s *AssetStoreService) CreateListing(tenantID, contributorID uint, assetCode, assetType, name, industry, summary string, policy, permissions []byte) (*model.AssetListing, error) {
 	if assetCode == "" || assetType == "" || name == "" {
 		return nil, errors.New("asset_code/asset_type/name 不能为空")
 	}
-	var cnt int64
-	if err := s.db.Model(&model.AssetListing{}).Where("asset_code = ?", assetCode).Count(&cnt).Error; err != nil {
+	ctx := storeCtx()
+	cnt, err := s.repo.CountListingsByCode(ctx, assetCode)
+	if err != nil {
 		return nil, err
 	}
 	if cnt > 0 {
@@ -52,7 +57,7 @@ func (s *AssetStoreService) CreateListing(tenantID, contributorID uint, assetCod
 		PolicyDeclaration:      policy,
 		PermissionDeclarations: permissions,
 	}
-	if err := s.db.Create(l).Error; err != nil {
+	if err := s.repo.CreateListing(ctx, l); err != nil {
 		return nil, err
 	}
 	return l, nil
@@ -61,20 +66,17 @@ func (s *AssetStoreService) CreateListing(tenantID, contributorID uint, assetCod
 // SubmitListing 提审：draft/rejected → submitted。
 // 政策声明是提审前置必填（GPT Store attestation）；7 天提审限额拦截。
 func (s *AssetStoreService) SubmitListing(tenantID uint, listingID int64) error {
-	var l model.AssetListing
-	if err := s.db.Where("id = ? AND tenant_id = ?", listingID, tenantID).First(&l).Error; err != nil {
+	ctx := storeCtx()
+	l, err := s.repo.GetListing(ctx, tenantID, listingID)
+	if err != nil {
 		return fmt.Errorf("上架单不存在: %w", err)
 	}
 	if len(l.PolicyDeclaration) == 0 {
 		return errors.New("提审前必须填写政策声明（数据收集项与用途）")
 	}
 	// 发布限额：该贡献者 7 天内提交数
-	var weekCnt int64
-	weekAgo := time.Now().AddDate(0, 0, -7)
-	if err := s.db.Model(&model.AssetVersion{}).
-		Where("tenant_id = ? AND created_at >= ?", tenantID, weekAgo).
-		Where("listing_id IN (?)", s.db.Model(&model.AssetListing{}).Select("id").Where("contributor_id = ?", l.ContributorID)).
-		Count(&weekCnt).Error; err != nil {
+	weekCnt, err := s.repo.CountVersionsSince(ctx, tenantID, l.ContributorID, time.Now().AddDate(0, 0, -7))
+	if err != nil {
 		return err
 	}
 	if weekCnt >= AssetStoreSubmitLimit {
@@ -85,26 +87,27 @@ func (s *AssetStoreService) SubmitListing(tenantID uint, listingID int64) error 
 	}
 	// 版本行（每次提审一行，不可变）
 	v := &model.AssetVersion{
-		TenantID: tenantID,
+		TenantID:  tenantID,
 		ListingID: l.ID,
-		Version:  time.Now().Format("2006.01.02.150405"),
-		Status:   model.AssetListingSubmitted,
+		Version:   time.Now().Format("2006.01.02.150405"),
+		Status:    model.AssetListingSubmitted,
 	}
-	if err := s.db.Create(v).Error; err != nil {
+	if err := s.repo.CreateVersion(ctx, v); err != nil {
 		return fmt.Errorf("创建版本记录失败: %w", err)
 	}
-	return s.db.Model(&l).Updates(map[string]any{
+	return s.repo.UpdateListingByID(ctx, l, map[string]any{
 		"status":             model.AssetListingSubmitted,
 		"reject_reason":      "",
 		"current_version_id": v.ID,
-	}).Error
+	})
 }
 
 // TransitionListing 状态跃迁（审核动作收口；to 状态合法性单点判定）。
 // reviewerID/reason 供审核链路写入。
 func (s *AssetStoreService) TransitionListing(tenantID uint, listingID int64, to string, reviewerID int64, reason string) error {
-	var l model.AssetListing
-	if err := s.db.Where("id = ? AND tenant_id = ?", listingID, tenantID).First(&l).Error; err != nil {
+	ctx := storeCtx()
+	l, err := s.repo.GetListing(ctx, tenantID, listingID)
+	if err != nil {
 		return fmt.Errorf("上架单不存在: %w", err)
 	}
 	if !model.AssetListingTransitionAllowed(l.Status, to) {
@@ -112,24 +115,22 @@ func (s *AssetStoreService) TransitionListing(tenantID uint, listingID int64, to
 	}
 	now := time.Now()
 	updates := map[string]any{
-		"status":       to,
-		"reviewed_by":  reviewerID,
-		"reviewed_at":  now,
+		"status":        to,
+		"reviewed_by":   reviewerID,
+		"reviewed_at":   now,
 		"reject_reason": reason,
 	}
 	if to == model.AssetListingPublished {
 		updates["reject_reason"] = ""
 		// 版本级同步发布
 		if l.CurrentVersionID > 0 {
-			_ = s.db.Model(&model.AssetVersion{}).
-				Where("id = ? AND tenant_id = ?", l.CurrentVersionID, tenantID).
-				Updates(map[string]any{"status": model.AssetListingPublished, "published_at": now, "reviewed_by": reviewerID}).Error
+			_ = s.repo.PublishVersion(ctx, tenantID, l.CurrentVersionID, reviewerID, now)
 		}
 	}
 	if to == model.AssetListingRejected && reason == "" {
 		return errors.New("驳回必须填写理由")
 	}
-	return s.db.Model(&l).Updates(updates).Error
+	return s.repo.UpdateListingByID(ctx, l, updates)
 }
 
 // ReviewQueue 审核队列（平台后台）：submitted/auto_check/manual_review
@@ -140,20 +141,7 @@ func (s *AssetStoreService) ReviewQueue(assetType string, page, pageSize int) ([
 	if pageSize <= 0 || pageSize > 100 {
 		pageSize = 20
 	}
-	q := s.db.Model(&model.AssetListing{}).
-		Where("status IN ?", []string{model.AssetListingSubmitted, model.AssetListingAutoCheck, model.AssetListingManualReview})
-	if assetType != "" {
-		q = q.Where("asset_type = ?", assetType)
-	}
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var out []model.AssetListing
-	if err := q.Order("updated_at ASC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&out).Error; err != nil {
-		return nil, 0, err
-	}
-	return out, total, nil
+	return s.repo.ReviewQueue(storeCtx(), assetType, page, pageSize)
 }
 
 // Rate 评分（purchase 门槛：purchase_id 必须能对应到该用户在 local_assets 的购买记录）。
@@ -162,11 +150,10 @@ func (s *AssetStoreService) Rate(tenantID uint, listingID, userID, purchaseID in
 	if score < 1 || score > 5 {
 		return errors.New("评分必须在 1-5 之间")
 	}
+	ctx := storeCtx()
 	// purchase 门槛：purchase_id 归属当前用户
-	var pc int64
-	if err := s.db.Model(&model.LocalAsset{}).
-		Where("tenant_id = ? AND purchase_id = ? AND source = ?", tenantID, purchaseID, model.AssetSourcePurchased).
-		Count(&pc).Error; err != nil {
+	pc, err := s.repo.CountPurchasedLocalAsset(ctx, tenantID, purchaseID)
+	if err != nil {
 		return err
 	}
 	if pc == 0 {
@@ -182,12 +169,11 @@ func (s *AssetStoreService) Rate(tenantID uint, listingID, userID, purchaseID in
 		Status:     "visible",
 	}
 	// upsert：一人一评可更新
-	if err := s.db.Where("listing_id = ? AND user_id = ? AND tenant_id = ?", listingID, userID, tenantID).
-		FirstOrCreate(r).Error; err != nil {
+	if err := s.repo.FindOrCreateRating(ctx, r); err != nil {
 		return err
 	}
 	if r.ID > 0 && (r.Score != score || r.Comment != comment) {
-		if err := s.db.Model(r).Updates(map[string]any{"score": score, "comment": comment}).Error; err != nil {
+		if err := s.repo.UpdateRating(ctx, r, score, comment); err != nil {
 			return err
 		}
 	}
@@ -195,18 +181,12 @@ func (s *AssetStoreService) Rate(tenantID uint, listingID, userID, purchaseID in
 }
 
 func (s *AssetStoreService) recalcRating(tenantID uint, listingID int64) error {
-	var avg struct {
-		Avg float64 `json:"avg"`
-		Cnt int64   `json:"cnt"`
-	}
-	if err := s.db.Model(&model.AssetRating{}).
-		Select("COALESCE(AVG(score),0) AS avg, COUNT(*) AS cnt").
-		Where("listing_id = ? AND tenant_id = ? AND status = ?", listingID, tenantID, "visible").
-		Scan(&avg).Error; err != nil {
+	ctx := storeCtx()
+	avg, cnt, err := s.repo.RatingAggregate(ctx, tenantID, listingID)
+	if err != nil {
 		return err
 	}
-	return s.db.Model(&model.AssetListing{}).Where("id = ? AND tenant_id = ?", listingID, tenantID).
-		Updates(map[string]any{"rating_avg": avg.Avg, "rating_count": int(avg.Cnt)}).Error
+	return s.repo.UpdateListing(ctx, tenantID, listingID, map[string]any{"rating_avg": avg, "rating_count": int(cnt)})
 }
 
 // Report 举报（幂等：同 user+listing+category 存在未结单举报则去重）
@@ -215,10 +195,9 @@ func (s *AssetStoreService) Report(tenantID uint, listingID, reporterID int64, c
 	if !validCats[category] {
 		return nil, fmt.Errorf("非法举报分类: %s", category)
 	}
-	var cnt int64
-	if err := s.db.Model(&model.AssetReport{}).
-		Where("listing_id = ? AND reporter_id = ? AND category = ? AND status = ? AND tenant_id = ?", listingID, reporterID, category, model.AssetReportOpen, tenantID).
-		Count(&cnt).Error; err != nil {
+	ctx := storeCtx()
+	cnt, err := s.repo.CountOpenReports(ctx, tenantID, listingID, reporterID, category)
+	if err != nil {
 		return nil, err
 	}
 	if cnt > 0 {
@@ -232,7 +211,7 @@ func (s *AssetStoreService) Report(tenantID uint, listingID, reporterID int64, c
 		Detail:     detail,
 		Status:     model.AssetReportOpen,
 	}
-	if err := s.db.Create(r).Error; err != nil {
+	if err := s.repo.CreateReport(ctx, r); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -240,8 +219,9 @@ func (s *AssetStoreService) Report(tenantID uint, listingID, reporterID int64, c
 
 // HandleReport 举报处理：confirmed 触发 suspended；dismissed 结单。
 func (s *AssetStoreService) HandleReport(tenantID uint, reportID int64, handlerID int64, confirm bool, reason string) error {
-	var r model.AssetReport
-	if err := s.db.Where("id = ? AND tenant_id = ?", reportID, tenantID).First(&r).Error; err != nil {
+	ctx := storeCtx()
+	r, err := s.repo.GetReport(ctx, tenantID, reportID)
+	if err != nil {
 		return fmt.Errorf("举报不存在: %w", err)
 	}
 	if r.Status != model.AssetReportOpen {
@@ -255,7 +235,7 @@ func (s *AssetStoreService) HandleReport(tenantID uint, reportID int64, handlerI
 			return fmt.Errorf("下架失败: %w", err)
 		}
 	}
-	return s.db.Model(&r).Updates(map[string]any{"status": status, "handled_by": handlerID, "handled_at": now}).Error
+	return s.repo.UpdateReport(ctx, r, map[string]any{"status": status, "handled_by": handlerID, "handled_at": now})
 }
 
 // ReportUsage 用量归因上报：(listing_id, extension_key, period) 唯一键 upsert 累加。
@@ -270,22 +250,20 @@ func (s *AssetStoreService) ReportUsage(tenantID uint, listingID int64, extensio
 	if usageDelta <= 0 {
 		return errors.New("usage_delta 必须为正数")
 	}
+	ctx := storeCtx()
 	period := time.Now().Format("2006-01")
-	var row model.ExtensionUsageMonthly
-	err := s.db.Where("listing_id = ? AND extension_key = ? AND period = ? AND tenant_id = ?", listingID, extensionKey, period, tenantID).
-		First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		row = model.ExtensionUsageMonthly{
-			TenantID: tenantID, ListingID: listingID, ExtensionKey: extensionKey,
-			Period: period, TenantCode: tenantCode, UsageCount: usageDelta,
-			SettleStatus: model.ExtensionSettlePending,
-		}
-		return s.db.Create(&row).Error
-	}
+	row, found, err := s.repo.FindUsageMonthly(ctx, tenantID, listingID, extensionKey, period)
 	if err != nil {
 		return err
 	}
-	return s.db.Model(&row).UpdateColumn("usage_count", gorm.Expr("usage_count + ?", usageDelta)).Error
+	if !found {
+		return s.repo.CreateUsageMonthly(ctx, &model.ExtensionUsageMonthly{
+			TenantID: tenantID, ListingID: listingID, ExtensionKey: extensionKey,
+			Period: period, TenantCode: tenantCode, UsageCount: usageDelta,
+			SettleStatus: model.ExtensionSettlePending,
+		})
+	}
+	return s.repo.IncrUsageMonthly(ctx, row, usageDelta)
 }
 
 // Attribution 月账查询（平台后台对账）
@@ -296,19 +274,7 @@ func (s *AssetStoreService) Attribution(period string, page, pageSize int) ([]mo
 	if pageSize <= 0 || pageSize > 200 {
 		pageSize = 50
 	}
-	q := s.db.Model(&model.ExtensionUsageMonthly{})
-	if period != "" {
-		q = q.Where("period = ?", period)
-	}
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var out []model.ExtensionUsageMonthly
-	if err := q.Order("usage_count DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&out).Error; err != nil {
-		return nil, 0, err
-	}
-	return out, total, nil
+	return s.repo.ListUsage(storeCtx(), period, page, pageSize)
 }
 
 // ListReports 举报列表（平台后台）
@@ -319,25 +285,10 @@ func (s *AssetStoreService) ListReports(status string, page, pageSize int) ([]mo
 	if pageSize <= 0 || pageSize > 100 {
 		pageSize = 20
 	}
-	q := s.db.Model(&model.AssetReport{})
-	if status != "" {
-		q = q.Where("status = ?", status)
-	}
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var out []model.AssetReport
-	if err := q.Order("id DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&out).Error; err != nil {
-		return nil, 0, err
-	}
-	return out, total, nil
+	return s.repo.ListReports(storeCtx(), status, page, pageSize)
 }
 
 // Versions 版本列表（版本号/changelog/发布时间）
 func (s *AssetStoreService) Versions(tenantID uint, listingID int64) ([]model.AssetVersion, error) {
-	var out []model.AssetVersion
-	err := s.db.Where("listing_id = ? AND tenant_id = ?", listingID, tenantID).
-		Order("id DESC").Find(&out).Error
-	return out, err
+	return s.repo.ListVersions(storeCtx(), tenantID, listingID)
 }

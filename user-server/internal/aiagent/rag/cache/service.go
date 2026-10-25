@@ -55,7 +55,7 @@ func (s *FAQAnswerCacheService) Lookup(ctx context.Context, req LookupRequest) (
 		ragRecallTotal.WithLabel("tier1", "false").Inc()
 	} else if e != nil && s.fresh(ctx, e) {
 		ragRecallTotal.WithLabel("tier1", "true").Inc()
-	return &LookupResult{Tier: TierExact, Answer: e.Answer, Similarity: 1}, nil
+		return &LookupResult{Tier: TierExact, Answer: e.Answer, Similarity: 1}, nil
 	} else {
 		ragRecallTotal.WithLabel("tier1", "false").Inc()
 	}

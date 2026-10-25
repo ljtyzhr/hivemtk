@@ -20,7 +20,7 @@ func TestDispatchWhatsApp_IngressDoesNotTriggerAI(t *testing.T) {
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
-	svc := NewWebhookService(db)
+	svc := NewWebhookService()
 	defer svc.Stop(context.Background())
 
 	mc := newIsolatedCacheForTest(t)

@@ -87,13 +87,13 @@ func (ctrl *AssetStoreController) RegisterAdminRoutes(g *gin.RouterGroup) {
 // CreateListing POST /listings
 func (ctrl *AssetStoreController) CreateListing(c *gin.Context) {
 	var req struct {
-		AssetCode      string          `json:"asset_code" binding:"required"`
-		AssetType      string          `json:"asset_type" binding:"required"`
-		Name           string          `json:"name" binding:"required"`
-		Industry       string          `json:"industry"`
-		Summary        string          `json:"summary"`
-		Policy         jsonRaw         `json:"policy_declaration"`
-		Permissions    jsonRaw         `json:"permission_declarations"`
+		AssetCode   string  `json:"asset_code" binding:"required"`
+		AssetType   string  `json:"asset_type" binding:"required"`
+		Name        string  `json:"name" binding:"required"`
+		Industry    string  `json:"industry"`
+		Summary     string  `json:"summary"`
+		Policy      jsonRaw `json:"policy_declaration"`
+		Permissions jsonRaw `json:"permission_declarations"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, 400, "参数错误: "+err.Error())

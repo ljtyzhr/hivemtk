@@ -178,7 +178,6 @@ func (m *ComplianceDEMigration) createSmsDeliveryStatuses(ctx context.Context) e
 	return execAllComplianceDE(ctx, m.db, stmts)
 }
 
-//
 // 这 5 张表均已登记为 GORM 模型（internal/pkg/db/migrate.go 的 allModels），
 // 建表事实源是启动期 AutoMigrate；本迁移 Up 里的 CREATE TABLE IF NOT EXISTS
 // 在 AutoMigrate 之后是空操作 ⇒ Down 不得销毁在用对象（删掉即数据丢失）。

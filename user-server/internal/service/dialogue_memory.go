@@ -38,19 +38,18 @@ const (
 )
 
 // NewDialogueMemoryService 创建对话记忆服务
-// db 参数保留以兼容调用方签名（router/sales_engine_factory），内部转换为 DialogueMemoryRepository。
-// db 为 nil 时 repo 也为 nil，方法内通过 s.repo == nil 防御。
-func NewDialogueMemoryService(db *gorm.DB, dispatcher *llm.Dispatcher) *DialogueMemoryService {
+// 句柄由 repository 自取全局库（测试用 db.SetTestDB／testutil 换库）；库未就绪时
+// repo 为 nil，方法内通过 s.repo == nil 防御。
+func NewDialogueMemoryService(dispatcher *llm.Dispatcher) *DialogueMemoryService {
 	svc := &DialogueMemoryService{
 		dispatcher: dispatcher,
 		sumBuf:     map[string][]string{},
 		sumDup:     map[string]int{},
 	}
-	if db != nil {
-		svc.repo = repository.NewDialogueMemoryRepositoryWithDB(db)
-
+	svc.repo = repository.NewDialogueMemoryRepository()
+	if svc.repo != nil {
 		svc.ms = &MemorySystem{
-			memoryRepo:   repository.NewMemoryRepositoryWithDB(db),
+			memoryRepo:   repository.NewMemoryRepository(),
 			embeddingSvc: llm.NewEmbeddingService(),
 		}
 	}
@@ -510,9 +509,9 @@ func GetDialogueMemory() *DialogueMemoryService {
 	return dialogueMemory
 }
 
-func InitDialogueMemory(db *gorm.DB, dispatcher *llm.Dispatcher) *DialogueMemoryService {
+func InitDialogueMemory(dispatcher *llm.Dispatcher) *DialogueMemoryService {
 	dialogueMemoryOnce.Do(func() {
-		dialogueMemory = NewDialogueMemoryService(db, dispatcher)
+		dialogueMemory = NewDialogueMemoryService(dispatcher)
 	})
 	return dialogueMemory
 }

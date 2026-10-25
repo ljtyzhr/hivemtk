@@ -7,7 +7,6 @@ import (
 
 	"hivemtk-user/internal/cache"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,9 +61,9 @@ func redisImpl(t *testing.T) *cacheImpl {
 }
 
 // TestCacheContract_MemoryMatchesRedis E-6b 契约测试（规划 §4.6b 第 3 条）：
-// 同一组用例分别跑两实现，断言相同的错误哨兵与 TTL 行为。
-//   - Get 未命中：ErrCacheMiss / redis.Nil（两哨兵等价，各自实现内一致）
-//   - LPop 未命中 / 空列表：同为未命中哨兵（Memory 旧实现返回 ("", nil) 已修正）
+// 同一组用例分别跑两实现，断言**同一个**错误哨兵与 TTL 行为。
+//   - Get 未命中：两腿统一为 cache.ErrCacheMiss（RedisCache 在实现内转换 redis.Nil）
+//   - LPop 未命中 / 空列表：与 Get 同哨兵
 //   - Incr TTL：只首次设置，后续自增不续期
 func TestCacheContract_MemoryMatchesRedis(t *testing.T) {
 	if testing.Short() {
@@ -79,22 +78,15 @@ func TestCacheContract_MemoryMatchesRedis(t *testing.T) {
 		t.Run(impl.name, func(t *testing.T) {
 			ctx := context.Background()
 			nonce := time.Now().UnixNano()
+			_ = nonce
 
-			// ① Get 未命中哨兵
+			// ① Get 未命中哨兵：两腿同为 ErrCacheMiss（E-6b 统一点）
 			_, err := impl.get(ctx, "contract-miss")
-			if impl.name == "memory" {
-				assert.ErrorIs(t, err, cache.ErrCacheMiss)
-			} else {
-				assert.ErrorIs(t, err, redis.Nil)
-			}
+			assert.ErrorIs(t, err, cache.ErrCacheMiss, "两后端未命中必须统一为 ErrCacheMiss")
 
-			// ② LPop 未命中：与 Get 同哨兵（E-6b 修正点）
+			// ② LPop 未命中：与 Get 同哨兵
 			_, err = impl.lpop(ctx, "contract-lpop-empty")
-			if impl.name == "memory" {
-				assert.ErrorIs(t, err, cache.ErrCacheMiss, "LPop 未命中应与 Get 同哨兵")
-			} else {
-				assert.ErrorIs(t, err, redis.Nil, "LPop 未命中应与 Get 同哨兵")
-			}
+			assert.ErrorIs(t, err, cache.ErrCacheMiss, "LPop 未命中应与 Get 同哨兵")
 
 			// ③ LPop 空列表（push 后取空）：同为未命中哨兵
 			key := "contract-lpop-drain"
@@ -103,11 +95,7 @@ func TestCacheContract_MemoryMatchesRedis(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "only-one", v)
 			_, err = impl.lpop(ctx, key)
-			if impl.name == "memory" {
-				assert.ErrorIs(t, err, cache.ErrCacheMiss, "列表取空后 LPop 应报未命中")
-			} else {
-				assert.ErrorIs(t, err, redis.Nil, "列表取空后 LPop 应报未命中")
-			}
+			assert.ErrorIs(t, err, cache.ErrCacheMiss, "列表取空后 LPop 应报未命中")
 
 			// ④ Incr TTL 只首次设置：n=1,2,3 后键仍按首次 TTL 过期，不续期。
 			//    用"远大于测试时长的 TTL + 观察不漂移"验证：连续 incr 后
@@ -115,7 +103,6 @@ func TestCacheContract_MemoryMatchesRedis(t *testing.T) {
 			//    短 TTL（50ms）下 incr 3 次后等待 60ms，键必须已过期。
 			//    旧 Memory 实现（每次续期）在这一格里 n=3 后过期时间被推到
 			//    3×TTL 之后，等待 TTL 时仍命中 ⇒ 本用例旧实现必红。
-			//    Redis 最小 TTL 1s ⇒ 用 1200ms、等 1300ms。
 			ikey := "contract-incr-ttl"
 			n1, err := impl.incr(ctx, ikey, 1200*time.Millisecond)
 			require.NoError(t, err)
@@ -127,12 +114,7 @@ func TestCacheContract_MemoryMatchesRedis(t *testing.T) {
 			assert.EqualValues(t, 3, n3)
 			time.Sleep(1300 * time.Millisecond)
 			_, err = impl.get(ctx, ikey)
-			if impl.name == "memory" {
-				assert.ErrorIs(t, err, cache.ErrCacheMiss, "Incr TTL 只首次设置：3 次自增后 50ms 键必须已过期（不得续期）")
-			} else {
-				assert.ErrorIs(t, err, redis.Nil, "Incr TTL 只首次设置：Redis 参照行为")
-			}
-			_ = nonce
+			assert.ErrorIs(t, err, cache.ErrCacheMiss, "Incr TTL 只首次设置：3 次自增后键必须按首次 TTL 过期（不得续期）")
 		})
 	}
 }

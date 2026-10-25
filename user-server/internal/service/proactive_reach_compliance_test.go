@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 )
 
 // installTestCompliancePolicy 装一份策略到全局单例，并在用例结束后复位。
@@ -29,7 +30,7 @@ func installTestCompliancePolicy(t *testing.T, raw string) *ConfigCompliancePoli
 
 func TestEnforceCompliance_DisabledPolicyPasses(t *testing.T) {
 	installTestCompliancePolicy(t, "")
-	svc := NewProactiveReachService(nil, nil)
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), nil)
 
 	if err := svc.enforceCompliance(context.Background(), ReachSubject{
 		Channel: "sms", Recipient: "13800138000",
@@ -41,7 +42,7 @@ func TestEnforceCompliance_DisabledPolicyPasses(t *testing.T) {
 func TestEnforceCompliance_DeniedChannelBlocksProactiveSend(t *testing.T) {
 	installTestCompliancePolicy(t, `{"enabled":true,"industries":{"medical":{
 		"allowed_channels":["wecom"],"require_opt_in":true}}}`)
-	svc := NewProactiveReachService(nil, nil)
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), nil)
 
 	err := svc.enforceCompliance(context.Background(), ReachSubject{
 		Channel: "sms", Recipient: "13800138000", CustomerID: "c1",
@@ -63,7 +64,7 @@ func TestEnforceCompliance_QuietHoursOnSyncPathDeniesWithHint(t *testing.T) {
 	// 不能假装已延后——那等于静默丢消息。
 	installTestCompliancePolicy(t, `{"enabled":true,"regions":{"US":{
 		"quiet_hours_start":20,"quiet_hours_end":10}}}`)
-	svc := NewProactiveReachService(nil, nil)
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), nil)
 
 	err := svc.enforceCompliance(context.Background(), ReachSubject{
 		Channel: "email", Recipient: "a@b.com", Region: "US",
@@ -84,7 +85,7 @@ func TestEnforceCompliance_QuietHoursOnSyncPathDeniesWithHint(t *testing.T) {
 
 func TestEnforceCompliance_AllowedWithOptIn(t *testing.T) {
 	installTestCompliancePolicy(t, `{"enabled":true,"industries":{"medical":{"require_opt_in":true}}}`)
-	svc := NewProactiveReachService(nil, nil)
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), nil)
 
 	if err := svc.enforceCompliance(context.Background(), ReachSubject{
 		Channel: "wecom", Recipient: "u1", Industry: "medical", OptIn: true,
@@ -119,7 +120,7 @@ func (stubDoNotContactRepo) ListByOneID(context.Context, string) ([]*model.Custo
 }
 
 func newComplianceOnlyReachService() *ProactiveReachService {
-	svc := NewProactiveReachService(nil, nil)
+	svc := NewProactiveReachService(repository.NewProactiveReachRepository(nil), repository.NewCustomerDoNotContactRepository(nil), nil)
 	svc.SetDoNotContact(NewDoNotContactService(stubDoNotContactRepo{}))
 	return svc
 }

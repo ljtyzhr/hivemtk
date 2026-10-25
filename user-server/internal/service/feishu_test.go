@@ -15,6 +15,7 @@ import (
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/httpclient"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -80,7 +81,7 @@ func newFeishuTestAccount(t *testing.T, database *gorm.DB) *model.FeishuAccount 
 // TestFeishuIntegrationService_SendMessage 主动发消息（语法 + 行为测试）
 func TestFeishuIntegrationService_SendMessage(t *testing.T) {
 	database := setupFeishuTestDB(t)
-	svc := NewFeishuIntegrationService(database)
+	svc := NewFeishuIntegrationService(repository.NewFeishuAccountRepositoryWithDB(database), repository.NewFeishuMessageRepositoryWithDB(database))
 	acc := newFeishuTestAccount(t, database)
 
 	orig := httpclient.Client
@@ -111,7 +112,7 @@ func TestFeishuIntegrationService_SendMessage(t *testing.T) {
 // TestFeishuIntegrationService_SendMessage_APIError 主动发消息 API 返回业务错误
 func TestFeishuIntegrationService_SendMessage_APIError(t *testing.T) {
 	database := setupFeishuTestDB(t)
-	svc := NewFeishuIntegrationService(database)
+	svc := NewFeishuIntegrationService(repository.NewFeishuAccountRepositoryWithDB(database), repository.NewFeishuMessageRepositoryWithDB(database))
 	acc := newFeishuTestAccount(t, database)
 
 	orig := httpclient.Client
@@ -135,7 +136,7 @@ func TestFeishuIntegrationService_SendMessage_APIError(t *testing.T) {
 // TestFeishuIntegrationService_IngestMessage 被动收消息（语法 + 行为测试）
 func TestFeishuIntegrationService_IngestMessage(t *testing.T) {
 	database := setupFeishuTestDB(t)
-	svc := NewFeishuIntegrationService(database)
+	svc := NewFeishuIntegrationService(repository.NewFeishuAccountRepositoryWithDB(database), repository.NewFeishuMessageRepositoryWithDB(database))
 	acc := newFeishuTestAccount(t, database)
 
 	hub, conv, err := svc.IngestMessage(context.Background(), &FeishuIngestRequest{
