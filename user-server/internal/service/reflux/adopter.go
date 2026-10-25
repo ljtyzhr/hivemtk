@@ -3,6 +3,8 @@
 // 状态机：draft→pending_review→adopted|ignored|merged（非法迁移拒绝）。
 // adopt 时经 keyworder 去泛化硬校验，经 FAQService.Create 写回（复用 Layer1
 // 关键词索引维护），全簇成员置 adopted 并回填 adopted_faq_id，写 review_log。
+// 2026-10-25：DB 访问整体下沉 repository/reflux.go（句柄下沉台账 reflux 域）；
+// 构造器保持 NewRefluxService(db) 签名，db 为瞬时参量（即建 repo，不存字段）。
 package reflux
 
 import (
@@ -14,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 )
 
 // ErrIllegalTransition 非法状态迁移
@@ -42,7 +45,7 @@ type AdoptRequest struct {
 
 // RefluxService 审核/采纳服务（controller 唯一入口）
 type RefluxService struct {
-	db *gorm.DB
+	repo *repository.RefluxRepository
 	// FAQCreate 复用 FAQService.Create 的函数钩子（装配层注入，避免包依赖环）。
 	// 签名：create(ctx, req) → faq_id
 	FAQCreate func(ctx context.Context, req FAQCreateReq) (uint, error)
@@ -60,8 +63,11 @@ type FAQCreateReq struct {
 	SourceTag string
 }
 
-// NewRefluxService 构造
-func NewRefluxService(db *gorm.DB) *RefluxService { return &RefluxService{db: db} }
+// NewRefluxService 构造（db 为瞬时参量：即建 repo，service 不存句柄——
+// 保持既有签名，router/service_routes.go 装配与集成测试零改动）
+func NewRefluxService(db *gorm.DB) *RefluxService {
+	return &RefluxService{repo: repository.NewRefluxRepository(db)}
+}
 
 // SetFAQCreate 装配层注入 FAQService.Create 钩子
 func (s *RefluxService) SetFAQCreate(fn func(ctx context.Context, req FAQCreateReq) (uint, error)) {
@@ -82,8 +88,8 @@ func (s *RefluxService) SubmitQuestion(ctx context.Context, id int64, operatorID
 
 // ReviewQuestion 单条审核
 func (s *RefluxService) ReviewQuestion(ctx context.Context, id int64, req *AdoptRequest, operatorID string) (map[string]any, error) {
-	var uq model.UnknownQuestion
-	if err := s.db.WithContext(ctx).First(&uq, id).Error; err != nil {
+	uq, err := s.repo.FindQuestion(ctx, id)
+	if err != nil {
 		return nil, ErrNotFound
 	}
 	switch req.Action {
@@ -96,17 +102,17 @@ func (s *RefluxService) ReviewQuestion(ctx context.Context, id int64, req *Adopt
 		if req.MergedTargetID == 0 {
 			return nil, fmt.Errorf("merged_target_id 必填")
 		}
-		if err := s.db.WithContext(ctx).Model(&model.UnknownQuestion{}).Where("id = ?", id).Updates(map[string]any{
+		if err := s.repo.UpdateQuestion(ctx, id, map[string]any{
 			"status": model.UQStatusMerged, "merged_target_id": req.MergedTargetID,
 			"reviewed_by": operatorID, "reviewed_at": time.Now(),
-		}).Error; err != nil {
+		}); err != nil {
 			return nil, err
 		}
 		s.log(ctx, "question", id, ActionMerge, uq.Status, model.UQStatusMerged, operatorID,
 			fmt.Sprintf("merged_target_id=%d", req.MergedTargetID))
 		return map[string]any{"id": id, "status": model.UQStatusMerged}, nil
 	case ActionAdopt:
-		return s.adoptSingle(ctx, &uq, req, operatorID)
+		return s.adoptSingle(ctx, uq, req, operatorID)
 	default:
 		return nil, ErrIllegalTransition
 	}
@@ -124,10 +130,10 @@ func (s *RefluxService) adoptSingle(ctx context.Context, uq *model.UnknownQuesti
 	if err != nil {
 		return nil, err
 	}
-	if err := s.db.WithContext(ctx).Model(&model.UnknownQuestion{}).Where("id = ?", uq.ID).Updates(map[string]any{
+	if err := s.repo.UpdateQuestion(ctx, int64(uq.ID), map[string]any{
 		"status": model.UQStatusAdopted, "adopted_faq_id": faqID,
 		"reviewed_by": operatorID, "reviewed_at": time.Now(),
-	}).Error; err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	s.log(ctx, "question", uq.ID, ActionAdopt, uq.Status, model.UQStatusAdopted, operatorID,
@@ -137,15 +143,15 @@ func (s *RefluxService) adoptSingle(ctx context.Context, uq *model.UnknownQuesti
 
 // ReviewCluster 簇级审核（adopt 时对全簇生效，生成一条 FAQ）
 func (s *RefluxService) ReviewCluster(ctx context.Context, clusterID int64, req *AdoptRequest, operatorID string) (map[string]any, error) {
-	var cluster model.UnknownQuestionCluster
-	if err := s.db.WithContext(ctx).First(&cluster, clusterID).Error; err != nil {
+	cluster, err := s.repo.FindCluster(ctx, clusterID)
+	if err != nil {
 		return nil, ErrNotFound
 	}
 	switch req.Action {
 	case ActionIgnore:
-		if err := s.db.WithContext(ctx).Model(&model.UnknownQuestionCluster{}).Where("id = ?", clusterID).Updates(map[string]any{
+		if err := s.repo.UpdateCluster(ctx, clusterID, map[string]any{
 			"status": model.UQStatusIgnored, "reviewed_by": operatorID, "reviewed_at": time.Now(),
-		}).Error; err != nil {
+		}); err != nil {
 			return nil, err
 		}
 		s.log(ctx, "cluster", clusterID, ActionIgnore, cluster.Status, model.UQStatusIgnored, operatorID, "")
@@ -161,22 +167,7 @@ func (s *RefluxService) ReviewCluster(ctx context.Context, clusterID int64, req 
 		if err != nil {
 			return nil, err
 		}
-		var adoptedCount int64
-		err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Model(&model.UnknownQuestion{}).
-				Where("cluster_id = ? AND status = ?", clusterID, model.UQStatusPendingReview).
-				Updates(map[string]any{
-					"status": model.UQStatusAdopted, "adopted_faq_id": faqID,
-					"reviewed_by": operatorID, "reviewed_at": time.Now(),
-				}).Error; err != nil {
-				return err
-			}
-			adoptedCount = tx.Statement.RowsAffected
-			return tx.Model(&model.UnknownQuestionCluster{}).Where("id = ?", clusterID).Updates(map[string]any{
-				"status": model.UQStatusAdopted, "adopted_faq_id": faqID,
-				"reviewed_by": operatorID, "reviewed_at": time.Now(),
-			}).Error
-		})
+		adoptedCount, err := s.repo.AdoptClusterMembers(ctx, clusterID, faqID, operatorID)
 		if err != nil {
 			return nil, err
 		}
@@ -191,16 +182,10 @@ func (s *RefluxService) ReviewCluster(ctx context.Context, clusterID int64, req 
 // writeFAQ 关键词去泛化硬校验 + 经 FAQCreate 钩子写回
 func (s *RefluxService) writeFAQ(ctx context.Context, question string, req *AdoptRequest, agentID uint, intent string) (uint, error) {
 	keywords := GenerateKeywords(question)
-	// 既有 FAQ 关键词全集（区分性校验用）
+	// 既有 FAQ 关键词全集（区分性校验用；取不到按空集处理，与原实现一致）
 	existing := map[string]int{}
-	rows := []struct{ Keywords []string }{}
-	if err := s.db.WithContext(ctx).Table("faq_entries").
-		Select("keywords").Where("keywords IS NOT NULL").Limit(5000).Scan(&rows).Error; err == nil {
-		for _, r := range rows {
-			for _, k := range r.Keywords {
-				existing[k]++
-			}
-		}
+	if m, err := s.repo.ExistingFAQKeywords(ctx); err == nil {
+		existing = m
 	}
 	if err := ValidateKeywords(keywords, existing); err != nil {
 		return 0, err
@@ -224,12 +209,13 @@ func (s *RefluxService) transition(ctx context.Context, targetType string, id in
 	if !ok || !allowed {
 		return ErrIllegalTransition
 	}
-	table := "unknown_questions"
+	var err error
 	if targetType == "cluster" {
-		table = "unknown_question_clusters"
+		err = s.repo.TransitionCluster(ctx, id, from, to)
+	} else {
+		err = s.repo.TransitionQuestion(ctx, id, from, to)
 	}
-	if err := s.db.WithContext(ctx).Table(table).Where("id = ? AND status = ?", id, from).
-		Update("status", to).Error; err != nil {
+	if err != nil {
 		return err
 	}
 	s.log(ctx, targetType, id, action, from, to, operatorID, detail)
@@ -237,10 +223,10 @@ func (s *RefluxService) transition(ctx context.Context, targetType string, id in
 }
 
 func (s *RefluxService) log(ctx context.Context, targetType string, targetID int64, action ReviewAction, from, to, operatorID, detail string) {
-	_ = s.db.WithContext(ctx).Create(&model.UnknownQuestionReviewLog{
+	_ = s.repo.InsertReviewLog(ctx, &model.UnknownQuestionReviewLog{
 		TargetType: targetType, TargetID: targetID, Action: string(action),
 		FromStatus: from, ToStatus: to, OperatorID: operatorID, Detail: detail,
-	}).Error
+	})
 }
 
 // ============================================================
@@ -249,87 +235,41 @@ func (s *RefluxService) log(ctx context.Context, targetType string, targetID int
 
 // ListQuestions 未知问题分页（filter: status/source/agent_id/question_like）
 func (s *RefluxService) ListQuestions(ctx context.Context, filter map[string]any, page, pageSize int) ([]model.UnknownQuestion, int64, error) {
-	q := s.db.WithContext(ctx).Model(&model.UnknownQuestion{})
-	if v, ok := filter["status"]; ok {
-		q = q.Where("status = ?", v)
-	}
-	if v, ok := filter["source"]; ok {
-		q = q.Where("source = ?", v)
-	}
-	if v, ok := filter["agent_id"]; ok {
-		q = q.Where("agent_id = ?", v)
-	}
-	if v, ok := filter["question_like"]; ok {
-		q = q.Where("question ILIKE ?", "%"+fmt.Sprint(v)+"%")
-	}
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	rows := []model.UnknownQuestion{}
-	if err := q.Order("last_seen_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).
-		Find(&rows).Error; err != nil {
-		return nil, 0, err
-	}
-	return rows, total, nil
+	return s.repo.ListQuestions(ctx, filter, page, pageSize)
 }
 
 // ListClusters 簇分页（按 total_frequency 降序）
 func (s *RefluxService) ListClusters(ctx context.Context, filter map[string]any, page, pageSize int) ([]model.UnknownQuestionCluster, int64, error) {
-	q := s.db.WithContext(ctx).Model(&model.UnknownQuestionCluster{})
-	if v, ok := filter["status"]; ok {
-		q = q.Where("status = ?", v)
-	}
-	var total int64
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	rows := []model.UnknownQuestionCluster{}
-	if err := q.Order("total_frequency DESC").Offset((page - 1) * pageSize).Limit(pageSize).
-		Find(&rows).Error; err != nil {
-		return nil, 0, err
-	}
-	return rows, total, nil
+	return s.repo.ListClusters(ctx, filter, page, pageSize)
 }
 
 // Stats 统计：总数 / 待审 / 已采纳 / 采纳率
 func (s *RefluxService) Stats(ctx context.Context) (map[string]any, error) {
-	row := struct {
-		Total   int64 `gorm:"column:total"`
-		Pending int64 `gorm:"column:pending"`
-		Adopted int64 `gorm:"column:adopted"`
-	}{}
-	if err := s.db.WithContext(ctx).Table("unknown_questions").
-		Select(`COUNT(*) AS total,
-			COUNT(*) FILTER (WHERE status = 'pending_review') AS pending,
-			COUNT(*) FILTER (WHERE status = 'adopted') AS adopted`).
-		Scan(&row).Error; err != nil {
+	total, pending, adopted, err := s.repo.QuestionStats(ctx)
+	if err != nil {
 		return nil, err
 	}
 	rate := 0.0
-	if row.Total > 0 {
-		rate = float64(row.Adopted) / float64(row.Total)
+	if total > 0 {
+		rate = float64(adopted) / float64(total)
 	}
 	return map[string]any{
-		"total": row.Total, "pending": row.Pending,
-		"adopted": row.Adopted, "adopt_rate": rate,
+		"total": total, "pending": pending,
+		"adopted": adopted, "adopt_rate": rate,
 	}, nil
 }
 
 // QuestionDetail 详情：问题 + 审核流水 + 簇成员
 func (s *RefluxService) QuestionDetail(ctx context.Context, id int64) (map[string]any, error) {
-	var uq model.UnknownQuestion
-	if err := s.db.WithContext(ctx).First(&uq, id).Error; err != nil {
+	uq, err := s.repo.FindQuestion(ctx, id)
+	if err != nil {
 		return nil, ErrNotFound
 	}
-	logs := []model.UnknownQuestionReviewLog{}
-	_ = s.db.WithContext(ctx).Where("target_type = 'question' AND target_id = ?", id).
-		Order("created_at ASC").Find(&logs).Error
+	logs, _ := s.repo.QuestionReviewLogs(ctx, id)
 	var cluster *model.UnknownQuestionCluster
 	if uq.ClusterID > 0 {
-		var c model.UnknownQuestionCluster
-		if err := s.db.WithContext(ctx).First(&c, uq.ClusterID).Error; err == nil {
-			cluster = &c
+		if c, err := s.repo.FindCluster(ctx, int64(uq.ClusterID)); err == nil {
+			cluster = c
 		}
 	}
 	return map[string]any{"question": uq, "review_logs": logs, "cluster": cluster}, nil
@@ -337,17 +277,14 @@ func (s *RefluxService) QuestionDetail(ctx context.Context, id int64) (map[strin
 
 // ClusterDetail 簇详情：簇 + 成员 + 流水
 func (s *RefluxService) ClusterDetail(ctx context.Context, id int64) (map[string]any, error) {
-	var cluster model.UnknownQuestionCluster
-	if err := s.db.WithContext(ctx).First(&cluster, id).Error; err != nil {
+	cluster, err := s.repo.FindCluster(ctx, id)
+	if err != nil {
 		return nil, ErrNotFound
 	}
-	members := []model.UnknownQuestion{}
-	if err := s.db.WithContext(ctx).Where("cluster_id = ?", id).
-		Order("frequency DESC").Find(&members).Error; err != nil {
+	members, err := s.repo.ClusterMembers(ctx, id)
+	if err != nil {
 		return nil, err
 	}
-	logs := []model.UnknownQuestionReviewLog{}
-	_ = s.db.WithContext(ctx).Where("target_type = 'cluster' AND target_id = ?", id).
-		Order("created_at ASC").Find(&logs).Error
+	logs, _ := s.repo.ClusterReviewLogs(ctx, id)
 	return map[string]any{"cluster": cluster, "members": members, "review_logs": logs}, nil
 }

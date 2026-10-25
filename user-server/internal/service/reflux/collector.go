@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 )
 
 // Event 一次未知问题触发事件
@@ -29,9 +29,9 @@ type Event struct {
 	LowConfScore float64
 }
 
-// Collector 异步收集器
+// Collector 异步收集器（2026-10-25：句柄下沉，db 为构造瞬时参量）
 type Collector struct {
-	db    *gorm.DB
+	repo  *repository.RefluxRepository
 	ch    chan Event
 	wg    sync.WaitGroup
 	drops int64 // 队满丢弃计数（观测丢弃率）
@@ -47,7 +47,7 @@ func NewCollector(db *gorm.DB, queueSize int, refluxEnabled bool) *Collector {
 	if queueSize <= 0 {
 		queueSize = 512
 	}
-	c := &Collector{db: db, ch: make(chan Event, queueSize), enabled: refluxEnabled}
+	c := &Collector{repo: repository.NewRefluxRepository(db), ch: make(chan Event, queueSize), enabled: refluxEnabled}
 	if refluxEnabled {
 		c.wg.Add(1)
 		go c.consumeLoop()
@@ -110,7 +110,6 @@ func (c *Collector) processOne(ev Event) {
 	hash := QuestionHash(ev.Question)
 	now := time.Now()
 	// upsert：命中指纹则频次+1、刷新 last_seen；否则新建 draft。
-	// 走 GORM 链式 API：clause.OnConflict 表达覆盖式写入（gate 禁 .Exec 直连）。
 	row := model.UnknownQuestion{
 		TenantID:     0,
 		QuestionHash: hash,
@@ -129,20 +128,8 @@ func (c *Collector) processOne(ev Event) {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	res := c.db.WithContext(ctx).Select(
-		"TenantID", "QuestionHash", "Question", "Status", "Source", "SourceID",
-		"SessionID", "CustomerID", "AgentID", "IntentType", "LowConfScore",
-		"Frequency", "FirstSeenAt", "LastSeenAt", "CreatedAt", "UpdatedAt",
-	).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "tenant_id"}, {Name: "question_hash"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"frequency":    gorm.Expr("unknown_questions.frequency + 1"),
-			"last_seen_at": gorm.Expr("EXCLUDED.last_seen_at"),
-			"source_id":    gorm.Expr("EXCLUDED.source_id"),
-		}),
-	}).Create(&row)
-	if res.Error != nil {
-		log.Printf("[reflux] upsert unknown_question: %v (q=%q)", res.Error, ev.Question)
+	if err := c.repo.UpsertUnknownQuestion(ctx, &row); err != nil {
+		log.Printf("[reflux] upsert unknown_question: %v (q=%q)", err, ev.Question)
 		return
 	}
 
