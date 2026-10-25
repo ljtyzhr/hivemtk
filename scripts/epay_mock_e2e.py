@@ -401,20 +401,26 @@ def psql(sql, dry, rep: Report):
     return (proc.stdout or "").strip()
 
 
-EXPIRE_SQL = (
+# 订阅镜像 SQL 后门：tenant_subscription_mirror 已是**每租户一行**（tenant_id 列），
+# 不能再写死 WHERE id = 1（那是单行时代的假设，多租户库里会改错别人的行，
+# 表现为本轮租户 status 恒 trial/active、S5.2/3/4 三连红）。按本轮注册的
+# eb_<run> 管理员反查 tenant_id 定位镜像行。
+EXPIRE_SQL_TPL = (
     "UPDATE tenant_subscription_mirror SET "
     "status='expired', "
     "current_period_end = now() - interval '2 days', "
     "trial_expires_at = now() - interval '3 days', "
     "fetched_at = now(), updated_at = now() "
-    "WHERE id = 1 RETURNING id;"
+    "WHERE tenant_id = (SELECT tenant_id FROM system_users WHERE username = '%s')"
+    " RETURNING id;"
 )
-RESTORE_SQL = (
+RESTORE_SQL_TPL = (
     "UPDATE tenant_subscription_mirror SET "
     "status='active', "
     "current_period_end = now() + interval '30 days', "
     "fetched_at = now(), updated_at = now() "
-    "WHERE id = 1 RETURNING id;"
+    "WHERE tenant_id = (SELECT tenant_id FROM system_users WHERE username = '%s')"
+    " RETURNING id;"
 )
 
 
@@ -617,17 +623,18 @@ def s4_pay_and_activate(user: Client, plat: Client, rep: Report, token, plat_tok
     rep.assert_("S4.6 browser-automation 已激活（owned=true）", owned is True, f"owned={owned!r}")
 
 
-def s5_expire(user: Client, rep: Report, token, dry: bool):
+def s5_expire(user: Client, rep: Report, token, dry: bool, username: str = ""):
     rep.step("S5 SQL 把订阅 period 调过期 → 业务接口 4305 / 白名单正常")
-    out = psql(EXPIRE_SQL, dry, rep)
+    out = psql(EXPIRE_SQL_TPL % (username or "eb_unknown"), dry, rep)
     rep.assert_("S5.1 镜像行已更新（UPDATE ... RETURNING id 有输出）",
                 out not in ("", None), f"stdout={out!r}")
     if out in ("", None):
-        # 行不存在 = 从未 sync 到订阅段：插一行（同样属测试后门）
-        ins = ("INSERT INTO tenant_subscription_mirror (id, status, current_period_end, trial_expires_at,"
-               " price_cents, fetched_at, created_at, updated_at) VALUES (1,'expired',"
-               " now() - interval '2 days', now() - interval '3 days', 19900, now(), now(), now())"
-               " ON CONFLICT (id) DO NOTHING RETURNING id;")
+        # 行不存在 = 从未 sync 到订阅段：按本轮租户插一行（同样属测试后门）
+        ins = ("INSERT INTO tenant_subscription_mirror (status, current_period_end, trial_expires_at,"
+               " price_cents, fetched_at, created_at, updated_at, tenant_id)"
+               " SELECT 'expired', now() - interval '2 days', now() - interval '3 days',"
+               " 19900, now(), now(), now(), tenant_id FROM system_users WHERE username = '%s'"
+               " ON CONFLICT DO NOTHING RETURNING id;") % (username or "eb_unknown")
         out2 = psql(ins, dry, rep)
         rep.assert_("S5.1b 镜像行不存在时插入过期行", out2 not in ("", None), f"stdout={out2!r}")
 
@@ -757,9 +764,9 @@ def s7_t029_trio(user: Client, rep: Report, token, order_no):
                 f"status={d.get('status')!r} paid={d.get('paid')!r}")
 
 
-def restore_only(user: Client, rep: Report, token, dry: bool):
+def restore_only(user: Client, rep: Report, token, dry: bool, username: str = ""):
     rep.step("--restore-only：把订阅 period 恢复成未来（S5 之后失败的救急）")
-    out = psql(RESTORE_SQL, dry, rep)
+    out = psql(RESTORE_SQL_TPL % (username or "eb_unknown"), dry, rep)
     rep.assert_("恢复 UPDATE 有输出", out not in ("", None), f"stdout={out!r}")
     if token:
         st, payload, _ = user.get("/api/subscription/status", desc="恢复后状态", token=token)
@@ -841,7 +848,7 @@ def main():
         if order_no:
             s4_pay_and_activate(user, plat, rep, user_token, plat_token, order_no)
         if not args.skip_expire:
-            s5_expire(user, rep, user_token, args.dry_run)
+            s5_expire(user, rep, user_token, args.dry_run, username)
             if not args.skip_renew:
                 s6_renew(user, plat, rep, user_token, plat_token, args.dry_run)
             else:
@@ -850,7 +857,7 @@ def main():
         s7_t029_trio(user, rep, user_token, order_no)
 
     if args.restore_only:
-        restore_only(user, rep, None, args.dry_run)
+        restore_only(user, rep, None, args.dry_run, username)
     if args.cleanup:
         cleanup_user(rep, run, args.dry_run)
 
