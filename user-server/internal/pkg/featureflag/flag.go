@@ -71,7 +71,6 @@ func DefaultManager() *FlagManager {
 	defaultOnce.Do(func() {
 		defaultManager = &FlagManager{flags: make(map[string]*Flag)}
 		defaultManager.register("parallel", false)
-		defaultManager.register("stream", false)
 		defaultManager.register("layer1", false)
 		defaultManager.register("fallback_chain", false)
 		defaultManager.register("debug_log", false)
