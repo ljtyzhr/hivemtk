@@ -5,7 +5,7 @@
 # LLM 配置通过后台「LLM 路由」页面写入数据库表 llm_providers，不落配置文件。
 
 .PHONY: help install init up down restart logs ps build user-build web-build
-.PHONY: db-up db-down db-logs db-ps db-backup db-restore
+.PHONY: db-up db-down db-logs db-ps db-backup db-restore verify-restore
 .PHONY: inference-host-install inference-host-models inference-host-up inference-host-down
 .PHONY: inference-host-warmup inference-host-logs inference-host-ps inference-host-test inference-host-status
 .PHONY: laya-models laya-up laya-down laya-warmup laya-test laya-logs
@@ -33,6 +33,7 @@ help:
 	@echo "  make db-logs              - 查看 PG + Redis 容器日志"
 	@echo "  make db-backup            - 备份 PG"
 	@echo "  make db-restore FILE=...  - 恢复 PG（指定 .sql 文件）"
+	@echo "  make verify-restore FILE=... - 恢复演练：备份→scratch 库→三体检→丢弃（不碰源库）"
 	@echo ""
 	@echo "【宿主机推理栈（llama.cpp / MLX）】"
 	@echo "  make inference-host-install  - 安装 llama.cpp 二进制（首次）"
@@ -140,6 +141,16 @@ db-restore:
 	docker compose exec -T mtk-postgres \
 		psql -U $${POSTGRES_USER:-admin} -p 8202 -v ON_ERROR_STOP=1 -d $${USER_DB_NAME:-user_db} < $(FILE)
 	@echo "✅ 恢复完成"
+
+# 恢复演练（产品能力，非内部待办）：把备份恢复进一次性 scratch 库做三项体检
+# （零 SQL 错误/表数比对/Top-N 大表行数抽查），全程不触碰 user_db，结束必丢 scratch。
+# 出处：《功能模块多角度评估-2026-10-25》§运维——自托管产品"备份可恢复"必须可验证。
+verify-restore:
+	@if [ -n "$(FILE)" ]; then \
+		./scripts/ops/verify_restore.sh "$(FILE)"; \
+	else \
+		./scripts/ops/verify_restore.sh; \
+	fi
 
 # =============================================================================
 # 宿主机推理栈（llama.cpp 三件套）
