@@ -9,12 +9,12 @@
 |---|------|---------|---------|------|------|
 | K1 | 话术版本+AB曝光 | 运营者想知道"哪版话术转化高, 旧版本停用" | Langfuse整数版本+label; Gong曝光→成交归因 | **吸收** | ScriptLibrary加version/status/expires_at; script_exposure_log表; FNV分桶; 48h归因窗可配; 转化率API |
 | K2 | feature-flags | 管理员按环境灰度开功能 | Unleash/GrowthBook全有 | **吸收** | feature_flags表+CRUD+enable/disable+rollout evaluate+audit+eval_log+stale |
-| K3 | security面板 | 管理员看"谁在攻击我" | authentik事件审计/Vaultwarden限速 | **吸收** | overview聚合+abnormal-logins(login_events已有)+password-weak(熵检测)+scan+report+unauthorized-access(401日志聚合) |
+| K3 | security面板 | 管理员看"谁在攻击我" | authentik事件审计/Vaultwarden限速 | **吸收**（部分落地，2026-10-25 复算订正） | 已接线：scan=`POST /security/audit`、rules、alerts、anomaly 四组路由（service_routes.go:563-580、auth_routes.go:29-36）；401 聚合腿由 `middleware.InitSecurityRecorder` 接线中。真缺口=overview 聚合/弱密码（需 bcrypt 异步+缓存设计）/报表——见总表 C-5 |
 | K4 | backup管理补齐 | 管理员备份恢复 | 管理必备 | **吸收** | stats/strategy/preview/restore/create补齐(已有/backups) |
 | K5 | AB高级统计 | 运营者判断实验可信 | GrowthBook标配 | **吸收** | bayesian胜率+SRM diagnostics+CUPED+sequential+results-with-reach |
-| K6 | bots管理 | 管理员管理渠道机器人 | 渠道管理标配 | **吸收** | bots CRUD+register+mount-agent+sync-crm+webhook(映射channel_accounts+ai_agents) |
-| K7 | kb-templates | 新用户一键建KB | Dify模板 | **吸收** | kb_templates表已有(A3债)+CRUD/apply/rate/subscribe |
-| K8 | dashboard-templates | 大屏复用 | 报表标配 | **吸收** | dashboard_templates表已有+CRUD/clone/publish/rate |
+| K6 | bots管理 | 管理员管理渠道机器人 | 渠道管理标配 | **吸收**（复算判已有面覆盖，2026-10-25） | 原读数过期：mount-agent 已有 `/api/channel-agent-bindings` 全 CRUD；跨渠道视图已有 `/api/channels/overview`；register/webhook 按渠道分账（qq/telegram/whatsapp/feishu/dingtalk/wecom 各自路由族）。不落 /api/bots 别名聚合面（同状态两个写入口）——总表 C-6 |
+| K7 | kb-templates | 新用户一键建KB | Dify模板 | **已落地**（2026-10-25，业务闭环 C-6 轮） | 原"表已有(A3债)"读数错误——表此前不存在。已建：`kb_templates` 表+CRUD+apply（一键建真 KB，经 KnowledgeBaseService.CreateKB）+rate，`internal/router/r39_panel_routes.go`；subscribe 待模板更新通知管线（无生产者，不建空壳）。用例 service/kb_template_service_test.go 4 条 |
+| K8 | dashboard-templates | 大屏复用 | 报表标配 | **已落地**（2026-10-25，业务闭环 C-6 轮） | 原"表已有"读数错误。已建：`dashboard_templates` 表+CRUD+publish（从大屏发快照）/clone（一键复制成真实大屏，经 ops DashboardScreenService）+rate，同 r39_panel_routes.go。用例 service/dashboard_template_service_test.go 4 条 |
 | K9 | rag/eval面板 | 知识运营者回归检索质量 | RAGAS/Langfuse标配 | **吸收** | golden set表+CSV上传+run异步+runs列表+latest+diff |
 | K10 | links接口 | 短链页调/api/links | 前端已开发 | **吸收** | 别名适配到现有shortlink服务 |
 | K11 | quick-reply | 客服快捷回复分组 | 客服标配 | **吸收** | quick_reply_folders表+CRUD+reorder |

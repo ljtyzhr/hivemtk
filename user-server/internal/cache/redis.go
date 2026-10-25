@@ -13,6 +13,12 @@ import (
 )
 
 // RedisCache Redis 缓存实现
+//
+// 与 MemoryCache 的已知差异（契约测试 contract_test.go 两腿对齐）：
+//  1. 亚秒 TTL 不可表达——go-redis v9 formatSec 把 <1s 的 expiration 静默截成 1s
+//     （commands.go:41），MemoryCache 真支持亚秒。短 TTL 锁/限流的调用方在 Redis
+//     腿拿到的实际 TTL ≥1s；要对齐两腿，TTL 一律取 ≥1s。
+//  2. 未命中哨兵 ErrCacheMiss 在两腿统一（redis.Nil 在实现内转换）。
 type RedisCache struct {
 	client       *redis.Client
 	sharedClient bool

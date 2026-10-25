@@ -595,6 +595,10 @@ T-P2-04 / R-5 为它加了两列外键位，把原文件头自记的"H2 技术�
   并**同步改掉**类型文档的 c) 与本节，届时该用例转红是预期中的红。
   提前建索引只会在只增表上加写放大，且没有查询方能验证它有用。
 
+**〔2026-10-25 漂移订正（业务闭环清单 §3）〕上一段"零写入"读数已过期：`quote_send.go:573`
+现在构造 `SalesEvent` 并经 `repository/sales_event.go:34` 落库，router/app 五处 wiring 在位——
+"两列不可能有真实数据"自 T-P3 系列报价外发上线起不再成立。原文按 2026-09 快照原样保留。
+
 **同时必须说清楚的前置事实**：`sales_events` **今天在生产路径上零写入**——唯一的生产构造点
 `NewSalesEventStatsService(` 在非测试代码里 0 命中，注入点 `SetStats(` 亦 0 命中，已接线的
 `FollowUpService` 走 `if s.stats != nil` 保护（stats 恒 nil）。所以这两列今天不可能有真实数据，
@@ -1588,7 +1592,7 @@ RFM 那副底座另有 `customer_360.go:57` 一个消费点，并格之后那一
 
 | 不交付 | 为什么 | 什么时候必须做 |
 |---|---|---|
-| churn 源的**生产者** | 桩在 T-P1-07 就是登记过的边界（`defaultChurnStatsQuery` 回 `nil, nil`），补它属数据管线不属圈选 | churn 条件要真正可用之前；在那之前 `source_empty:churn` 是**预期红**，不是缺陷 |
+| churn 源的**生产者** | 桩在 T-P1-07 就是登记过的边界（`defaultChurnStatsQuery` 回 `nil, nil`），补它属数据管线不属圈选。**〔2026-10-25 精化注：本格读数仍成立——勿被"churn 已是真数据"的错误订正顶掉。churn 有两套：ops 侧 `ops/service/churn_prediction.go` 挂真实 repo + cron（cron.go:174）是真的；但圈选读的 `churn_scores` 周批源 `internal/service/churn_score_job.go:114` `defaultChurnStatsQuery` 至今仍是 `return nil, nil`，`source_empty:churn` 依旧预期红〕** | churn 条件要真正可用之前；在那之前 `source_empty:churn` 是**预期红**，不是缺陷 |
 | 上限的**运营可配** | `MaxAudienceLimit` 是"误伤半径"，配置面一开就等于把 RK-6 的一半交给填表的人 | 外联投诉率（LTC-29）有 ≥2 周真实基线之后 |
 | 条件的**并集**语义 | 交集规模 ≤ 每个源，并集规模 ≥ 每个源 —— 后者直接顶穿 AC② 想夹的那个东西 | 若产品明确要"任一命中即开工"，那是**改 AC② 的口径**（需分池＋逐池上限），不是在本函数里换个循环 |
 
@@ -2232,7 +2236,7 @@ quote_line_items :: quote_line_items_pkey  UNIQUE (quote_row_id, line_no)
 | `opportunity_id` | `varchar(64)` + `idx_bills_opportunity_id` | YES | — | 从报价行原样抄（不回查）：账单是事后对账的凭据，读它不该依赖"那一版的商机列没被人改过" |
 | `amount` | `numeric(14,2)` | YES | — | 与 `quote_line_items.amount` 同型同宽；值 = `quoteSumAmount(lines)`，**与发送腿共用同一个函数**（AC② 是"同一个算法的同一个结果"，不是两处各算一遍再比） |
 | `currency` | `varchar(3)` | YES | `'CNY'::character varying` | 一张账单一个币种；默认值必须有，因为给存量表补 `NOT NULL` 列不带默认会当场失败 |
-| `due_at` | `timestamptz` | YES | — | **可空 = 账期未定**。今天全库它恒 `NULL`，见本节末"仍不成立" |
+| `due_at` | `timestamptz` | YES | — | **可空 = 账期未定**。~~今天全库它恒 `NULL`~~〔2026-10-25 订正：T-P7-03 已交付，`service/bill.go:128` `DueAt *time.Time` 全链贯通（派生自报价版），本格读数过期；下文 "仍不成立" 那段同口径过期〕 |
 | `status` | `varchar(16)`，**无索引** | YES | — | 四格 `open/partial/paid/voided`。不建索引的判据与 `quotes.status` 同一条：按状态扫全表的那条查询属 T-P7-03，索引由它的第一个读方带来 |
 | `created_at` / `updated_at` | `timestamptz` | NO / NO | — | `updated_at` 只在状态跃迁时动 —— 金额列建后不可改，所以"这行多久没动过"没有第二种解释 |
 
@@ -2316,6 +2320,7 @@ payments :: idx_payments_order_id     (order_id)
 
 #### 本卡之后仍不成立（写清不藏着）
 
+- **〔2026-10-25 漂移订正〕下段读数已过期**：T-P7-03 已交付，`service/bill.go:128` 的 `DueAt *time.Time` 全链贯通（由报价版派生），`bill.go:253` 的 `DueAt: nil` 不再是唯一写入——逾期判据的第二个条件不再恒零命中。原文按 2026-09 快照保留如下。
 - **`due_at` 今天恒为 `NULL`**：`service/bill.go:253` 那句 `DueAt: nil` 是全仓唯一对这一格的写入（`grep -rn "DueAt" --include='*.go'` 排除测试后，`bills` 侧只有读、没有赋值）。列的形状已经够了（`timestamptz` 可空、无默认），但 T-P7-03 的逾期判据 `status IN (open,partial) ∧ due_at IS NOT NULL ∧ due_at < now` 里第二个条件今天全库零命中 ⇒ **扫出来必为空**。所以"系统里没有逾期单"这句话今天是假的，真的那句是"没有任何一张单定过账期"—— 两者合成一件的那天，催收就再也看不见这批单。
 - **部分退款两种写法都进不来**：新流水号 + `reversed` ⇒ 409 `NothingToReverse`；同流水号 + 更小金额 ⇒ 409 `RefReuse`。今天一张已收清的账单被退掉 30 元，只能人工另开一张负向应收（或整张作废），**没有"这一笔只退一部分"的表达**。
 - **钱只能被"推"进来**：没有任何按渠道对账取数的任务，渠道不推就永远记不上；而 `uq_payments_channel_ref` 是**全表**唯一，两个平台各自发出同号流水时第二笔进不来（这一条与 `external_orders` 的 `X3/G15` 那段同源，但那是订单镜像、这是资金行，两张表各撞各的）。
