@@ -8,7 +8,7 @@ import (
 
 	"hivemtk-user/internal/pkg/utils/logger"
 
-	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 // AdjustedChunk 单次权重调整记录
@@ -41,81 +41,54 @@ func weightAction(score int, bad bool, safety float64, safetyPresent bool, cfg C
 //
 // 权重限制在 [MinWeight, MaxWeight]，用事务批量更新。调整本身是幂等的（同一 chunk
 // 重复评估时由调用方决定是否跳过，避免权重被反复乘算造成漂移）。
-func AdjustWeights(ctx context.Context, db *gorm.DB, chunkIDs []string, res EvalResult, cfg Config) ([]AdjustedChunk, error) {
+func AdjustWeights(ctx context.Context, repo *repository.TraceLearningRepository, chunkIDs []string, res EvalResult, cfg Config) ([]AdjustedChunk, error) {
 	ctx = ensureCtx(ctx)
 	ids := dedupeParseIDs(chunkIDs)
-	if len(ids) == 0 || db == nil {
-		return nil, nil
-	}
-	type wrow struct {
-		ID     uint64
-		Weight float64
-	}
-	var rows []wrow
-	if err := db.WithContext(ctx).Table("knowledge_chunks").Select("id, weight").Where("id IN ?", ids).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	if len(rows) == 0 {
+	if len(ids) == 0 || repo == nil || repo.GetDB() == nil {
 		return nil, nil
 	}
 	safety, safetyPresent := res.Dimensions["safety"]
 	action := weightAction(res.Score, res.Bad, safety, safetyPresent, cfg)
-	adjusted := make([]AdjustedChunk, 0, len(rows))
-	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, r := range rows {
-			oldW := r.Weight
-			if oldW <= 0 {
-				oldW = 1.0
-			}
-			newW := computeNewWeight(oldW, action, cfg)
-			if newW == oldW {
-				continue
-			}
-			if e := tx.Table("knowledge_chunks").Where("id = ?", r.ID).Update("weight", newW).Error; e != nil {
-				return e
-			}
-			adjusted = append(adjusted, AdjustedChunk{ID: r.ID, Old: oldW, New: newW})
-		}
-		return nil
-	})
+	compute := weightFnFor(action, cfg)
+	changes, err := repo.AdjustChunkWeights(ctx, ids, compute)
 	if err != nil {
 		return nil, err
 	}
+	adjusted := make([]AdjustedChunk, 0, len(changes))
+	for _, c := range changes {
+		adjusted = append(adjusted, AdjustedChunk{ID: c.ID, Old: c.Old, New: c.New})
+	}
 	if len(adjusted) > 0 {
-		logger.Infof("[trace_learning] score=%d action=%s 调整权重 chunks=%d adjusted=%d", res.Score, action, len(rows), len(adjusted))
+		logger.Infof("[trace_learning] score=%d action=%s 调整权重 chunks=%d adjusted=%d", res.Score, action, len(ids), len(adjusted))
 	}
 	return adjusted, nil
 }
 
+// weightFnFor 把权重曲线（action × cfg）折算成 repo 侧的纯计算回调。
+func weightFnFor(action string, cfg Config) repository.TLWeightFn {
+	return func(oldW float64) (float64, bool) {
+		newW := computeNewWeight(oldW, action, cfg)
+		return newW, newW != oldW
+	}
+}
+
 // PreviewAdjustments 只读预览：读取当前权重并按打分计算「计划调整」，不写库。
 // 用于 dry-run / 前端预览，评估自学习「将如何调权」而不实际改变知识库权重。
-func PreviewAdjustments(ctx context.Context, db *gorm.DB, chunkIDs []string, res EvalResult, cfg Config) ([]AdjustedChunk, error) {
+func PreviewAdjustments(ctx context.Context, repo *repository.TraceLearningRepository, chunkIDs []string, res EvalResult, cfg Config) ([]AdjustedChunk, error) {
 	ctx = ensureCtx(ctx)
 	ids := dedupeParseIDs(chunkIDs)
-	if len(ids) == 0 || db == nil {
+	if len(ids) == 0 || repo == nil || repo.GetDB() == nil {
 		return nil, nil
-	}
-	type wrow struct {
-		ID     uint64
-		Weight float64
-	}
-	var rows []wrow
-	if err := db.WithContext(ctx).Table("knowledge_chunks").Select("id, weight").Where("id IN ?", ids).Scan(&rows).Error; err != nil {
-		return nil, err
 	}
 	safety, safetyPresent := res.Dimensions["safety"]
 	action := weightAction(res.Score, res.Bad, safety, safetyPresent, cfg)
-	adjusted := make([]AdjustedChunk, 0, len(rows))
-	for _, r := range rows {
-		oldW := r.Weight
-		if oldW <= 0 {
-			oldW = 1.0
-		}
-		newW := computeNewWeight(oldW, action, cfg)
-		if newW == oldW {
-			continue
-		}
-		adjusted = append(adjusted, AdjustedChunk{ID: r.ID, Old: oldW, New: newW})
+	changes, err := repo.PreviewChunkWeights(ctx, ids, weightFnFor(action, cfg))
+	if err != nil {
+		return nil, err
+	}
+	adjusted := make([]AdjustedChunk, 0, len(changes))
+	for _, c := range changes {
+		adjusted = append(adjusted, AdjustedChunk{ID: c.ID, Old: c.Old, New: c.New})
 	}
 	return adjusted, nil
 }

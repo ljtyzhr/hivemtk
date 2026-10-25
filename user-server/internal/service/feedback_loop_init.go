@@ -4,12 +4,12 @@ import (
 	"context"
 	"sync"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/aiagent/embedding"
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/pkg/utils/logger"
 	feedbackloop "hivemtk-user/internal/service/feedback_loop"
+
+	"hivemtk-user/internal/repository"
 )
 
 var (
@@ -58,10 +58,10 @@ func (a *feedbackLLMAdapter) Dispatch(ctx context.Context, scenario string, prom
 // InitFeedbackCollector 初始化反馈采集器（启动时调用一次）
 //
 // 启动后会异步消费事件队列（每 2s 刷盘），调用 Stop() 优雅关闭
-func InitFeedbackCollector(db *gorm.DB) *feedbackloop.FeedbackCollector {
+func InitFeedbackCollector() *feedbackloop.FeedbackCollector {
 	feedbackCollectorOnce.Do(func() {
 		cfg := FeedbackCollectorConfigFromParams(context.Background())
-		feedbackCollector = feedbackloop.NewFeedbackCollector(db, cfg)
+		feedbackCollector = feedbackloop.NewFeedbackCollector(repository.GetDB(), cfg)
 	})
 	return feedbackCollector
 }
@@ -71,7 +71,7 @@ func GetFeedbackCollector() *feedbackloop.FeedbackCollector {
 	return feedbackCollector
 }
 
-func InitFeedbackLoopComponents(db *gorm.DB, dispatcher *llm.Dispatcher, embedder *embedding.LocalEmbedding) *FeedbackLoopComponents {
+func InitFeedbackLoopComponents(dispatcher *llm.Dispatcher, embedder *embedding.LocalEmbedding) *FeedbackLoopComponents {
 	if embedder == nil {
 		embedder = embedding.NewLocalEmbedding(1024, 42)
 		logger.Warnf("[feedback_loop] embedder 未注入，回退本地零依赖 Embedding 引擎（1024 维随机投影）")
@@ -81,11 +81,12 @@ func InitFeedbackLoopComponents(db *gorm.DB, dispatcher *llm.Dispatcher, embedde
 
 	// 五个组件的配置全部走参数中心（feedback 组，22 条，构造期读，Restart=true）。
 	bg := context.Background()
-	collector := feedbackloop.NewFeedbackCollector(db, FeedbackCollectorConfigFromParams(bg))
-	analyzer := feedbackloop.NewChampionDialogueAnalyzer(db, embAdapter, llmAdapter, ChampionAnalyzerConfigFromParams(bg))
-	iterator := feedbackloop.NewPromptIterator(db, llmAdapter, PromptIteratorConfigFromParams(bg))
-	bandit := feedbackloop.NewBanditAllocator(db, BanditConfigFromParams(bg), 42)
-	optimizer := feedbackloop.NewSOPAutoOptimizer(db, bandit, SOPAutoOptimizerConfigFromParams(bg))
+	gdb := repository.GetDB()
+	collector := feedbackloop.NewFeedbackCollector(gdb, FeedbackCollectorConfigFromParams(bg))
+	analyzer := feedbackloop.NewChampionDialogueAnalyzer(gdb, embAdapter, llmAdapter, ChampionAnalyzerConfigFromParams(bg))
+	iterator := feedbackloop.NewPromptIterator(gdb, llmAdapter, PromptIteratorConfigFromParams(bg))
+	bandit := feedbackloop.NewBanditAllocator(gdb, BanditConfigFromParams(bg), 42)
+	optimizer := feedbackloop.NewSOPAutoOptimizer(gdb, bandit, SOPAutoOptimizerConfigFromParams(bg))
 
 	return &FeedbackLoopComponents{
 		Collector:    collector,

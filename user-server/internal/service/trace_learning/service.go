@@ -34,7 +34,7 @@ type Service struct {
 }
 
 // New 构造服务；若评估场景无路由，则兜底复用 friendly_chat 路由，确保评估有 provider。
-func New(db *gorm.DB, dispatcher *llm.Dispatcher, cfg Config) *Service {
+func New(repo *repository.TraceLearningRepository, dispatcher *llm.Dispatcher, cfg Config) *Service {
 	if dispatcher != nil && dispatcher.GetRoute(cfg.Scenario) == nil {
 		if r := dispatcher.GetRoute(llm.ScenarioFriendlyChat); r != nil {
 			dispatcher.SetRoute(llm.ScenarioRoute{
@@ -45,12 +45,15 @@ func New(db *gorm.DB, dispatcher *llm.Dispatcher, cfg Config) *Service {
 			})
 		}
 	}
-	return &Service{repo: repository.NewTraceLearningRepository(db), dispatcher: dispatcher, cfg: cfg}
+	if repo == nil {
+		repo = repository.NewTraceLearningRepository(repository.GetDB())
+	}
+	return &Service{repo: repo, dispatcher: dispatcher, cfg: cfg}
 }
 
-func (s *Service) evaluateTraceOn(ctx context.Context, db *gorm.DB, traceID string, dryRun bool) (*model.TraceEvalLog, error) {
+func (s *Service) evaluateTraceOn(ctx context.Context, traceID string, dryRun bool) (*model.TraceEvalLog, error) {
 	ctx = ensureCtx(ctx)
-	agg, err := AggregateTrace(ctx, db, traceID)
+	agg, err := AggregateTrace(ctx, s.repo, traceID)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +76,7 @@ func (s *Service) evaluateTraceOn(ctx context.Context, db *gorm.DB, traceID stri
 			}
 		} else {
 			if !dryRun {
-				if werr := s.persistAttemptedLog(ctx, db, traceID, agg, "评估出错: "+err.Error()); werr != nil {
+				if werr := s.persistAttemptedLog(ctx, traceID, agg, "评估出错: "+err.Error()); werr != nil {
 					logger.Warnf("[trace_learning] 写错误尝试审计失败 trace=%s: %v", traceID, werr)
 				}
 			}
@@ -86,7 +89,7 @@ func (s *Service) evaluateTraceOn(ctx context.Context, db *gorm.DB, traceID stri
 
 		var adjusted []AdjustedChunk
 		if len(agg.RecalledChunkIDs) > 0 {
-			adjusted, _ = PreviewAdjustments(ctx, db, agg.RecalledChunkIDs, *res, s.cfg)
+			adjusted, _ = PreviewAdjustments(ctx, s.repo, agg.RecalledChunkIDs, *res, s.cfg)
 		}
 		adjJSON, _ := json.Marshal(adjusted)
 		return &model.TraceEvalLog{
@@ -101,47 +104,19 @@ func (s *Service) evaluateTraceOn(ctx context.Context, db *gorm.DB, traceID stri
 		}, nil
 	}
 
-	var resultLog *model.TraceEvalLog
-	txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var lockHeld bool
-		if e := tx.Select("pg_advisory_xact_lock(?)", traceLockKey(traceID)).Scan(&lockHeld).Error; e != nil {
-			return e
-		}
-
-		var existing model.TraceEvalLog
-		if e := tx.Where("trace_id = ?", traceID).First(&existing).Error; e != nil && !errors.Is(e, gorm.ErrRecordNotFound) {
-			return e
-		}
-		alreadyEvaluated := existing.ID != 0
-
-		var adjusted []AdjustedChunk
-		if len(agg.RecalledChunkIDs) > 0 && !alreadyEvaluated && !skipAdjust {
-
-			var e error
-			adjustMu.Lock()
-			adjusted, e = AdjustWeights(ctx, tx, agg.RecalledChunkIDs, *res, s.cfg)
-			adjustMu.Unlock()
-			if e != nil {
-				logger.Warnf("[trace_learning] 调整权重失败 trace=%s: %v", traceID, e)
-			}
-		}
-		adjJSON, _ := json.Marshal(adjusted)
-		log := model.TraceEvalLog{
-			TraceID:        traceID,
-			ConversationID: agg.ConversationID,
-			Channel:        agg.Channel,
-			Score:          res.Score,
-			DimensionsJSON: string(dimJSON),
-			Reason:         res.Reason,
-			Bad:            res.Bad,
-			AdjustedChunks: string(adjJSON),
-		}
-		if e := tx.Where("trace_id = ?", traceID).Assign(log).FirstOrCreate(&log).Error; e != nil {
-			return e
-		}
-		resultLog = &log
-		return nil
-	})
+	safety, safetyPresent := res.Dimensions["safety"]
+	action := weightAction(res.Score, res.Bad, safety, safetyPresent, s.cfg)
+	adjustMu.Lock()
+	resultLog, _, txErr := s.repo.UpsertEvalLogAtomic(ctx, traceID, traceLockKey(traceID), model.TraceEvalLog{
+		TraceID:        traceID,
+		ConversationID: agg.ConversationID,
+		Channel:        agg.Channel,
+		Score:          res.Score,
+		DimensionsJSON: string(dimJSON),
+		Reason:         res.Reason,
+		Bad:            res.Bad,
+	}, agg.RecalledChunkIDs, skipAdjust, weightFnFor(action, s.cfg))
+	adjustMu.Unlock()
 	if txErr != nil {
 		return nil, txErr
 	}
@@ -150,7 +125,7 @@ func (s *Service) evaluateTraceOn(ctx context.Context, db *gorm.DB, traceID stri
 	return resultLog, nil
 }
 
-func (s *Service) persistAttemptedLog(ctx context.Context, db *gorm.DB, traceID string, agg *AggregatedTrace, reason string) error {
+func (s *Service) persistAttemptedLog(ctx context.Context, traceID string, agg *AggregatedTrace, reason string) error {
 	log := model.TraceEvalLog{
 		TraceID:        traceID,
 		ConversationID: agg.ConversationID,
@@ -161,7 +136,7 @@ func (s *Service) persistAttemptedLog(ctx context.Context, db *gorm.DB, traceID 
 		Bad:            false,
 		AdjustedChunks: "[]",
 	}
-	return repository.NewTraceLearningRepository(db).UpsertAttemptedEvalLog(ctx, &log)
+	return s.repo.UpsertAttemptedEvalLog(ctx, &log)
 }
 
 const runBatchLockKey int64 = 9173001
@@ -214,7 +189,7 @@ func (s *Service) RunBatch(ctx context.Context, sinceHours, batchSize int, dryRu
 					defer wg.Done()
 					sem <- struct{}{}
 					defer func() { <-sem }()
-					log, e2 := s.evaluateTraceOn(ctx, s.repo.GetDB(), tid, dryRun)
+					log, e2 := s.evaluateTraceOn(ctx, tid, dryRun)
 					if e2 != nil {
 						logger.Warnf("[trace_learning] 评估失败 trace=%s: %v", tid, e2)
 						return

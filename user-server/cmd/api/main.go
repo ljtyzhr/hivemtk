@@ -524,7 +524,7 @@ func main() {
 
 	service.InitConfidenceAggregator(repository.NewThresholdPolicyRepositoryWithDB(db.GetDB()), repository.NewConfidenceSignalRepositoryWithDB(db.GetDB()), repository.NewConfidenceCalibrationRepositoryWithDB(db.GetDB()), service.NewLocalConfidenceEmbedder())
 	service.InitHumanizeEvalService(nil)
-	service.InitFeedbackCollector(db.GetDB())
+	service.InitFeedbackCollector()
 	logger.Info("[P0-3/4/5] confidence aggregator + humanize evaluator + feedback collector initialized")
 
 	// R-8 合规审计：不装配时触达侧所有判定/提醒全走 nil-safe 退路（只打 WARN 不落库），
@@ -533,18 +533,18 @@ func main() {
 	defer complianceAudit.Stop()
 	logger.Info("[R-8] 合规审计落库器已装配（reach_compliance_log 异步批量落盘）")
 
-	traceLearningSvc := trace_learning.New(db.GetDB(), llm.GetGlobalDispatcher(), trace_learning.DefaultConfig())
+	traceLearningSvc := trace_learning.New(repository.NewTraceLearningRepository(db.GetDB()), llm.GetGlobalDispatcher(), trace_learning.DefaultConfig())
 	trace_learning.SetGlobal(traceLearningSvc)
 	traceLearningCron := trace_learning.NewCron(traceLearningSvc)
 	traceLearningCron.Start(context.Background())
 	defer traceLearningCron.Stop(context.Background())
 	logger.Info("[trace_learning] 自学习闭环已装配（cron 每小时评估新 trace 并调整知识库权重）")
 
-	feedbackComponents := service.InitFeedbackLoopComponents(db.GetDB(), llm.GetGlobalDispatcher(), embedding.NewLocalEmbedding(1024, 42))
+	feedbackComponents := service.InitFeedbackLoopComponents(llm.GetGlobalDispatcher(), embedding.NewLocalEmbedding(1024, 42))
 	if feedbackComponents.Optimizer != nil {
 		feedbackComponents.Optimizer.SetGateLLM(llm.GetGlobalDispatcher())
 	}
-	feedbackCron := service.NewFeedbackLoopCron(db.GetDB(), feedbackComponents)
+	feedbackCron := service.NewFeedbackLoopCron(feedbackComponents)
 	defer feedbackCron.Stop(context.Background())
 	logger.Info("[P0-5] feedback loop cron started (5 tasks: monthly baseline / weekly dialogue / daily prompt / 6h bandit / 6h optimizer)")
 

@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 
-	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 // AggregateTrace 从 message_trace 聚合一条 trace 的评估素材。
@@ -17,10 +16,10 @@ import (
 //   - Reply：ai_dispatch 节点的 output.reply（由 webhook 埋点记录）
 //   - RecalledChunkIDs：ai_dispatch 节点的 output.recalled_chunk_ids（自学习关联）
 //   - HasAbnormal：是否存在异常节点
-func AggregateTrace(ctx context.Context, db *gorm.DB, traceID string) (*AggregatedTrace, error) {
+func AggregateTrace(ctx context.Context, repo *repository.TraceLearningRepository, traceID string) (*AggregatedTrace, error) {
 	ctx = ensureCtx(ctx)
-	var spans []model.MessageTrace
-	if err := db.WithContext(ctx).Where("trace_id = ?", traceID).Order("node_order, id").Find(&spans).Error; err != nil {
+	spans, err := repo.ListTraceSpans(ctx, traceID)
+	if err != nil {
 		return nil, err
 	}
 	if len(spans) == 0 {
@@ -57,19 +56,15 @@ func AggregateTrace(ctx context.Context, db *gorm.DB, traceID string) (*Aggregat
 	}
 	agg.RecalledChunkIDs = dedupeStrings(agg.RecalledChunkIDs)
 	if agg.Query == "" && agg.ConversationID != "" {
-		var content string
-		if err := db.WithContext(ctx).Table("message_hub").
-			Where("conversation_id = ? AND direction = 'inbound'", agg.ConversationID).
-			Order("id DESC").Limit(1).Pluck("content", &content).Error; err != nil {
+		content, err := repo.RecentHubContent(ctx, agg.ConversationID, "inbound")
+		if err != nil {
 			logger.Warnf("[trace_learning] 兜底查询 inbound 失败 conv=%s: %v", agg.ConversationID, err)
 		}
 		agg.Query = content
 	}
 	if agg.Reply == "" && agg.ConversationID != "" {
-		var content string
-		if err := db.WithContext(ctx).Table("message_hub").
-			Where("conversation_id = ? AND direction = 'outbound'", agg.ConversationID).
-			Order("id DESC").Limit(1).Pluck("content", &content).Error; err != nil {
+		content, err := repo.RecentHubContent(ctx, agg.ConversationID, "outbound")
+		if err != nil {
 			logger.Warnf("[trace_learning] 兜底查询 outbound 失败 conv=%s: %v", agg.ConversationID, err)
 		}
 		agg.Reply = content

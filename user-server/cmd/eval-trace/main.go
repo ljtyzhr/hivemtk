@@ -8,6 +8,7 @@ import (
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service/trace_learning"
 )
 
@@ -26,7 +27,7 @@ func main() {
 
 	cfg := trace_learning.DefaultConfig()
 	cfg.Industry = "general"
-	svc := trace_learning.New(db.GetDB(), llm.GetGlobalDispatcher(), cfg)
+	svc := trace_learning.New(repository.NewTraceLearningRepository(db.GetDB()), llm.GetGlobalDispatcher(), cfg)
 
 	fmt.Println("[eval-trace] RunBatch(since=72h, batch=20)...")
 	result, err := svc.RunBatch(context.Background(), 72, 20, false)

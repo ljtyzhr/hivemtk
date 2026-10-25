@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
@@ -27,17 +25,17 @@ type FeedbackLoopCron struct {
 //
 // db 参数保留以维持调用方签名兼容；当 db 非空时构造对应 repository，
 // 为空时 repos 保持 nil（cron 各任务会跳过 nil repo 对应的 DB 操作）。
-func NewFeedbackLoopCron(db *gorm.DB, components *FeedbackLoopComponents) *FeedbackLoopCron {
+func NewFeedbackLoopCron(components *FeedbackLoopComponents) *FeedbackLoopCron {
 	c := &FeedbackLoopCron{
 		components: components,
 		stopCh:     make(chan struct{}),
 	}
-	if db != nil {
-		c.sopRepo = repository.NewSopAgentRepository(db)
-		c.abTestRepo = repository.NewFeedbackLoopRepositoryWithDB(db)
+	if gdb := repository.GetDB(); gdb != nil {
+		c.sopRepo = repository.NewSopAgentRepository(gdb)
+		c.abTestRepo = repository.NewFeedbackLoopRepositoryWithDB(gdb)
 	}
 	c.wg.Add(6)
-	go c.runChampionBaselineMonthly(context.Background(), db)
+	go c.runChampionBaselineMonthly(context.Background())
 	go c.runChampionDialogueWeekly(context.Background())
 	go c.runPromptIteratorDaily(context.Background())
 	go c.runBanditConvergence(context.Background())
@@ -52,7 +50,7 @@ func (c *FeedbackLoopCron) Stop(ctx context.Context) {
 	c.wg.Wait()
 }
 
-func (c *FeedbackLoopCron) runChampionBaselineMonthly(ctx context.Context, _ *gorm.DB) {
+func (c *FeedbackLoopCron) runChampionBaselineMonthly(ctx context.Context) {
 	defer c.wg.Done()
 	for {
 		next := nextMonthlyRun(1, 2, 0)

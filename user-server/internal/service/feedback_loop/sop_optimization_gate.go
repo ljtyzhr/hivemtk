@@ -12,6 +12,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	tracelearning "hivemtk-user/internal/service/trace_learning"
+
+	"hivemtk-user/internal/repository"
 )
 
 const (
@@ -75,7 +77,7 @@ func (o *SOPAutoOptimizer) passGate(ctx context.Context, sug *model.Optimization
 
 	var caseLines strings.Builder
 	for _, l := range logs {
-		agg, err := tracelearning.AggregateTrace(ctx, o.getRepo().GetDB(), l.TraceID)
+		agg, err := tracelearning.AggregateTrace(ctx, repository.NewTraceLearningRepository(o.getRepo().GetDB()), l.TraceID)
 		if err != nil || agg == nil || agg.Query == "" || agg.Reply == "" {
 			continue
 		}
