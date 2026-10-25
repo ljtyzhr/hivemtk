@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 )
 
 // TestNextVersion 版本号递增
@@ -66,7 +67,7 @@ func TestArmKeysToInterface_Empty(t *testing.T) {
 func TestPromptIterator_IterateForNode_NoActivePrompt(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
 	llm := newFeedbackLoopStubLLMDispatcher(nil)
-	p := NewPromptIterator(db, llm, DefaultPromptIteratorConfig())
+	p := NewPromptIterator(repository.NewFeedbackLoopRepositoryWithDB(db), llm, DefaultPromptIteratorConfig())
 
 	_, err := p.IterateForNode(context.Background(), 1, "node_1")
 	if !errors.Is(err, ErrActivePromptNotFound) {
@@ -78,7 +79,7 @@ func TestPromptIterator_IterateForNode_NoActivePrompt(t *testing.T) {
 func TestPromptIterator_IterateForNode_InvalidInput(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
 	llm := newFeedbackLoopStubLLMDispatcher(nil)
-	p := NewPromptIterator(db, llm, DefaultPromptIteratorConfig())
+	p := NewPromptIterator(repository.NewFeedbackLoopRepositoryWithDB(db), llm, DefaultPromptIteratorConfig())
 
 	_, err := p.IterateForNode(context.Background(), 0, "node_1")
 	if !errors.Is(err, ErrInvalidInput) {
@@ -125,7 +126,7 @@ func TestPromptIterator_IterateForNode_InsufficientSamples(t *testing.T) {
 	}
 
 	llm := newFeedbackLoopStubLLMDispatcher(nil)
-	p := NewPromptIterator(db, llm, DefaultPromptIteratorConfig())
+	p := NewPromptIterator(repository.NewFeedbackLoopRepositoryWithDB(db), llm, DefaultPromptIteratorConfig())
 	_, err := p.IterateForNode(ctx, 1, "node_1")
 	if !errors.Is(err, ErrInsufficientSamples) {
 		t.Errorf("样本不足应返回 ErrInsufficientSamples, got %v", err)
@@ -184,7 +185,7 @@ func TestPromptIterator_IterateForNode_FullFlowWithAutoApprove(t *testing.T) {
 
 	cfg := DefaultPromptIteratorConfig()
 	cfg.AutoApprove = true
-	p := NewPromptIterator(db, llm, cfg)
+	p := NewPromptIterator(repository.NewFeedbackLoopRepositoryWithDB(db), llm, cfg)
 
 	got, err := p.IterateForNode(ctx, 1, "node_1")
 	if err != nil {
@@ -265,7 +266,7 @@ func TestPromptIterator_IterateForNode_NoAutoApprove(t *testing.T) {
 
 	cfg := DefaultPromptIteratorConfig()
 	cfg.AutoApprove = false
-	p := NewPromptIterator(db, llm, cfg)
+	p := NewPromptIterator(repository.NewFeedbackLoopRepositoryWithDB(db), llm, cfg)
 
 	got, err := p.IterateForNode(ctx, 1, "node_1")
 	if err != nil {
@@ -323,7 +324,7 @@ func TestPromptIterator_IterateForNode_LLMFailure(t *testing.T) {
 	llm.failOn = 1
 	llm.err = fmt.Errorf("LLM service error")
 
-	p := NewPromptIterator(db, llm, DefaultPromptIteratorConfig())
+	p := NewPromptIterator(repository.NewFeedbackLoopRepositoryWithDB(db), llm, DefaultPromptIteratorConfig())
 	_, err := p.IterateForNode(ctx, 1, "node_1")
 	if err == nil {
 		t.Errorf("LLM 失败应返回错误")
@@ -363,7 +364,7 @@ func TestPromptIterator_IterateForNode_LLMInvalidJSON(t *testing.T) {
 	}
 
 	llm := newFeedbackLoopStubLLMDispatcher([]string{"这不是 JSON 内容"})
-	p := NewPromptIterator(db, llm, DefaultPromptIteratorConfig())
+	p := NewPromptIterator(repository.NewFeedbackLoopRepositoryWithDB(db), llm, DefaultPromptIteratorConfig())
 	_, err := p.IterateForNode(ctx, 1, "node_1")
 	if err == nil {
 		t.Errorf("LLM 返回非 JSON 应报错")

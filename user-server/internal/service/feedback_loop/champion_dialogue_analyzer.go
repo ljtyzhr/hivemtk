@@ -13,8 +13,6 @@ import (
 	"hivemtk-user/internal/model"
 	textutil "hivemtk-user/internal/pkg/utils/text"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // ChampionDialogueAnalyzer 销冠对话分析器
@@ -29,7 +27,7 @@ type ChampionDialogueAnalyzer struct {
 //
 // 参数 db 仅为构造签名兼容保留，内部用 db 构造 repository，不存到 struct
 func NewChampionDialogueAnalyzer(
-	db *gorm.DB,
+	repo *repository.FeedbackLoopRepository,
 	embedder Embedder,
 	dispatcher LLMDispatcher,
 	cfg ChampionAnalyzerConfig,
@@ -50,7 +48,7 @@ func NewChampionDialogueAnalyzer(
 		cfg.MaxDialoguesPerRun = 500
 	}
 	return &ChampionDialogueAnalyzer{
-		repo:       repository.NewFeedbackLoopRepositoryWithDB(db),
+		repo:       repoOrNil(repo),
 		embedder:   embedder,
 		dispatcher: dispatcher,
 		config:     cfg,

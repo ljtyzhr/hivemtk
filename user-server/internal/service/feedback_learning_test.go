@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 func setupFeedbackLearningDB(t *testing.T) *gorm.DB {
@@ -56,7 +57,7 @@ func seedCustomerMessages(db *gorm.DB, sessionID string, contents []string, base
 // TestExtractProfile_AllDimensionsPresent 所有 5 维度都被提取
 func TestExtractProfile_AllDimensionsPresent(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedAIMessages(db, "s1", []string{
@@ -84,7 +85,7 @@ func TestExtractProfile_AllDimensionsPresent(t *testing.T) {
 // TestExtractProfile_ObjectionHandling 异议处理维度
 func TestExtractProfile_ObjectionHandling(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedCustomerMessages(db, "s1", []string{"太贵了"}, baseTime)
@@ -108,7 +109,7 @@ func TestExtractProfile_ObjectionHandling(t *testing.T) {
 // TestExtractProfile_ObjectionAbandoned 异议放弃（负向）
 func TestExtractProfile_ObjectionAbandoned(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedCustomerMessages(db, "s1", []string{"太贵了，不需要"}, baseTime)
@@ -129,7 +130,7 @@ func TestExtractProfile_ObjectionAbandoned(t *testing.T) {
 // TestExtractProfile_ClosingInvitation 逼单邀约维度
 func TestExtractProfile_ClosingInvitation(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedCustomerMessages(db, "s1", []string{"可以的，下单吧"}, baseTime)
@@ -150,7 +151,7 @@ func TestExtractProfile_ClosingInvitation(t *testing.T) {
 // TestExtractProfile_FollowupActivation 跟进激活维度
 func TestExtractProfile_FollowupActivation(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedAIMessages(db, "s1", []string{
@@ -173,7 +174,7 @@ func TestExtractProfile_FollowupActivation(t *testing.T) {
 // TestExtractProfile_NurturingConversion 培育转化维度
 func TestExtractProfile_NurturingConversion(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedAIMessages(db, "s1", []string{
@@ -193,7 +194,7 @@ func TestExtractProfile_NurturingConversion(t *testing.T) {
 // TestExtractProfile_RepurchaseOperation 复购运营维度
 func TestExtractProfile_RepurchaseOperation(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedAIMessages(db, "s1", []string{
@@ -213,7 +214,7 @@ func TestExtractProfile_RepurchaseOperation(t *testing.T) {
 // TestExtractProfile_PersistSnapshot 验证画像快照持久化
 func TestExtractProfile_PersistSnapshot(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedAIMessages(db, "s1", []string{
@@ -255,7 +256,7 @@ func TestExtractProfile_PersistSnapshot(t *testing.T) {
 // TestExtractProfile_NoSamples 中性得分（无样本时 50 分）
 func TestExtractProfile_NoSamples(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	report, err := svc.ExtractProfile(context.Background(), 0, "智能体", "ai_champion", time.Now().Add(-1*time.Hour), time.Now())
 	if err != nil {
@@ -271,7 +272,7 @@ func TestExtractProfile_NoSamples(t *testing.T) {
 // TestExtractProfile_OverallScore 综合分计算
 func TestExtractProfile_OverallScore(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-1 * time.Hour)
 	seedAIMessages(db, "s1", []string{
@@ -320,7 +321,7 @@ func seedNodeTransition(db *gorm.DB, sopID, execID uint, toNode, nodeType, outco
 // TestAnalyzeNodeConversion_BasicConversion 基础转化率计算
 func TestAnalyzeNodeConversion_BasicConversion(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 8; i++ {
@@ -351,7 +352,7 @@ func TestAnalyzeNodeConversion_BasicConversion(t *testing.T) {
 // TestAnalyzeNodeConversion_BottleneckIdentification 瓶颈节点识别
 func TestAnalyzeNodeConversion_BottleneckIdentification(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 8; i++ {
@@ -386,7 +387,7 @@ func TestAnalyzeNodeConversion_BottleneckIdentification(t *testing.T) {
 // TestAnalyzeNodeConversion_WithVariant A/B 测试 variant 过滤
 func TestAnalyzeNodeConversion_WithVariant(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 5; i++ {
@@ -421,7 +422,7 @@ func TestAnalyzeNodeConversion_WithVariant(t *testing.T) {
 // TestAnalyzeNodeConversion_DropRate 流失率计算
 func TestAnalyzeNodeConversion_DropRate(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 7; i++ {
@@ -444,7 +445,7 @@ func TestAnalyzeNodeConversion_DropRate(t *testing.T) {
 // TestGenerateOptimizationSuggestions_LLMNode LLM 节点建议
 func TestGenerateOptimizationSuggestions_LLMNode(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 3; i++ {
@@ -491,7 +492,7 @@ func TestGenerateOptimizationSuggestions_LLMNode(t *testing.T) {
 // TestGenerateOptimizationSuggestions_ConditionNode 条件节点建议
 func TestGenerateOptimizationSuggestions_ConditionNode(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 2; i++ {
@@ -529,7 +530,7 @@ func TestGenerateOptimizationSuggestions_ConditionNode(t *testing.T) {
 // TestGenerateOptimizationSuggestions_ActionNode 动作节点建议
 func TestGenerateOptimizationSuggestions_ActionNode(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 2; i++ {
@@ -570,7 +571,7 @@ func TestGenerateOptimizationSuggestions_ActionNode(t *testing.T) {
 // TestGenerateOptimizationSuggestions_HighConversionSkipped 高转化节点不生成建议
 func TestGenerateOptimizationSuggestions_HighConversionSkipped(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	for i := 0; i < 9; i++ {
@@ -599,7 +600,7 @@ func TestGenerateOptimizationSuggestions_HighConversionSkipped(t *testing.T) {
 // TestGenerateOptimizationSuggestions_MinSampleFilter 最小样本数过滤
 func TestGenerateOptimizationSuggestions_MinSampleFilter(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "test_sop")
 	seedNodeTransition(db, sopID, 1, "small_node", "llm", model.NodeOutcomeSuccess, 500)
@@ -627,7 +628,7 @@ func TestGenerateOptimizationSuggestions_MinSampleFilter(t *testing.T) {
 // TestReviewSuggestion_Approve 审核通过
 func TestReviewSuggestion_Approve(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sug := model.OptimizationSuggestion{
 		SOPID:          1,
@@ -660,7 +661,7 @@ func TestReviewSuggestion_Approve(t *testing.T) {
 // TestReviewSuggestion_Apply 应用建议
 func TestReviewSuggestion_Apply(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sug := model.OptimizationSuggestion{
 		SOPID:          1,
@@ -690,7 +691,7 @@ func TestReviewSuggestion_Apply(t *testing.T) {
 // TestReviewSuggestion_Reject 拒绝建议
 func TestReviewSuggestion_Reject(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sug := model.OptimizationSuggestion{
 		SOPID:          1,
@@ -717,7 +718,7 @@ func TestReviewSuggestion_Reject(t *testing.T) {
 // TestReviewSuggestion_InvalidAction 非法操作
 func TestReviewSuggestion_InvalidAction(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sug := model.OptimizationSuggestion{
 		SOPID: 1, SOPName: "test", NodeID: "n1", SuggestionText: "test", Status: model.SuggestionStatusPending,
@@ -733,7 +734,7 @@ func TestReviewSuggestion_InvalidAction(t *testing.T) {
 // TestRecordNodeTransition 记录节点流转
 func TestRecordNodeTransition(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	transition := &model.SOPNodeTransition{
 		SOPID:       1,
@@ -760,7 +761,7 @@ func TestRecordNodeTransition(t *testing.T) {
 // TestRecordNodeTransition_Nil 安全性测试
 func TestRecordNodeTransition_Nil(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	err := svc.RecordNodeTransition(context.Background(), nil)
 	if err != nil {
@@ -771,7 +772,7 @@ func TestRecordNodeTransition_Nil(t *testing.T) {
 // TestListPendingSuggestions 列出待审核建议
 func TestListPendingSuggestions(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	for i := 0; i < 3; i++ {
 		sug := model.OptimizationSuggestion{
@@ -806,7 +807,7 @@ func TestListPendingSuggestions(t *testing.T) {
 // TestListPendingSuggestions_PriorityOrder 按优先级排序
 func TestListPendingSuggestions_PriorityOrder(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	for _, p := range []int{0, 2, 1} {
 		sug := model.OptimizationSuggestion{
@@ -836,7 +837,7 @@ func TestListPendingSuggestions_PriorityOrder(t *testing.T) {
 // TestGetLatestProfile 获取最新画像
 func TestGetLatestProfile(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	now := time.Now()
 	for _, dim := range model.AllSalesChampionDimensions {
@@ -997,7 +998,7 @@ func TestClassifyRepurchaseOperation(t *testing.T) {
 
 func TestPRD_Acceptance_ExtractDimensionsFromDialog(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	baseTime := time.Now().Add(-10 * time.Hour)
 	seedCustomerMessages(db, "s1", []string{"太贵了，不需要"}, baseTime)
@@ -1036,7 +1037,7 @@ func TestPRD_Acceptance_ExtractDimensionsFromDialog(t *testing.T) {
 
 func TestPRD_Acceptance_NodeConversionStats(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "验收SOP")
 	for i := 0; i < 8; i++ {
@@ -1068,7 +1069,7 @@ func TestPRD_Acceptance_NodeConversionStats(t *testing.T) {
 
 func TestPRD_Acceptance_LowConversionSuggestion(t *testing.T) {
 	db := setupFeedbackLearningDB(t)
-	svc := NewFeedbackLearningService(db)
+	svc := NewFeedbackLearningService(repository.NewFeedbackLearningRepository(db))
 
 	sopID := seedSOPAgent(db, "验收SOP")
 	for i := 0; i < 2; i++ {

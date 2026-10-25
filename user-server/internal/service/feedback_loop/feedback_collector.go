@@ -15,8 +15,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // FeedbackCollector 反馈信号采集器
@@ -34,7 +32,17 @@ type FeedbackCollector struct {
 //
 //	db     - GORM DB（写入 feedback_events / feedback_signals，由 repository 层使用）
 //	cfg    - 配置（零值字段会用默认值填充）
-func NewFeedbackCollector(db *gorm.DB, cfg FeedbackCollectorConfig) *FeedbackCollector {
+//
+// repoOrNil 兼容原 db=nil 语义：nil repo 等价于"绑了一个空库句柄的仓储"，
+// 组件方法走 gorm 报错路径（与旧行为一致），不 panic。
+func repoOrNil(repo *repository.FeedbackLoopRepository) *repository.FeedbackLoopRepository {
+	if repo == nil {
+		return repository.NewFeedbackLoopRepositoryWithDB(nil)
+	}
+	return repo
+}
+
+func NewFeedbackCollector(repo *repository.FeedbackLoopRepository, cfg FeedbackCollectorConfig) *FeedbackCollector {
 	if cfg.QueueSize == 0 {
 		cfg.QueueSize = 1000
 	}
@@ -48,7 +56,7 @@ func NewFeedbackCollector(db *gorm.DB, cfg FeedbackCollectorConfig) *FeedbackCol
 		cfg.Weights = DefaultSignalWeights
 	}
 	c := &FeedbackCollector{
-		repo:   repository.NewFeedbackLoopRepositoryWithDB(db),
+		repo:   repoOrNil(repo),
 		config: cfg,
 		queue:  make(chan *dto.CollectRequest, cfg.QueueSize),
 		stopCh: make(chan struct{}),

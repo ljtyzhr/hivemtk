@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 type fakeGateLLM struct {
@@ -94,7 +95,7 @@ func TestGate_InsufficientGolden_FailClosed(t *testing.T) {
 	seedGoldenCases(t, db, minGoldenCases-1)
 
 	fake := &fakeGateLLM{content: gateVerdict(true, "ok")}
-	o := NewSOPAutoOptimizer(db, nil, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), nil, DefaultSOPAutoOptimizerConfig())
 	o.SetGateLLM(fake)
 
 	sug := seedPendingSuggestion(t, db)
@@ -115,7 +116,7 @@ func TestGate_Pass_Applied(t *testing.T) {
 	seedGoldenCases(t, db, minGoldenCases+2)
 
 	fake := &fakeGateLLM{content: gateVerdict(true, "无损害")}
-	o := NewSOPAutoOptimizer(db, nil, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), nil, DefaultSOPAutoOptimizerConfig())
 	o.SetGateLLM(fake)
 
 	sug := seedPendingSuggestion(t, db)
@@ -137,7 +138,7 @@ func TestGate_LLMJudgeReject_NotApplied(t *testing.T) {
 	seedGoldenCases(t, db, minGoldenCases+2)
 
 	fake := &fakeGateLLM{content: gateVerdict(false, "存在过度承诺风险")}
-	o := NewSOPAutoOptimizer(db, nil, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), nil, DefaultSOPAutoOptimizerConfig())
 	o.SetGateLLM(fake)
 
 	sug := seedPendingSuggestion(t, db)
@@ -156,7 +157,7 @@ func TestGate_RecheckSkip(t *testing.T) {
 	seedGoldenCases(t, db, minGoldenCases+2)
 
 	fake := &fakeGateLLM{content: gateVerdict(false, "未过")}
-	o := NewSOPAutoOptimizer(db, nil, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), nil, DefaultSOPAutoOptimizerConfig())
 	o.SetGateLLM(fake)
 
 	seedPendingSuggestion(t, db)
@@ -172,7 +173,7 @@ func TestGate_RecheckSkip(t *testing.T) {
 // TestGate_StructuralChecks 结构门与合规门
 func TestGate_StructuralChecks(t *testing.T) {
 	db := setupGateTestDB(t)
-	o := NewSOPAutoOptimizer(db, nil, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), nil, DefaultSOPAutoOptimizerConfig())
 
 	empty := &model.OptimizationSuggestion{SuggestionText: "  "}
 	res := o.passGate(context.Background(), empty)

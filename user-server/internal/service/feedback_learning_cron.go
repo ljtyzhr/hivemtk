@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -21,13 +19,13 @@ type FeedbackLearningCron struct {
 	wg       sync.WaitGroup
 }
 
-func NewFeedbackLearningCron(db *gorm.DB) *FeedbackLearningCron {
-	if db == nil {
+func NewFeedbackLearningCron(repo *repository.FeedbackLearningRepository) *FeedbackLearningCron {
+	if repo == nil || repo.GetDB() == nil {
 		return nil
 	}
 	c := &FeedbackLearningCron{
-		svc:     NewFeedbackLearningService(db),
-		sopRepo: repository.NewSopAgentRepository(db),
+		svc:     NewFeedbackLearningService(repo),
+		sopRepo: repository.NewSopAgentRepository(repo.GetDB()),
 		stopCh:  make(chan struct{}),
 	}
 	c.wg.Add(1)

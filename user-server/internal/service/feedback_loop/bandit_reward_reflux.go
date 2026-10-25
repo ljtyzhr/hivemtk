@@ -37,9 +37,9 @@ type BanditUpdater interface {
 // NewBanditRewardReflux 构造
 //
 // 参数 db 仅为构造签名兼容保留，内部用 db 构造 repository，不存 gorm 直连写路径
-func NewBanditRewardReflux(db *gorm.DB, bandit BanditUpdater) *BanditRewardReflux {
+func NewBanditRewardReflux(repo *repository.FeedbackLoopRepository, bandit BanditUpdater) *BanditRewardReflux {
 	return &BanditRewardReflux{
-		repo:      repository.NewFeedbackLoopRepositoryWithDB(db),
+		repo:      repoOrNil(repo),
 		bandit:    bandit,
 		batchSize: refluxBatchSize,
 	}

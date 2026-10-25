@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -58,9 +56,9 @@ type FeedbackRecord struct {
 }
 
 // NewFeedbackLearner 创建反馈学习器
-func NewFeedbackLearner(db *gorm.DB) *FeedbackLearner {
+func NewFeedbackLearner(recordRepo *repository.FeedbackRecordRepository) *FeedbackLearner {
 	return &FeedbackLearner{
-		recordRepo:  repository.NewFeedbackRecordRepository(db),
+		recordRepo:  recordOrNil(recordRepo),
 		intentCache: make(map[string]*IntentStats),
 		sopCache:    make(map[string]*SOPStats),
 	}
@@ -195,4 +193,12 @@ func (f *FeedbackLearner) SuggestConfidenceFloor(ctx context.Context, intentType
 	} else {
 		return 0.7
 	}
+}
+
+// recordOrNil nil 兜底：等价旧 NewFeedbackLearner(nil) 形态。
+func recordOrNil(repo *repository.FeedbackRecordRepository) *repository.FeedbackRecordRepository {
+	if repo == nil {
+		return repository.NewFeedbackRecordRepository(nil)
+	}
+	return repo
 }

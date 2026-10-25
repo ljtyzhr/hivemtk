@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -22,14 +20,13 @@ type FeedbackLearningService struct {
 
 // NewFeedbackLearningService 创建反馈学习服务
 //
-// db 参数保留以维持调用方签名兼容；当 db 非空时构造对应 repository，
-// 为空时 repos 保持 nil（service 各方法会返回 "db not configured" 错误）。
-func NewFeedbackLearningService(db *gorm.DB) *FeedbackLearningService {
+// repo 为空时 repos 保持 nil（service 各方法会返回 "db not configured" 错误）。
+func NewFeedbackLearningService(repo *repository.FeedbackLearningRepository) *FeedbackLearningService {
 	s := &FeedbackLearningService{}
-	if db != nil {
-		s.feedbackRepo = repository.NewFeedbackLearningRepository(db)
-		s.sopAgentRepo = repository.NewSopAgentRepository(db)
-		s.sopExecRepo = repository.NewSopExecutionRepository(db)
+	if repo != nil {
+		s.feedbackRepo = repo
+		s.sopAgentRepo = repository.NewSopAgentRepository(repo.GetDB())
+		s.sopExecRepo = repository.NewSopExecutionRepository(repo.GetDB())
 	}
 	return s
 }

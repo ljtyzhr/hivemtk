@@ -24,7 +24,7 @@ type PromptIterator struct {
 // NewPromptIterator 构造迭代器
 //
 // 参数 db 仅为构造签名兼容保留，内部用 db 构造 repository，不存到 struct
-func NewPromptIterator(db *gorm.DB, dispatcher LLMDispatcher, cfg PromptIteratorConfig) *PromptIterator {
+func NewPromptIterator(repo *repository.FeedbackLoopRepository, dispatcher LLMDispatcher, cfg PromptIteratorConfig) *PromptIterator {
 	if cfg.MinSamplesForIteration == 0 {
 		cfg.MinSamplesForIteration = 50
 	}
@@ -35,7 +35,7 @@ func NewPromptIterator(db *gorm.DB, dispatcher LLMDispatcher, cfg PromptIterator
 		cfg.CandidatesPerRun = 3
 	}
 	return &PromptIterator{
-		repo:       repository.NewFeedbackLoopRepositoryWithDB(db),
+		repo:       repoOrNil(repo),
 		dispatcher: dispatcher,
 		config:     cfg,
 	}

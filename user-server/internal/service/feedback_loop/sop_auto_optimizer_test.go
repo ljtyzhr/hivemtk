@@ -15,7 +15,7 @@ import (
 func TestSOPAutoOptimizer_ProcessPending_NoSuggestions(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
 	bandit := newStubBanditAllocator()
-	o := NewSOPAutoOptimizer(db, bandit, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), bandit, DefaultSOPAutoOptimizerConfig())
 
 	report, err := o.ProcessPendingSuggestions(context.Background())
 	if err != nil {
@@ -64,7 +64,7 @@ func TestSOPAutoOptimizer_ProcessPending_BranchPrune(t *testing.T) {
 	}
 
 	bandit := newStubBanditAllocator()
-	o := NewSOPAutoOptimizer(db, bandit, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), bandit, DefaultSOPAutoOptimizerConfig())
 	o.SetGateLLM(&fakeGateLLM{content: gateVerdict(true, "无损害")})
 	report, err := o.ProcessPendingSuggestions(ctx)
 	if err != nil {
@@ -145,7 +145,7 @@ func TestSOPAutoOptimizer_ProcessPending_LowPriorityNotApplied(t *testing.T) {
 	}
 
 	bandit := newStubBanditAllocator()
-	o := NewSOPAutoOptimizer(db, bandit, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), bandit, DefaultSOPAutoOptimizerConfig())
 	report, err := o.ProcessPendingSuggestions(ctx)
 	if err != nil {
 		t.Fatalf("ProcessPendingSuggestions: %v", err)
@@ -187,7 +187,7 @@ func TestSOPAutoOptimizer_ProcessPending_UnknownSuggestionType(t *testing.T) {
 	}
 
 	bandit := newStubBanditAllocator()
-	o := NewSOPAutoOptimizer(db, bandit, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), bandit, DefaultSOPAutoOptimizerConfig())
 	o.SetGateLLM(&fakeGateLLM{content: gateVerdict(true, "无损害")})
 	report, err := o.ProcessPendingSuggestions(ctx)
 	if err != nil {
@@ -229,7 +229,7 @@ func TestSOPAutoOptimizer_CheckAndPromote_Converged(t *testing.T) {
 	bandit := newStubBanditAllocator()
 	bandit.SetConverged(expID, "arm_a")
 
-	o := NewSOPAutoOptimizer(db, bandit, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), bandit, DefaultSOPAutoOptimizerConfig())
 	report, err := o.ProcessPendingSuggestions(ctx)
 	if err != nil {
 		t.Fatalf("ProcessPendingSuggestions: %v", err)
@@ -326,7 +326,7 @@ func TestSOPAutoOptimizer_CheckAndRollback_ConversionDrop(t *testing.T) {
 	}
 
 	bandit := newStubBanditAllocator()
-	o := NewSOPAutoOptimizer(db, bandit, DefaultSOPAutoOptimizerConfig())
+	o := NewSOPAutoOptimizer(repository.NewFeedbackLoopRepositoryWithDB(db), bandit, DefaultSOPAutoOptimizerConfig())
 	report, err := o.ProcessPendingSuggestions(ctx)
 	if err != nil {
 		t.Fatalf("ProcessPendingSuggestions: %v", err)

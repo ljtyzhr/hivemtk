@@ -178,7 +178,7 @@ func TestChampionAnalyzer_AnalyzePipeline_EmptyCandidates(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
 	emb := newStubEmbedder(1024)
 	llm := newFeedbackLoopStubLLMDispatcher(nil)
-	a := NewChampionDialogueAnalyzer(db, emb, llm, DefaultChampionAnalyzerConfig())
+	a := NewChampionDialogueAnalyzer(repository.NewFeedbackLoopRepositoryWithDB(db), emb, llm, DefaultChampionAnalyzerConfig())
 
 	report, err := a.AnalyzePipeline(context.Background(), time.Now().Add(-24*time.Hour))
 	if err != nil {
@@ -265,7 +265,7 @@ func TestChampionAnalyzer_AnalyzePipeline_FullPipeline(t *testing.T) {
 	llm := newFeedbackLoopStubLLMDispatcher([]string{string(scriptJSON)})
 
 	emb := newStubEmbedder(1024)
-	a := NewChampionDialogueAnalyzer(db, emb, llm, DefaultChampionAnalyzerConfig())
+	a := NewChampionDialogueAnalyzer(repository.NewFeedbackLoopRepositoryWithDB(db), emb, llm, DefaultChampionAnalyzerConfig())
 
 	report, err := a.AnalyzePipeline(ctx, time.Now().Add(-24*time.Hour))
 	if err != nil {
@@ -328,7 +328,7 @@ func TestChampionAnalyzer_AnalyzePipeline_LLMFailure(t *testing.T) {
 	llm.err = fmt.Errorf("LLM service unavailable")
 
 	emb := newStubEmbedder(1024)
-	a := NewChampionDialogueAnalyzer(db, emb, llm, DefaultChampionAnalyzerConfig())
+	a := NewChampionDialogueAnalyzer(repository.NewFeedbackLoopRepositoryWithDB(db), emb, llm, DefaultChampionAnalyzerConfig())
 	ctx := context.Background()
 
 	report, err := a.AnalyzePipeline(ctx, time.Now().Add(-24*time.Hour))

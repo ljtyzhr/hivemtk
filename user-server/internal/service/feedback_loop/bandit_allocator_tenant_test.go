@@ -16,6 +16,7 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 const (
@@ -89,7 +90,7 @@ func TestBanditAllocator_CheckConvergenceCacheIsTenantScoped(t *testing.T) {
 	seed(banditTenantA, 100, 10, 10, 100)
 	seed(banditTenantB, 10, 100, 100, 10)
 
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	winnerA, ok := b.CheckConvergence(tenant.WithTenantID(context.Background(), banditTenantA), expID)
 	if !ok || winnerA != "arm_a" {
 		t.Errorf("租户 A 应收敛到 arm_a, got winner=%q ok=%v", winnerA, ok)
@@ -111,7 +112,7 @@ func TestBanditAllocator_UpdateRewardCrossTenantNotFound(t *testing.T) {
 		t.Fatalf("预置租户 A 的臂失败: %v", err)
 	}
 
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	err := b.UpdateReward(tenant.WithTenantID(context.Background(), banditTenantB), expID, "arm_a", true, 1.0)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("跨租户更新应返回 ErrRecordNotFound, got %v", err)
@@ -137,7 +138,7 @@ func TestBanditAllocator_PromoteArmCrossTenantNotFound(t *testing.T) {
 		t.Fatalf("预置租户 A 的臂失败: %v", err)
 	}
 
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	err := b.PromoteArm(tenant.WithTenantID(context.Background(), banditTenantB), expID, "arm_a")
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("跨租户晋升应返回 ErrRecordNotFound, got %v", err)

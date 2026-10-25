@@ -18,6 +18,14 @@ func NewFeedbackLearningRepository(db *gorm.DB) *FeedbackLearningRepository {
 	return &FeedbackLearningRepository{db: db}
 }
 
+// GetDB 暴露底层连接（供 feedback_learning_cron 派生 SopAgentRepository 用）。
+func (r *FeedbackLearningRepository) GetDB() *gorm.DB {
+	if r == nil {
+		return nil
+	}
+	return r.db
+}
+
 // ListAIMessagesByPeriod 查询指定时间段内的 AI 回复消息（sender_type=ai，
 // created_at 升序；limit<=0 时不限制）。
 func (r *FeedbackLearningRepository) ListAIMessagesByPeriod(ctx context.Context, start, end time.Time, limit int) ([]model.SessionMessage, error) {

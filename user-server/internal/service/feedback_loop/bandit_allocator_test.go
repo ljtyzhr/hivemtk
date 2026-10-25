@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/model"
 
 	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 // TestBetaSample_RangeInUnitInterval Beta 采样结果应在 [0,1]
@@ -125,7 +126,7 @@ func TestBanditAllocator_UpdateReward_Success(t *testing.T) {
 	if err := db.Create(&arm).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 
 	if err := b.UpdateReward(ctx, expID, "arm_a", true, 1.5); err != nil {
 		t.Fatalf("UpdateReward: %v", err)
@@ -162,7 +163,7 @@ func TestBanditAllocator_UpdateReward_Failure(t *testing.T) {
 	if err := db.Create(&arm).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	if err := b.UpdateReward(context.Background(), expID, "arm_a", false, -0.5); err != nil {
 		t.Fatalf("UpdateReward: %v", err)
 	}
@@ -195,7 +196,7 @@ func TestBanditAllocator_UpdateReward_InvalidInput(t *testing.T) {
 // 静默成功会让回流台账记下一笔"已入账"，而臂后验一字未动。
 func TestBanditAllocator_UpdateReward_UnknownArmFails(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	err := b.UpdateReward(context.Background(), "exp-missing", "arm_missing", true, 1.0)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Errorf("不存在的臂应返回 ErrRecordNotFound, got %v", err)
@@ -213,7 +214,7 @@ func TestBanditAllocator_PromoteArm_UnknownWinnerKeepsArms(t *testing.T) {
 	if err := db.Create(&arms).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	err := b.PromoteArm(context.Background(), expID, "typo_arm")
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("不存在的胜出臂应返回 ErrRecordNotFound, got %v", err)
@@ -240,7 +241,7 @@ func TestBanditAllocator_CheckConvergence_InsufficientSamples(t *testing.T) {
 	if err := db.Create(&arms).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	winner, ok := b.CheckConvergence(context.Background(), expID)
 	if ok {
 		t.Errorf("样本不足不应收敛，但 winner=%s", winner)
@@ -262,7 +263,7 @@ func TestBanditAllocator_CheckConvergence_Converged(t *testing.T) {
 	if err := db.Create(&arms).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	winner, ok := b.CheckConvergence(context.Background(), expID)
 	if !ok {
 		t.Errorf("应收敛但未收敛")
@@ -284,7 +285,7 @@ func TestBanditAllocator_PromoteArm(t *testing.T) {
 	if err := db.Create(&arms).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	b := NewBanditAllocator(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultBanditConfig(), 42)
 	if err := b.PromoteArm(context.Background(), expID, "arm_a"); err != nil {
 		t.Fatalf("PromoteArm: %v", err)
 	}

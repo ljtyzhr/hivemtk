@@ -179,7 +179,7 @@ func TestWireCollectionReward_PaidPersistsScaledReward(t *testing.T) {
 	payBill(t, db, "bill-wire1", "q-w1", "qr-w1", 1000)
 
 	cfg := feedbackloop.DefaultFeedbackCollectorConfig()
-	collector := feedbackloop.NewFeedbackCollector(db, cfg)
+	collector := feedbackloop.NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), cfg)
 
 	svc := paySvc(t, db)
 	svc.SetCollectionRewardHook(WireCollectionReward(oppSvc, collector))
@@ -219,7 +219,7 @@ func TestWireCollectionReward_NoOpportunitySkips(t *testing.T) {
 		t.Fatalf("改账单商机关联失败: %v", err)
 	}
 
-	collector := feedbackloop.NewFeedbackCollector(db, feedbackloop.DefaultFeedbackCollectorConfig())
+	collector := feedbackloop.NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), feedbackloop.DefaultFeedbackCollectorConfig())
 	svc := paySvc(t, db)
 	svc.SetCollectionRewardHook(WireCollectionReward(oppSvc, collector))
 

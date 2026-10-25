@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 )
 
 type mockBanditUpdater struct {
@@ -65,7 +66,7 @@ func TestD04_RefluxOnceEndToEnd(t *testing.T) {
 	}
 
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 
 	ev := &model.FeedbackEvent{
 		EventID:    "evt-d04-1",
@@ -115,7 +116,7 @@ func TestD04_SignalWhitelist(t *testing.T) {
 		&model.BanditRefluxLog{},
 	)
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 
 	ev := &model.FeedbackEvent{
 		EventID:    "evt-d04-tool",
@@ -158,7 +159,7 @@ func TestD04_NegativeSignal(t *testing.T) {
 	db.Create(&model.BanditArm{ExperimentID: "exp-d04-2", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 7})
 
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 	db.Create(&model.FeedbackEvent{
 		EventID:    "evt-d04-neg",
 		SessionID:  "sess-n",
@@ -190,7 +191,7 @@ func TestD04_NoRunningExperimentSkips(t *testing.T) {
 		&model.BanditRefluxLog{},
 	)
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 	db.Create(&model.FeedbackEvent{
 		EventID:    "evt-d04-orphan",
 		SessionID:  "sess-x",
@@ -224,7 +225,7 @@ func TestD04_RefluxPaginatesBeyondBatchSize(t *testing.T) {
 	db.Create(&model.BanditArm{ExperimentID: "exp-d04-page", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 88, Variant: "A"})
 
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 	r.batchSize = 2
 
 	now := time.Now()
@@ -271,7 +272,7 @@ func TestD04_ConversionDedupedBySessionAndSOP(t *testing.T) {
 	db.Create(&model.BanditArm{ExperimentID: "exp-d04-conv", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 77, Variant: "A"})
 
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 	now := time.Now()
 	for i := 0; i < 2; i++ {
 		db.Create(&model.FeedbackEvent{
@@ -315,7 +316,7 @@ func TestD04_ClonedVariantArmResolvedByArmSOP(t *testing.T) {
 	db.Create(&model.BanditArm{ExperimentID: "exp-d04-clone", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "arm_b_variant", SOPID: 200, Variant: "B"})
 
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 	now := time.Now()
 	db.Create(&model.FeedbackEvent{
 		EventID:    "evt-clone-b",
@@ -372,7 +373,7 @@ func TestD04_ResolveErrorAbortsWindow(t *testing.T) {
 	}
 
 	mock := &mockBanditUpdater{}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 	if _, err := r.RefluxOnce(context.Background(), now.Add(-time.Minute), now.Add(time.Minute)); err == nil {
 		t.Fatal("解析失败时 RefluxOnce 应返回 error，否则游标推进后该事件永不重试")
 	}
@@ -404,7 +405,7 @@ func TestD04_UpdateFailureRollsBackLedger(t *testing.T) {
 	db.Create(&model.BanditArm{ExperimentID: "exp-d04-comp", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 66, Variant: "A"})
 
 	mock := &mockBanditUpdater{failN: 1, failErr: errors.New("db down")}
-	r := NewBanditRewardReflux(db, mock)
+	r := NewBanditRewardReflux(repository.NewFeedbackLoopRepositoryWithDB(db), mock)
 	now := time.Now()
 	db.Create(&model.FeedbackEvent{
 		EventID:    "evt-comp-1",

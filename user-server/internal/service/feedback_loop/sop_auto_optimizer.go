@@ -11,8 +11,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // SOPAutoOptimizer SOP 自动优化器
@@ -26,7 +24,7 @@ type SOPAutoOptimizer struct {
 }
 
 // NewSOPAutoOptimizer 构造优化器
-func NewSOPAutoOptimizer(db *gorm.DB, bandit BanditAllocatorInterface, cfg SOPAutoOptimizerConfig) *SOPAutoOptimizer {
+func NewSOPAutoOptimizer(repo *repository.FeedbackLoopRepository, bandit BanditAllocatorInterface, cfg SOPAutoOptimizerConfig) *SOPAutoOptimizer {
 	if cfg.AutoApplyPriority == 0 {
 		cfg.AutoApplyPriority = 2
 	}
@@ -40,7 +38,7 @@ func NewSOPAutoOptimizer(db *gorm.DB, bandit BanditAllocatorInterface, cfg SOPAu
 		cfg.ABTestDuration = 7 * 24 * time.Hour
 	}
 	return &SOPAutoOptimizer{
-		repo:   repository.NewFeedbackLoopRepositoryWithDB(db),
+		repo:   repoOrNil(repo),
 		bandit: bandit,
 		config: cfg,
 		ledger: NewFailureLedger(),

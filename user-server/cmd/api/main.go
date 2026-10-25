@@ -548,7 +548,7 @@ func main() {
 	defer feedbackCron.Stop(context.Background())
 	logger.Info("[P0-5] feedback loop cron started (5 tasks: monthly baseline / weekly dialogue / daily prompt / 6h bandit / 6h optimizer)")
 
-	feedbackLearningCron := service.NewFeedbackLearningCron(db.GetDB())
+	feedbackLearningCron := service.NewFeedbackLearningCron(repository.NewFeedbackLearningRepository(db.GetDB()))
 	if feedbackLearningCron != nil {
 		defer feedbackLearningCron.Stop(context.Background())
 		logger.Info("[G7] feedback learning cron started (daily: extract profile + node conversion suggestions)")

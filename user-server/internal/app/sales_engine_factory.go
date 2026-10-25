@@ -56,7 +56,7 @@ func BuildSalesEngine(gormDB *gorm.DB) *service.SalesEngine {
 		customerLookup,
 	)
 
-	engine.SetFeedbackLearner(context.Background(), service.NewFeedbackLearner(gormDB))
+	engine.SetFeedbackLearner(context.Background(), service.NewFeedbackLearner(repository.NewFeedbackRecordRepository(gormDB)))
 
 	// FAQ 快速通道：命中标准答案就直接作答（零 LLM、零 Token、答案确定）。
 	//

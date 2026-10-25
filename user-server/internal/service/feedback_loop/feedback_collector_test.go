@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 )
 
 // TestComputeReward_Rating 评分归一化（v/5）
@@ -172,7 +173,7 @@ func TestGenEventID_Format(t *testing.T) {
 // TestFeedbackCollector_CollectSync_SingleEvent 同步采集单条事件
 func TestFeedbackCollector_CollectSync_SingleEvent(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
-	c := NewFeedbackCollector(db, DefaultFeedbackCollectorConfig())
+	c := NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultFeedbackCollectorConfig())
 	defer c.Stop()
 
 	req := &dto.CollectRequest{
@@ -213,7 +214,7 @@ func TestFeedbackCollector_CollectSync_SingleEvent(t *testing.T) {
 //   - signal_count 递增
 func TestFeedbackCollector_CollectSync_MultiEventAggregate(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
-	c := NewFeedbackCollector(db, DefaultFeedbackCollectorConfig())
+	c := NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultFeedbackCollectorConfig())
 	defer c.Stop()
 
 	sessionID := "sess-multi"
@@ -263,7 +264,7 @@ func TestFeedbackCollector_Collect_AsyncPersist(t *testing.T) {
 	cfg := DefaultFeedbackCollectorConfig()
 	cfg.FlushInterval = 50 * time.Millisecond
 	cfg.BatchSize = 100
-	c := NewFeedbackCollector(db, cfg)
+	c := NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), cfg)
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
@@ -296,7 +297,7 @@ func TestFeedbackCollector_Collect_QueueFull(t *testing.T) {
 	cfg.QueueSize = 2
 	cfg.BatchSize = 1000
 	cfg.FlushInterval = 10 * time.Second
-	c := NewFeedbackCollector(db, cfg)
+	c := NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), cfg)
 	defer c.Stop()
 	ctx := context.Background()
 
@@ -320,7 +321,7 @@ func TestFeedbackCollector_Collect_QueueFull(t *testing.T) {
 // TestFeedbackCollector_CollectSync_ValidateFailure 校验失败
 func TestFeedbackCollector_CollectSync_ValidateFailure(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
-	c := NewFeedbackCollector(db, DefaultFeedbackCollectorConfig())
+	c := NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultFeedbackCollectorConfig())
 	defer c.Stop()
 
 	cases := []struct {
@@ -363,7 +364,7 @@ func TestFeedbackCollector_CollectSync_ValidateFailure(t *testing.T) {
 // 验证 upsertSignal 的 ON CONFLICT 处理在并发场景下不会报错
 func TestFeedbackCollector_ConcurrentCollectSync(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
-	c := NewFeedbackCollector(db, DefaultFeedbackCollectorConfig())
+	c := NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(db), DefaultFeedbackCollectorConfig())
 	defer c.Stop()
 	ctx := context.Background()
 

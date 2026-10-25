@@ -11,8 +11,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // BanditAllocator Multi-Armed Bandit 分配器
@@ -36,7 +34,7 @@ type BanditAllocator struct {
 //	db     - GORM DB（用于读写 bandit_arms 表，内部下沉到 repository 层使用）
 //	cfg    - 配置（零值字段会用默认值填充）
 //	seed   - PRNG 种子（测试时可固定；生产用 time.Now().UnixNano()）
-func NewBanditAllocator(db *gorm.DB, cfg BanditConfig, seed int64) *BanditAllocator {
+func NewBanditAllocator(repo *repository.FeedbackLoopRepository, cfg BanditConfig, seed int64) *BanditAllocator {
 	if cfg.ConvergenceThreshold == 0 {
 		cfg.ConvergenceThreshold = 0.95
 	}
@@ -50,7 +48,7 @@ func NewBanditAllocator(db *gorm.DB, cfg BanditConfig, seed int64) *BanditAlloca
 		seed = time.Now().UnixNano()
 	}
 	return &BanditAllocator{
-		banditRepo: repository.NewFeedbackLoopRepositoryWithDB(db),
+		banditRepo: repoOrNil(repo),
 		cache:      make(map[string][]*model.BanditArm),
 		rng:        rand.New(rand.NewSource(seed)),
 		config:     cfg,

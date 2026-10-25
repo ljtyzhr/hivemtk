@@ -61,7 +61,7 @@ func (a *feedbackLLMAdapter) Dispatch(ctx context.Context, scenario string, prom
 func InitFeedbackCollector() *feedbackloop.FeedbackCollector {
 	feedbackCollectorOnce.Do(func() {
 		cfg := FeedbackCollectorConfigFromParams(context.Background())
-		feedbackCollector = feedbackloop.NewFeedbackCollector(repository.GetDB(), cfg)
+		feedbackCollector = feedbackloop.NewFeedbackCollector(repository.NewFeedbackLoopRepositoryWithDB(repository.GetDB()), cfg)
 	})
 	return feedbackCollector
 }
@@ -81,12 +81,12 @@ func InitFeedbackLoopComponents(dispatcher *llm.Dispatcher, embedder *embedding.
 
 	// 五个组件的配置全部走参数中心（feedback 组，22 条，构造期读，Restart=true）。
 	bg := context.Background()
-	gdb := repository.GetDB()
-	collector := feedbackloop.NewFeedbackCollector(gdb, FeedbackCollectorConfigFromParams(bg))
-	analyzer := feedbackloop.NewChampionDialogueAnalyzer(gdb, embAdapter, llmAdapter, ChampionAnalyzerConfigFromParams(bg))
-	iterator := feedbackloop.NewPromptIterator(gdb, llmAdapter, PromptIteratorConfigFromParams(bg))
-	bandit := feedbackloop.NewBanditAllocator(gdb, BanditConfigFromParams(bg), 42)
-	optimizer := feedbackloop.NewSOPAutoOptimizer(gdb, bandit, SOPAutoOptimizerConfigFromParams(bg))
+	flrepo := repository.NewFeedbackLoopRepositoryWithDB(repository.GetDB())
+	collector := feedbackloop.NewFeedbackCollector(flrepo, FeedbackCollectorConfigFromParams(bg))
+	analyzer := feedbackloop.NewChampionDialogueAnalyzer(flrepo, embAdapter, llmAdapter, ChampionAnalyzerConfigFromParams(bg))
+	iterator := feedbackloop.NewPromptIterator(flrepo, llmAdapter, PromptIteratorConfigFromParams(bg))
+	bandit := feedbackloop.NewBanditAllocator(flrepo, BanditConfigFromParams(bg), 42)
+	optimizer := feedbackloop.NewSOPAutoOptimizer(flrepo, bandit, SOPAutoOptimizerConfigFromParams(bg))
 
 	return &FeedbackLoopComponents{
 		Collector:    collector,
