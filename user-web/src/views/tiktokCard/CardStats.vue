@@ -249,8 +249,7 @@ const fetchCardStats = async () => {
     const res = await getTikTokCardStats(cardId.value, params)
     // 本卡统计口回的是下划线字段（dto/tiktok_card.go: daily_stats / recent_activity / view_count，
     // 条目里是 view_count 而不是抖音那套 view），而 cardStats 的键是驼峰 ——
-    // 原来一句 Object.assign(cardStats, res) 只往对象上挂了三个驼峰页不认识的新键，
-    // 于是总浏览量恒 0、趋势图恒空、最近活动恒「暂无数据」，看着像"这张卡没人看过"。
+    // 必须逐字段映射，直接 Object.assign 挂上的新键页面不认识，会全部渲染成空/0。
     cardStats.viewCount = res?.view_count ?? 0
     cardStats.dailyStats = Array.isArray(res?.daily_stats) ? res.daily_stats : []
     cardStats.recentActivity = Array.isArray(res?.recent_activity) ? res.recent_activity : []

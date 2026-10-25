@@ -18,9 +18,8 @@ export const CARD_PLATFORM_OPTIONS = Object.freeze([
 // （接口 GET /api/clues/type 原样返回它）。这份表必须与它逐条一致，
 // tests/unit/clue_type_labels_sync.test.js 每次跑都从那个 .go 文件现读一遍对账。
 //
-// 原来这里只有 4 条，且与后端语义错位（写的是 1=小红书/2=视频号/3=抖音/4=快手，
-// 后端 1=QQ/2=微信/3=电话/4=Telegram）：线索列表的"线索类型"筛选项只有 4 个，
-// 选「抖音」实际筛的是 type=3=电话；库里 67% 的线索（type 9~14）在统计页直接印成数字。
+// 逐条与后端一致：错位时（如前端写 3=抖音、后端 3=电话）筛选项会筛错含义，
+// type 9~14 这类未覆盖值会在统计页直接印成数字。
 export const CLUE_TYPE_OPTIONS = Object.freeze([
   { value: '1', label: 'QQ', tagType: 'info', sort: 1, group: 'clue' },
   { value: '2', label: '微信', tagType: 'success', sort: 2, group: 'clue' },

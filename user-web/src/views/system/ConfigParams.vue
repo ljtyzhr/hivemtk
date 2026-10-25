@@ -949,10 +949,9 @@ async function savePlatformHost() {
   }
 }
 
-// 分组元数据（中文名 / 说明 / 排序）来自后端 config_param_groups。
-// 原来这里是前端写死的一张 GROUP_LABELS 表：后端加一个新组，前端不知道中文名就
-// 静默回落显示英文 group key，页面上看不出哪里不对（当时是 18 项硬编码、实际 29 组）。
-// 事实源只保留一份，这里只负责渲染；后端没给元数据时回落英文 key 而不是崩溃。
+// 分组元数据（中文名 / 说明 / 排序）来自后端 config_param_groups——
+// 事实源只保留一份（前端写死 GROUP_LABELS 表会导致后端加新组后静默回落英文 key），
+// 这里只负责渲染；后端没给元数据时回落英文 key 而不是崩溃。
 const groupMeta = ref([])
 const groupMetaMap = computed(() => {
   const m = new Map()

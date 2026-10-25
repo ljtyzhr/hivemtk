@@ -48,7 +48,7 @@ updateRequestConfig().catch(error => {
   console.error('初始化API配置失败:', error)
 })
 
-// OPT-SEC-07（原实现已移除）：按路由动态改写 meta 里的 frame-ancestors。
+// 按路由动态改写 meta 里的 frame-ancestors 的原实现已移除。
 //
 // 为什么删掉：这段代码一直是**空转**。
 //   1. index.html 的 meta CSP 里**没有** frame-ancestors 指令，
@@ -64,7 +64,7 @@ updateRequestConfig().catch(error => {
 app.mount('#app')
 
 // ============================================================================
-// OPT-FE-14：首屏 Web Vitals（LCP 等）监控
+// 首屏 Web Vitals（LCP 等）监控
 // ----------------------------------------------------------------------------
 // 执行时机: app.mount 之后、且延后到空闲时段 —— 不抢占首屏资源，
 // 避免"监控代码自己拖慢 LCP"。

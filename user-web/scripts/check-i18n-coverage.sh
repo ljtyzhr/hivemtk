@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # check-i18n-coverage.sh
-# i18n 翻译完整性检查（OPT-FE-09）
+# i18n 翻译完整性检查
 #
 # 校验项：
 #   1. zh.json / en.json / ja.json / ar.json 顶层 key 一致性

@@ -262,7 +262,7 @@ import { CircleCheck, Warning } from '@element-plus/icons-vue'
 import { geoApi } from '@/api/geo'
 import { http } from '@/utils/request'
 
-// OPT-FE-06（2026-10-24）：本视图分批替换为 $t()（词条 geoVerificationPage.*）。
+// 本视图分批替换为 $t()（词条 geoVerificationPage.*）。
 const { t } = useI18n()
 
 const modelOptions = ref([])

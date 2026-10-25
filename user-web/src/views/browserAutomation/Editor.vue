@@ -462,6 +462,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import i18n from '@/i18n'
 import {
   getBrowserTask, createBrowserTask, updateBrowserTask, listBrowserTasks, listPlatforms,
   listBrowserCron, createBrowserCron, updateBrowserCron, setBrowserTaskDependency,
@@ -474,6 +475,7 @@ const saving = ref(false)
 const taskLoadError = ref('')
 const readyTasks = ref([])
 const platforms = ref([])
+
 
 const TIMEZONES = ['Asia/Shanghai', 'Asia/Tokyo', 'Europe/London', 'America/New_York', 'UTC']
 // 服务端执行入口只认这几个状态可以跑；cron 触发器到点走的是同一个入口。
@@ -659,7 +661,7 @@ async function save() {
   // 直接拒绝保存（与 onPlatformChange 的警告同判据：can_post_comment）。
   const plat = platforms.value.find((x) => x.identifier === form.value.platform)
   if (plat && !plat.can_post_comment && form.value.steps.some((s) => s.action === 'post_comment')) {
-    ElMessage.error(`${platformLabel(plat)} 暂不支持发评论（接口未公开/待 M3），请移除 post_comment 步骤或换平台后再保存`)
+    ElMessage.error(`${platformLabel(plat)} ${i18n.global.t('browserAutomationPage.postCommentUnsupportedSave')}`)
     return
   }
   saving.value = true

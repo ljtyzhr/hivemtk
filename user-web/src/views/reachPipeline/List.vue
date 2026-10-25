@@ -6,7 +6,7 @@
       @tab-change="handleTabChange"
     >
       <el-tab-pane
-        :label="$t('Pipeline 管理')"
+        :label="$t('reachPipeline.tabPipelines')"
         name="pipelines"
       >
         <el-row
@@ -27,13 +27,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  总 Pipeline 数
+                  {{ $t('reachPipeline.statTotalPipelines') }}
                 </div>
                 <div class="stat-value">
                   {{ stats.total ?? 0 }}
                 </div>
                 <div class="stat-sub">
-                  活跃 {{ stats.active ?? 0 }} · 暂停 {{ stats.paused ?? 0 }}
+                  {{ $t('reachPipeline.statActiveSub', { active: stats.active ?? 0, paused: stats.paused ?? 0 }) }}
                 </div>
               </div>
             </el-card>
@@ -52,13 +52,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  {{ $t('运行中') }}
+                  {{ $t('reachPipeline.running') }}
                 </div>
                 <div class="stat-value">
                   {{ stats.active ?? 0 }}
                 </div>
                 <div class="stat-sub">
-                  活跃状态的 Pipeline
+                  {{ $t('reachPipeline.statActiveDesc') }}
                 </div>
               </div>
             </el-card>
@@ -77,13 +77,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  {{ $t('已暂停') }}
+                  {{ $t('reachPipeline.paused') }}
                 </div>
                 <div class="stat-value">
                   {{ stats.paused ?? 0 }}
                 </div>
                 <div class="stat-sub">
-                  已归档 {{ archivedCount }}
+                  {{ $t('reachPipeline.statArchivedSub', { count: archivedCount }) }}
                 </div>
               </div>
             </el-card>
@@ -102,13 +102,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  {{ $t('已归档') }}
+                  {{ $t('reachPipeline.archived') }}
                 </div>
                 <div class="stat-value">
                   {{ archivedCount }}
                 </div>
                 <div class="stat-sub">
-                  {{ $t('总数减活跃与暂停') }}
+                  {{ $t('reachPipeline.statArchivedHint') }}
                 </div>
               </div>
             </el-card>
@@ -127,13 +127,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  {{ $t('任务总数') }}
+                  {{ $t('reachPipeline.statJobsTotal') }}
                 </div>
                 <div class="stat-value">
                   {{ stats.jobs ?? 0 }}
                 </div>
                 <div class="stat-sub">
-                  待执行 {{ stats.pending ?? 0 }} · 运行中 {{ stats.running ?? 0 }}
+                  {{ $t('reachPipeline.statJobsSub', { pending: stats.pending ?? 0, running: stats.running ?? 0 }) }}
                 </div>
               </div>
             </el-card>
@@ -152,13 +152,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  {{ $t('成功数') }}
+                  {{ $t('reachPipeline.statSuccessCount') }}
                 </div>
                 <div class="stat-value">
                   {{ stats.success ?? 0 }}
                 </div>
                 <div class="stat-sub">
-                  成功率 {{ overallSuccessRate }}%
+                  {{ $t('reachPipeline.statSuccessSub', { rate: overallSuccessRate }) }}
                 </div>
               </div>
             </el-card>
@@ -177,13 +177,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  {{ $t('失败数') }}
+                  {{ $t('reachPipeline.statFailCount') }}
                 </div>
                 <div class="stat-value">
                   {{ stats.failed ?? 0 }}
                 </div>
                 <div class="stat-sub">
-                  失败率 {{ overallFailureRate }}%
+                  {{ $t('reachPipeline.statFailSub', { rate: overallFailureRate }) }}
                 </div>
               </div>
             </el-card>
@@ -195,7 +195,7 @@
             <div class="toolbar-left">
               <el-input
                 v-model="pipeFilter.keyword"
-                :placeholder="$t('搜索名称')"
+                :placeholder="$t('reachPipeline.searchName')"
                 clearable
                 style="width: 180px"
                 @keyup.enter="onPipeFilterChange"
@@ -203,7 +203,7 @@
               />
               <el-select
                 v-model="pipeFilter.channel"
-                :placeholder="$t('渠道')"
+                :placeholder="$t('reachPipeline.channel')"
                 clearable
                 style="width: 140px; margin-left: 8px"
                 @change="onPipeFilterChange"
@@ -217,21 +217,21 @@
               </el-select>
               <el-select
                 v-model="pipeFilter.status"
-                :placeholder="$t('状态')"
+                :placeholder="$t('reachPipeline.status')"
                 clearable
                 style="width: 140px; margin-left: 8px"
                 @change="onPipeFilterChange"
               >
                 <el-option
-                  :label="$t('活跃')"
+                  :label="$t('reachPipeline.active')"
                   value="active"
                 />
                 <el-option
-                  :label="$t('暂停')"
+                  :label="$t('reachPipeline.pausedAction')"
                   value="paused"
                 />
                 <el-option
-                  :label="$t('归档')"
+                  :label="$t('reachPipeline.archiveAction')"
                   value="archived"
                 />
               </el-select>
@@ -239,27 +239,27 @@
                 style="margin-left: 8px"
                 @click="resetPipeFilter"
               >
-                {{ $t('重置') }}
+                {{ $t('reachPipeline.reset') }}
               </el-button>
               <el-button
                 type="warning"
                 plain
                 @click="resetRateLimit"
               >
-                {{ $t('重置限流') }}
+                {{ $t('reachPipeline.resetRateLimit') }}
               </el-button>
             </div>
             <el-button
               style="margin-left: 8px"
               @click="$router.push('/reachPipeline/editor')"
             >
-              <el-icon><Share /></el-icon>&nbsp;可视化编辑器
+              <el-icon><Share /></el-icon>&nbsp;{{ $t('reachPipeline.openEditor') }}
             </el-button>
             <el-button
               type="primary"
               @click="openCreatePipe"
             >
-              <el-icon><Plus /></el-icon>&nbsp;新建 Pipeline
+              <el-icon><Plus /></el-icon>&nbsp;{{ $t('reachPipeline.newPipeline') }}
             </el-button>
           </div>
 
@@ -270,12 +270,12 @@
           >
             <el-table-column
               prop="name"
-              :label="$t('名称')"
+              :label="$t('reachPipeline.name')"
               min-width="150"
               show-overflow-tooltip
             />
             <el-table-column
-              :label="$t('描述')"
+              :label="$t('reachPipeline.description')"
               min-width="180"
               show-overflow-tooltip
             >
@@ -284,7 +284,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="渠道"
+              :label="$t('reachPipeline.channel')"
               width="110"
             >
               <template #default="{ row }">
@@ -297,7 +297,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="状态"
+              :label="$t('reachPipeline.status')"
               width="100"
             >
               <template #default="{ row }">
@@ -310,13 +310,13 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="版本"
+              :label="$t('reachPipeline.version')"
               prop="version"
               width="80"
               align="center"
             />
             <el-table-column
-              label="运行/成功/失败"
+              :label="$t('reachPipeline.runsCol')"
               width="160"
               align="center"
             >
@@ -325,7 +325,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="创建时间"
+              :label="$t('reachPipeline.createdAt')"
               width="170"
             >
               <template #default="{ row }">
@@ -333,7 +333,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="操作"
+              :label="$t('reachPipeline.operation')"
               width="340"
               fixed="right"
             >
@@ -343,7 +343,7 @@
                   type="primary"
                   @click="viewPipe(row)"
                 >
-                  查看
+                  {{ $t('reachPipeline.view') }}
                 </el-button>
                 <el-button
                   v-if="row.status === 'active'"
@@ -351,7 +351,7 @@
                   type="warning"
                   @click="pausePipe(row)"
                 >
-                  暂停
+                  {{ $t('reachPipeline.pausedAction') }}
                 </el-button>
                 <el-button
                   v-if="row.status === 'paused'"
@@ -359,7 +359,7 @@
                   type="success"
                   @click="resumePipe(row)"
                 >
-                  恢复
+                  {{ $t('reachPipeline.resume') }}
                 </el-button>
                 <el-button
                   v-if="row.status !== 'archived'"
@@ -367,19 +367,19 @@
                   type="info"
                   @click="archivePipe(row)"
                 >
-                  归档
+                  {{ $t('reachPipeline.archiveAction') }}
                 </el-button>
                 <el-button
                   link
                   type="danger"
                   @click="deletePipe(row)"
                 >
-                  删除
+                  {{ $t('reachPipeline.delete') }}
                 </el-button>
               </template>
             </el-table-column>
             <template #empty>
-              <el-empty description="暂无 Pipeline 数据" />
+              <el-empty :description="$t('reachPipeline.emptyPipelines')" />
             </template>
           </el-table>
 
@@ -400,7 +400,7 @@
 
       
       <el-tab-pane
-        label="任务监控"
+        :label="$t('reachPipeline.tabJobs')"
         name="jobs"
       >
         <el-card>
@@ -408,7 +408,7 @@
             <div class="toolbar-left">
               <el-select
                 v-model="jobFilter.pipeline_id"
-                placeholder="Pipeline 筛选"
+                :placeholder="$t('reachPipeline.filterPipeline')"
                 clearable
                 filterable
                 style="width: 220px"
@@ -422,7 +422,7 @@
               </el-select>
               <el-select
                 v-model="jobFilter.channel"
-                placeholder="渠道"
+                :placeholder="$t('reachPipeline.channel')"
                 clearable
                 style="width: 140px; margin-left: 8px"
                 @change="onJobFilterChange"
@@ -436,7 +436,7 @@
               </el-select>
               <el-select
                 v-model="jobFilter.state"
-                placeholder="状态"
+                :placeholder="$t('reachPipeline.status')"
                 clearable
                 style="width: 140px; margin-left: 8px"
                 @change="onJobFilterChange"
@@ -452,14 +452,14 @@
                 style="margin-left: 8px"
                 @click="resetJobFilter"
               >
-                重置
+                {{ $t('reachPipeline.reset') }}
               </el-button>
             </div>
             <el-button
               type="primary"
               @click="openEnqueueJob"
             >
-              <el-icon><Plus /></el-icon>&nbsp;加入任务
+              <el-icon><Plus /></el-icon>&nbsp;{{ $t('reachPipeline.addJob') }}
             </el-button>
           </div>
 
@@ -483,7 +483,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="目标客户"
+              :label="$t('reachPipeline.targetCustomer')"
               min-width="140"
               show-overflow-tooltip
             >
@@ -492,7 +492,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="渠道"
+              :label="$t('reachPipeline.channel')"
               width="110"
             >
               <template #default="{ row }">
@@ -505,7 +505,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="状态"
+              :label="$t('reachPipeline.status')"
               width="110"
             >
               <template #default="{ row }">
@@ -518,7 +518,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="重试次数"
+              :label="$t('reachPipeline.retryCount')"
               width="100"
               align="center"
             >
@@ -527,7 +527,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="耗时"
+              :label="$t('reachPipeline.durationCol')"
               width="100"
               align="center"
             >
@@ -536,7 +536,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="创建时间"
+              :label="$t('reachPipeline.createdAt')"
               width="170"
             >
               <template #default="{ row }">
@@ -544,7 +544,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="操作"
+              :label="$t('reachPipeline.operation')"
               width="260"
               fixed="right"
             >
@@ -554,7 +554,7 @@
                   type="primary"
                   @click="viewJob(row)"
                 >
-                  查看
+                  {{ $t('reachPipeline.view') }}
                 </el-button>
                 <el-button
                   v-if="canExecute(row.state)"
@@ -562,7 +562,7 @@
                   type="success"
                   @click="executeJob(row)"
                 >
-                  执行
+                  {{ $t('reachPipeline.execute') }}
                 </el-button>
                 <el-button
                   v-if="canCancel(row.state)"
@@ -570,7 +570,7 @@
                   type="warning"
                   @click="cancelJob(row)"
                 >
-                  取消
+                  {{ $t('reachPipeline.cancel') }}
                 </el-button>
                 <el-button
                   v-if="row.state === 'failed'"
@@ -578,12 +578,12 @@
                   type="primary"
                   @click="retryJob(row)"
                 >
-                  重试
+                  {{ $t('reachPipeline.retry') }}
                 </el-button>
               </template>
             </el-table-column>
             <template #empty>
-              <el-empty description="暂无任务数据" />
+              <el-empty :description="$t('reachPipeline.emptyJobs')" />
             </template>
           </el-table>
 
@@ -604,7 +604,7 @@
 
       
       <el-tab-pane
-        label="统计分析"
+        :label="$t('reachPipeline.tabStats')"
         name="stats"
       >
         <el-row
@@ -625,13 +625,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  成功率
+                  {{ $t('reachPipeline.successRate') }}
                 </div>
                 <div class="stat-value">
                   {{ overallSuccessRate }}%
                 </div>
                 <div class="stat-sub">
-                  成功 {{ stats.success || 0 }} / 总计 {{ stats.jobs || 0 }}
+                  {{ $t('reachPipeline.statSuccessOfTotal', { ok: stats.success || 0, total: stats.jobs || 0 }) }}
                 </div>
               </div>
             </el-card>
@@ -650,13 +650,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  失败率
+                  {{ $t('reachPipeline.failRate') }}
                 </div>
                 <div class="stat-value">
                   {{ overallFailureRate }}%
                 </div>
                 <div class="stat-sub">
-                  失败 {{ stats.failed || 0 }} / 总计 {{ stats.jobs || 0 }}
+                  {{ $t('reachPipeline.statFailOfTotal', { fail: stats.failed || 0, total: stats.jobs || 0 }) }}
                 </div>
               </div>
             </el-card>
@@ -675,13 +675,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  平均执行时间
+                  {{ $t('reachPipeline.avgExecTime') }}
                 </div>
                 <div class="stat-value">
                   {{ avgDuration }}
                 </div>
                 <div class="stat-sub">
-                  基于近期任务样本
+                  {{ $t('reachPipeline.avgExecHint') }}
                 </div>
               </div>
             </el-card>
@@ -700,13 +700,13 @@
               </div>
               <div class="stat-body">
                 <div class="stat-title">
-                  限流次数
+                  {{ $t('reachPipeline.rateLimitedCount') }}
                 </div>
                 <div class="stat-value">
                   {{ stats.rate_limited || 0 }}
                 </div>
                 <div class="stat-sub">
-                  已取消 {{ stats.canceled || 0 }}
+                  {{ $t('reachPipeline.canceledSub', { count: stats.canceled || 0 }) }}
                 </div>
               </div>
             </el-card>
@@ -716,8 +716,8 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <span>各渠道任务统计</span>
-              <span class="muted">基于近期任务样本（{{ statsSample.length }} 条）</span>
+              <span>{{ $t('reachPipeline.channelStats') }}</span>
+              <span class="muted">{{ $t('reachPipeline.channelStatsHint', { count: statsSample.length }) }}</span>
             </div>
           </template>
           <el-table
@@ -726,7 +726,7 @@
             stripe
           >
             <el-table-column
-              label="渠道"
+              :label="$t('reachPipeline.channel')"
               width="140"
             >
               <template #default="{ row }">
@@ -740,13 +740,13 @@
             </el-table-column>
             <el-table-column
               prop="total"
-              label="任务数"
+              :label="$t('reachPipeline.jobCount')"
               width="120"
               align="center"
             />
             <el-table-column
               prop="success"
-              label="成功"
+              :label="$t('reachPipeline.success')"
               width="100"
               align="center"
             >
@@ -756,7 +756,7 @@
             </el-table-column>
             <el-table-column
               prop="failed"
-              label="失败"
+              :label="$t('reachPipeline.failed')"
               width="100"
               align="center"
             >
@@ -766,18 +766,18 @@
             </el-table-column>
             <el-table-column
               prop="running"
-              label="运行中"
+              :label="$t('reachPipeline.running')"
               width="100"
               align="center"
             />
             <el-table-column
               prop="pending"
-              label="待执行"
+              :label="$t('reachPipeline.pending')"
               width="100"
               align="center"
             />
             <el-table-column
-              label="成功率"
+              :label="$t('reachPipeline.successRate')"
               width="120"
               align="center"
             >
@@ -786,7 +786,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="平均耗时"
+              :label="$t('reachPipeline.avgDuration')"
               width="140"
               align="center"
             >
@@ -795,7 +795,7 @@
               </template>
             </el-table-column>
             <template #empty>
-              <el-empty description="暂无任务样本数据" />
+              <el-empty :description="$t('reachPipeline.emptyStats')" />
             </template>
           </el-table>
         </el-card>
@@ -817,30 +817,30 @@
         label-width="120px"
       >
         <el-form-item
-          label="名称"
+          :label="$t('reachPipeline.name')"
           prop="name"
         >
           <el-input
             v-model="pipeForm.name"
-            placeholder="请输入 Pipeline 名称"
+            :placeholder="$t('reachPipeline.namePlaceholder')"
           />
         </el-form-item>
-        <el-form-item label="描述">
+        <el-form-item :label="$t('reachPipeline.description')">
           <el-input
             v-model="pipeForm.description"
             type="textarea"
             :rows="2"
-            placeholder="可选"
+            :placeholder="$t('reachPipeline.optional')"
           />
         </el-form-item>
         <el-form-item
-          label="渠道"
+          :label="$t('reachPipeline.channel')"
           prop="channel"
         >
           <el-select
             v-model="pipeForm.channel"
             style="width: 100%"
-            placeholder="请选择渠道"
+            :placeholder="$t('reachPipeline.channelPlaceholder')"
           >
             <el-option
               v-for="c in CHANNEL_OPTIONS"
@@ -851,14 +851,14 @@
           </el-select>
         </el-form-item>
         <el-form-item
-          label="Pipeline 步骤"
+          :label="$t('reachPipeline.steps')"
           prop="steps"
         >
           <el-select
             v-model="pipeForm.steps"
             multiple
             style="width: 100%"
-            placeholder="默认 9 步全选，必须包含 send"
+            :placeholder="$t('reachPipeline.stepsPlaceholder')"
           >
             <el-option
               v-for="s in stepOptions"
@@ -870,11 +870,11 @@
         </el-form-item>
 
         <el-divider content-position="left">
-          重试策略
+          {{ $t('reachPipeline.retryPolicy') }}
         </el-divider>
         <el-row :gutter="12">
           <el-col :span="12">
-            <el-form-item label="最大重试次数">
+            <el-form-item :label="$t('reachPipeline.maxRetries')">
               <el-input-number
                 v-model="pipeForm.retry_policy.max_retries"
                 :min="0"
@@ -883,7 +883,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="重试间隔(ms)">
+            <el-form-item :label="$t('reachPipeline.retryIntervalMs')">
               <el-input-number
                 v-model="pipeForm.retry_policy.interval_ms"
                 :min="0"
@@ -892,24 +892,24 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="退避策略">
+            <el-form-item :label="$t('reachPipeline.backoff')">
               <el-select
                 v-model="pipeForm.retry_policy.backoff"
                 style="width: 100%"
               >
                 <el-option
-                  label="固定间隔"
+                  :label="$t('reachPipeline.backoffFixed')"
                   value="fixed"
                 />
                 <el-option
-                  label="指数退避"
+                  :label="$t('reachPipeline.backoffExponential')"
                   value="exponential"
                 />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="退避上限(ms)">
+            <el-form-item :label="$t('reachPipeline.backoffMaxMs')">
               <el-input-number
                 v-model="pipeForm.retry_policy.max_interval_ms"
                 :min="0"
@@ -920,7 +920,7 @@
         </el-row>
 
         <el-divider content-position="left">
-          限流配置
+          {{ $t('reachPipeline.rateLimitConfig') }}
         </el-divider>
         <el-row :gutter="12">
           <el-col :span="8">
@@ -932,7 +932,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="突发容量">
+            <el-form-item :label="$t('reachPipeline.burst')">
               <el-input-number
                 v-model="pipeForm.rate_limit.burst"
                 :min="0"
@@ -940,7 +940,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="每日配额">
+            <el-form-item :label="$t('reachPipeline.dailyQuota')">
               <el-input-number
                 v-model="pipeForm.rate_limit.daily_quota"
                 :min="0"
@@ -949,7 +949,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="单用户频次">
+            <el-form-item :label="$t('reachPipeline.perUserLimit')">
               <el-input-number
                 v-model="pipeForm.rate_limit.per_user_limit"
                 :min="0"
@@ -957,7 +957,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="冷却秒数">
+            <el-form-item :label="$t('reachPipeline.cooldownSecs')">
               <el-input-number
                 v-model="pipeForm.rate_limit.cooldown_secs"
                 :min="0"
@@ -968,14 +968,14 @@
       </el-form>
       <template #footer>
         <el-button @click="pipeDialogVisible = false">
-          取消
+          {{ $t('reachPipeline.cancel') }}
         </el-button>
         <el-button
           type="primary"
           :loading="pipeSubmitting"
           @click="submitPipe"
         >
-          确定
+          {{ $t('reachPipeline.confirm') }}
         </el-button>
       </template>
     </el-dialog>
@@ -983,7 +983,7 @@
     
     <el-dialog
       v-model="pipeDetailVisible"
-      title="Pipeline 详情"
+      :title="$t('reachPipeline.pipelineDetail')"
       width="820px"
     >
       <el-descriptions
@@ -994,13 +994,13 @@
         <el-descriptions-item label="ID">
           {{ currentPipe.id }}
         </el-descriptions-item>
-        <el-descriptions-item label="名称">
+        <el-descriptions-item :label="$t('reachPipeline.name')">
           {{ currentPipe.name }}
         </el-descriptions-item>
-        <el-descriptions-item label="渠道">
+        <el-descriptions-item :label="$t('reachPipeline.channel')">
           {{ channelLabel(currentPipe.channel) }}
         </el-descriptions-item>
-        <el-descriptions-item label="状态">
+        <el-descriptions-item :label="$t('reachPipeline.status')">
           <el-tag
             :type="pipeStatusType(currentPipe.status)"
             size="small"
@@ -1008,32 +1008,32 @@
             {{ pipeStatusText(currentPipe.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="版本">
+        <el-descriptions-item :label="$t('reachPipeline.version')">
           {{ currentPipe.version }}
         </el-descriptions-item>
-        <el-descriptions-item label="创建时间">
+        <el-descriptions-item :label="$t('reachPipeline.createdAt')">
           {{ formatTime(currentPipe.created_at) }}
         </el-descriptions-item>
         <el-descriptions-item
-          label="描述"
+          :label="$t('reachPipeline.description')"
           :span="2"
         >
           {{ currentPipe.description || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="运行次数">
+        <el-descriptions-item :label="$t('reachPipeline.runCount')">
           {{ currentPipe.total_runs || 0 }}
         </el-descriptions-item>
-        <el-descriptions-item label="成功次数">
+        <el-descriptions-item :label="$t('reachPipeline.successTotal')">
           {{ currentPipe.total_success || 0 }}
         </el-descriptions-item>
-        <el-descriptions-item label="失败次数">
+        <el-descriptions-item :label="$t('reachPipeline.failureTotal')">
           {{ currentPipe.total_failure || 0 }}
         </el-descriptions-item>
-        <el-descriptions-item label="完成率">
+        <el-descriptions-item :label="$t('reachPipeline.completionRate')">
           {{ pipeCompletionRate(currentPipe) }}%
         </el-descriptions-item>
         <el-descriptions-item
-          label="Pipeline 步骤"
+          :label="$t('reachPipeline.steps')"
           :span="2"
         >
           <div class="steps-list">
@@ -1053,13 +1053,13 @@
           </div>
         </el-descriptions-item>
         <el-descriptions-item
-          label="重试策略"
+          :label="$t('reachPipeline.retryPolicy')"
           :span="2"
         >
           <pre class="json-pre">{{ formatJSON(currentPipe.retry_policy) }}</pre>
         </el-descriptions-item>
         <el-descriptions-item
-          label="限流配置"
+          :label="$t('reachPipeline.rateLimitConfig')"
           :span="2"
         >
           <pre class="json-pre">{{ formatJSON(currentPipe.rate_limit) }}</pre>
@@ -1070,7 +1070,7 @@
     
     <el-dialog
       v-model="jobDialogVisible"
-      title="加入任务"
+      :title="$t('reachPipeline.addJob')"
       width="640px"
       :close-on-click-modal="false"
       destroy-on-close
@@ -1087,7 +1087,7 @@
         >
           <el-select
             v-model="jobForm.pipeline_id"
-            placeholder="选择活跃 Pipeline"
+            :placeholder="$t('reachPipeline.selectActivePipeline')"
             filterable
             style="width: 100%"
             @change="onJobPipelineChange"
@@ -1100,10 +1100,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="渠道">
+        <el-form-item :label="$t('reachPipeline.channel')">
           <el-select
             v-model="jobForm.channel"
-            placeholder="默认跟随 Pipeline"
+            :placeholder="$t('reachPipeline.followPipeline')"
             clearable
             style="width: 100%"
           >
@@ -1116,21 +1116,21 @@
           </el-select>
         </el-form-item>
         <el-form-item
-          label="目标客户ID"
+          :label="$t('reachPipeline.targetCustomerId')"
           prop="customer_id"
         >
           <el-input
             v-model="jobForm.customer_id"
-            placeholder="请输入目标客户 ID"
+            :placeholder="$t('reachPipeline.inputCustomerId')"
           />
         </el-form-item>
-        <el-form-item label="账号ID">
+        <el-form-item :label="$t('reachPipeline.accountId')">
           <el-input
             v-model="jobForm.account_id"
-            placeholder="可选，留空自动选择"
+            :placeholder="$t('reachPipeline.accountOptional')"
           />
         </el-form-item>
-        <el-form-item label="最大重试">
+        <el-form-item :label="$t('reachPipeline.maxRetry')">
           <el-input-number
             v-model="jobForm.max_retry"
             :min="0"
@@ -1139,7 +1139,7 @@
           <span
             class="muted"
             style="margin-left: 8px"
-          >0 表示使用 Pipeline 默认策略</span>
+          >{{ $t('reachPipeline.maxRetryHint') }}</span>
         </el-form-item>
         <el-form-item
           label="Payload"
@@ -1149,20 +1149,20 @@
             v-model="jobForm.payloadStr"
             type="textarea"
             :rows="4"
-            placeholder="例如: {&quot;template&quot;:&quot;welcome&quot;}"
+            :placeholder="$t('reachPipeline.payloadPlaceholder', { example: '{&quot;template&quot;:&quot;welcome&quot;}' })"
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="jobDialogVisible = false">
-          取消
+          {{ $t('reachPipeline.cancel') }}
         </el-button>
         <el-button
           type="primary"
           :loading="jobSubmitting"
           @click="submitJob"
         >
-          入队
+          {{ $t('reachPipeline.enqueue') }}
         </el-button>
       </template>
     </el-dialog>
@@ -1170,7 +1170,7 @@
     
     <el-dialog
       v-model="jobDetailVisible"
-      title="任务详情"
+      :title="$t('reachPipeline.jobDetail')"
       width="860px"
     >
       <el-descriptions
@@ -1184,10 +1184,10 @@
         <el-descriptions-item label="Pipeline">
           {{ pipelineName(currentJob.pipeline_id) }} (#{{ currentJob.pipeline_id }})
         </el-descriptions-item>
-        <el-descriptions-item label="渠道">
+        <el-descriptions-item :label="$t('reachPipeline.channel')">
           {{ channelLabel(currentJob.channel) }}
         </el-descriptions-item>
-        <el-descriptions-item label="状态">
+        <el-descriptions-item :label="$t('reachPipeline.status')">
           <el-tag
             :type="jobStateType(currentJob.state)"
             size="small"
@@ -1195,32 +1195,32 @@
             {{ jobStateText(currentJob.state) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="目标客户">
+        <el-descriptions-item :label="$t('reachPipeline.targetCustomer')">
           {{ currentJob.customer_id }}
         </el-descriptions-item>
-        <el-descriptions-item label="账号">
+        <el-descriptions-item :label="$t('reachPipeline.account')">
           {{ currentJob.account_id || '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="重试">
+        <el-descriptions-item :label="$t('reachPipeline.retry')">
           {{ currentJob.retry_count || 0 }}/{{ currentJob.max_retry || 0 }}
         </el-descriptions-item>
-        <el-descriptions-item label="耗时">
+        <el-descriptions-item :label="$t('reachPipeline.durationCol')">
           {{ currentJob.duration_ms ? currentJob.duration_ms + 'ms' : '-' }}
         </el-descriptions-item>
-        <el-descriptions-item label="开始时间">
+        <el-descriptions-item :label="$t('reachPipeline.startedAt')">
           {{ formatTime(currentJob.started_at) }}
         </el-descriptions-item>
-        <el-descriptions-item label="完成时间">
+        <el-descriptions-item :label="$t('reachPipeline.completedAt')">
           {{ formatTime(currentJob.completed_at) }}
         </el-descriptions-item>
-        <el-descriptions-item label="下次执行">
+        <el-descriptions-item :label="$t('reachPipeline.nextRunAt')">
           {{ formatTime(currentJob.next_run_at) }}
         </el-descriptions-item>
-        <el-descriptions-item label="创建时间">
+        <el-descriptions-item :label="$t('reachPipeline.createdAt')">
           {{ formatTime(currentJob.created_at) }}
         </el-descriptions-item>
         <el-descriptions-item
-          label="错误信息"
+          :label="$t('reachPipeline.errorMessage')"
           :span="2"
         >
           <span :style="{ color: currentJob.error_message ? '#EF4444' : '' }">{{ currentJob.error_message || '-' }}</span>
@@ -1232,7 +1232,7 @@
           <pre class="json-pre">{{ formatJSON(currentJob.payload) }}</pre>
         </el-descriptions-item>
         <el-descriptions-item
-          label="执行日志 / 步骤结果"
+          :label="$t('reachPipeline.execLog')"
           :span="2"
         >
           <el-table
@@ -1247,7 +1247,7 @@
               align="center"
             />
             <el-table-column
-              label="步骤"
+              :label="$t('reachPipeline.step')"
               width="150"
             >
               <template #default="{ row }">
@@ -1255,7 +1255,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="结果"
+              :label="$t('reachPipeline.result')"
               width="90"
               align="center"
             >
@@ -1264,12 +1264,12 @@
                   :type="row.success ? 'success' : 'danger'"
                   size="small"
                 >
-                  {{ row.success ? '成功' : '失败' }}
+                  {{ row.success ? $t('reachPipeline.success') : $t('reachPipeline.failed') }}
                 </el-tag>
               </template>
             </el-table-column>
             <el-table-column
-              label="耗时"
+              :label="$t('reachPipeline.durationCol')"
               width="90"
               align="center"
             >
@@ -1278,7 +1278,7 @@
               </template>
             </el-table-column>
             <el-table-column
-              label="输出 / 错误"
+              :label="$t('reachPipeline.outputError')"
               min-width="220"
             >
               <template #default="{ row }">
@@ -1295,7 +1295,7 @@
           </el-table>
           <el-empty
             v-if="!jobStepResults(currentJob).length"
-            description="暂无步骤结果"
+            :description="$t('reachPipeline.emptyStepResults')"
             :image-size="60"
           />
         </el-descriptions-item>
@@ -1305,9 +1305,9 @@
 </template>
 
 <script setup>
-import i18n from '@/i18n'
-
+// 本视图分批替换为 $t()（词条 reachPipeline.*）。
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Connection, VideoPlay, VideoPause, FolderOpened, List,
@@ -1316,35 +1316,38 @@ import {
 import { reachPipelineApi } from '@/api/reachPipeline.js'
 import { CHANNEL_OPTIONS, getChannelLabel } from '@/constants/channel'
 
-const stepOptions = [
-  {
-    value: 'audience',
-    label: '受众筛选'
-  },
-  { value: 'content_prepare', label: '内容准备' },
-  { value: 'account_select', label: '账号选择' },
-  { value: 'rate_limit', label: '限流控制' },
-  { value: 'message_gen', label: '文案生成' },
-  { value: 'send', label: '发送执行' },
-  { value: 'track_result', label: '结果追踪' },
-  { value: 'retry', label: '失败重试' },
-  { value: 'report', label: '汇总报告' }
-];
+const { t } = useI18n()
 
-const jobStateOptions = [
-  { value: 'pending', label: '排队' },
-  { value: 'running', label: '执行中' },
-  { value: 'success', label: '成功' },
-  { value: 'failed', label: '失败' },
-  { value: 'canceled', label: '取消' },
-  { value: 'retrying', label: '重试中' },
-  { value: 'rate_limited', label: '已限流' }
-]
+const stepOptions = computed(() => [
+  { value: 'audience', label: t('reachPipeline.stepAudience') },
+  { value: 'content_prepare', label: t('reachPipeline.stepContentPrepare') },
+  { value: 'account_select', label: t('reachPipeline.stepAccountSelect') },
+  { value: 'rate_limit', label: t('reachPipeline.stepRateLimit') },
+  { value: 'message_gen', label: t('reachPipeline.stepMessageGen') },
+  { value: 'send', label: t('reachPipeline.stepSend') },
+  { value: 'track_result', label: t('reachPipeline.stepTrackResult') },
+  { value: 'retry', label: t('reachPipeline.stepRetry') },
+  { value: 'report', label: t('reachPipeline.stepReport') }
+])
+
+const jobStateOptions = computed(() => [
+  { value: 'pending', label: t('reachPipeline.statePending') },
+  { value: 'running', label: t('reachPipeline.stateRunning') },
+  { value: 'success', label: t('reachPipeline.success') },
+  { value: 'failed', label: t('reachPipeline.failed') },
+  { value: 'canceled', label: t('reachPipeline.stateCanceled') },
+  { value: 'retrying', label: t('reachPipeline.stateRetrying') },
+  { value: 'rate_limited', label: t('reachPipeline.stateRateLimited') }
+])
 
 const channelLabel = getChannelLabel
-const stepLabel = (v) => (stepOptions.find((s) => s.value === v) || {}).label || v
+const stepLabel = (v) => (stepOptions.value.find((s) => s.value === v) || {}).label || v
 const pipeStatusType = (s) => ({ active: 'success', paused: 'warning', archived: 'info' }[s] || 'info')
-const pipeStatusText = (s) => ({ active: '活跃', paused: '暂停', archived: '归档' }[s] || s)
+const pipeStatusText = (s) => ({
+  active: t('reachPipeline.active'),
+  paused: t('reachPipeline.pausedAction'),
+  archived: t('reachPipeline.archiveAction')
+}[s] || s)
 const jobStateType = (s) => ({
   pending: 'info',
   running: 'warning',
@@ -1355,13 +1358,13 @@ const jobStateType = (s) => ({
   rate_limited: 'danger'
 }[s] || 'info')
 const jobStateText = (s) => ({
-  pending: '排队',
-  running: '执行中',
-  success: '成功',
-  failed: '失败',
-  canceled: '取消',
-  retrying: '重试中',
-  rate_limited: '已限流'
+  pending: t('reachPipeline.statePending'),
+  running: t('reachPipeline.stateRunning'),
+  success: t('reachPipeline.success'),
+  failed: t('reachPipeline.failed'),
+  canceled: t('reachPipeline.stateCanceled'),
+  retrying: t('reachPipeline.stateRetrying'),
+  rate_limited: t('reachPipeline.stateRateLimited')
 }[s] || s)
 
 const formatTime = (t) => {
@@ -1385,7 +1388,9 @@ const loadStats = async () => {
   try {
     const res = await reachPipelineApi.getStats()
     stats.value = res || {}
-  } catch (e) { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
+  } catch (e) {
+    // 忽略：清理/存储/恢复类 best-effort 操作
+  }
 }
 const archivedCount = computed(() => {
   const total = Number(stats.value.total || 0)
@@ -1430,7 +1435,7 @@ const loadPipelines = async () => {
     pipelines.value = res.list || []
     pipePager.total = res.total || 0
   } catch (e) {
-    ElMessage.error(e.message || '获取 Pipeline 列表失败')
+    ElMessage.error(e.message || t('reachPipeline.loadPipelinesFailed'))
   } finally {
     pipeLoading.value = false
   }
@@ -1458,7 +1463,7 @@ const pipelineName = (id) => {
 }
 
 const pipeDialogVisible = ref(false);
-const pipeDialogTitle = ref('新建 Pipeline')
+const pipeDialogTitle = ref('')
 const pipeFormRef = ref()
 const pipeSubmitting = ref(false)
 
@@ -1466,20 +1471,20 @@ const defaultPipeForm = () => ({
   name: '',
   description: '',
   channel: 'wecom',
-  steps: stepOptions.map((s) => s.value),
+  steps: stepOptions.value.map((s) => s.value),
   retry_policy: { max_retries: 3, interval_ms: 1000, backoff: 'exponential', max_interval_ms: 60000 },
   rate_limit: { qps: 10, burst: 20, daily_quota: 10000, per_user_limit: 3, cooldown_secs: 60 }
 })
 const pipeForm = reactive(defaultPipeForm())
 const pipeRules = {
-  name: [{ required: true, message: i18n.global.t('请输入名称'), trigger: 'blur' }],
-  channel: [{ required: true, message: i18n.global.t('请选择渠道'), trigger: 'change' }],
-  steps: [{ required: true, type: 'array', min: 1, message: i18n.global.t('至少选择一个步骤'), trigger: 'change' }]
+  name: [{ required: true, message: t('reachPipeline.nameRequired'), trigger: 'blur' }],
+  channel: [{ required: true, message: t('reachPipeline.channelPlaceholder'), trigger: 'change' }],
+  steps: [{ required: true, type: 'array', min: 1, message: t('reachPipeline.stepRequired'), trigger: 'change' }]
 }
 
 const openCreatePipe = () => {
   Object.assign(pipeForm, defaultPipeForm())
-  pipeDialogTitle.value = '新建 Pipeline'
+  pipeDialogTitle.value = t('reachPipeline.newPipeline')
   pipeDialogVisible.value = true
 }
 const submitPipe = async () => {
@@ -1487,7 +1492,7 @@ const submitPipe = async () => {
   await pipeFormRef.value.validate(async (valid) => {
     if (!valid) return
     if (!pipeForm.steps.includes('send')) {
-      ElMessage.warning(i18n.global.t('步骤必须包含 send (发送执行)'))
+      ElMessage.warning(t('reachPipeline.stepMustIncludeSend'))
       return
     }
     pipeSubmitting.value = true
@@ -1501,12 +1506,12 @@ const submitPipe = async () => {
         rate_limit: pipeForm.rate_limit
       }
       await reachPipelineApi.createPipeline(data)
-      ElMessage.success(i18n.global.t('创建成功'))
+      ElMessage.success(t('reachPipeline.createSuccess'))
       pipeDialogVisible.value = false
       loadPipelines()
       loadStats()
     } catch (e) {
-      ElMessage.error(e.message || '创建失败')
+      ElMessage.error(e.message || t('reachPipeline.createFailed'))
     } finally {
       pipeSubmitting.value = false
     }
@@ -1516,57 +1521,69 @@ const submitPipe = async () => {
 const pausePipe = async (row) => {
   try {
     await reachPipelineApi.pausePipeline(row.id)
-    ElMessage.success(i18n.global.t('已暂停'))
+    ElMessage.success(t('reachPipeline.paused'))
     loadPipelines()
     loadStats()
   } catch (e) {
-    ElMessage.error(e.message || '操作失败')
+    ElMessage.error(e.message || t('reachPipeline.operationFailed'))
   }
 }
 const resumePipe = async (row) => {
   try {
     await reachPipelineApi.resumePipeline(row.id)
-    ElMessage.success(i18n.global.t('已恢复'))
+    ElMessage.success(t('reachPipeline.resumeSuccess'))
     loadPipelines()
     loadStats()
   } catch (e) {
-    ElMessage.error(e.message || '操作失败')
+    ElMessage.error(e.message || t('reachPipeline.operationFailed'))
   }
 }
 const archivePipe = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定归档 "${row.name}"？归档后不可再加入任务`, '确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('reachPipeline.confirmArchive', { name: row.name }),
+      t('reachPipeline.confirmTitle'),
+      { type: 'warning' }
+    )
     await reachPipelineApi.archivePipeline(row.id)
-    ElMessage.success(i18n.global.t('已归档'))
+    ElMessage.success(t('reachPipeline.archived'))
     loadPipelines()
     loadStats()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.message || '操作失败')
+    if (e !== 'cancel') ElMessage.error(e.message || t('reachPipeline.operationFailed'))
   }
 }
 const deletePipe = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定删除 "${row.name}"？此操作不可恢复`, '确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('reachPipeline.confirmDelete', { name: row.name }),
+      t('reachPipeline.confirmTitle'),
+      { type: 'warning' }
+    )
     await reachPipelineApi.deletePipeline(row.id)
-    ElMessage.success(i18n.global.t('已删除'))
+    ElMessage.success(t('reachPipeline.deleteSuccess'))
     loadPipelines()
     loadStats()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.message || '操作失败')
+    if (e !== 'cancel') ElMessage.error(e.message || t('reachPipeline.operationFailed'))
   }
 }
 
 const resetRateLimit = async () => {
   if (!pipeFilter.channel) {
-    ElMessage.warning(i18n.global.t('请先在渠道筛选中选择一个渠道'))
+    ElMessage.warning(t('reachPipeline.resetRateLimitNeedChannel'))
     return
   }
   try {
-    await ElMessageBox.confirm(`确定重置渠道 "${channelLabel(pipeFilter.channel)}" 的限流状态？`, '确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('reachPipeline.confirmResetRateLimit', { name: channelLabel(pipeFilter.channel) }),
+      t('reachPipeline.confirmTitle'),
+      { type: 'warning' }
+    )
     await reachPipelineApi.resetRateLimit(pipeFilter.channel)
-    ElMessage.success(i18n.global.t('限流已重置'))
+    ElMessage.success(t('reachPipeline.resetRateLimitDone'))
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.message || '操作失败')
+    if (e !== 'cancel') ElMessage.error(e.message || t('reachPipeline.operationFailed'))
   }
 };
 
@@ -1578,7 +1595,7 @@ const viewPipe = async (row) => {
     currentPipe.value = res
     pipeDetailVisible.value = true
   } catch (e) {
-    ElMessage.error(e.message || '获取详情失败')
+    ElMessage.error(e.message || t('reachPipeline.detailLoadFailed'))
   }
 }
 const pipeStepsList = (p) => (Array.isArray(p && p.steps) ? p.steps.map((s) => String(s)) : [])
@@ -1606,7 +1623,7 @@ const loadJobs = async () => {
     jobs.value = res.list || []
     jobPager.total = res.total || 0
   } catch (e) {
-    ElMessage.error(e.message || '获取任务列表失败')
+    ElMessage.error(e.message || t('reachPipeline.loadJobsFailed'))
   } finally {
     jobLoading.value = false
   }
@@ -1633,33 +1650,37 @@ const canCancel = (s) => ['pending', 'running', 'retrying', 'rate_limited'].incl
 const executeJob = async (row) => {
   try {
     await reachPipelineApi.executeJob(row.id)
-    ElMessage.success(i18n.global.t('执行完成'))
+    ElMessage.success(t('reachPipeline.executeDone'))
     loadJobs()
     loadStats()
   } catch (e) {
-    ElMessage.error(e.message || '执行失败')
+    ElMessage.error(e.message || t('reachPipeline.executeFailed'))
     loadJobs()
   }
 }
 const cancelJob = async (row) => {
   try {
-    await ElMessageBox.confirm(`确定取消任务 #${row.id}？`, '确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      t('reachPipeline.confirmCancelJob', { id: row.id }),
+      t('reachPipeline.confirmTitle'),
+      { type: 'warning' }
+    )
     await reachPipelineApi.cancelJob(row.id)
-    ElMessage.success(i18n.global.t('已取消'))
+    ElMessage.success(t('reachPipeline.canceledOk'))
     loadJobs()
     loadStats()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(e.message || '操作失败')
+    if (e !== 'cancel') ElMessage.error(e.message || t('reachPipeline.operationFailed'))
   }
 }
 const retryJob = async (row) => {
   try {
     await reachPipelineApi.retryJob(row.id)
-    ElMessage.success(i18n.global.t('已重新入队'))
+    ElMessage.success(t('reachPipeline.requeued'))
     loadJobs()
     loadStats()
   } catch (e) {
-    ElMessage.error(e.message || '操作失败')
+    ElMessage.error(e.message || t('reachPipeline.operationFailed'))
   }
 }
 
@@ -1668,9 +1689,9 @@ const jobFormRef = ref()
 const jobSubmitting = ref(false)
 const jobForm = reactive({ pipeline_id: null, channel: '', customer_id: '', account_id: '', max_retry: 0, payloadStr: '{}' })
 const jobRules = {
-  pipeline_id: [{ required: true, message: i18n.global.t('请选择 Pipeline'), trigger: 'change' }],
-  customer_id: [{ required: true, message: i18n.global.t('请输入目标客户ID'), trigger: 'blur' }],
-  payloadStr: [{ required: true, message: i18n.global.t('请输入 Payload'), trigger: 'blur' }]
+  pipeline_id: [{ required: true, message: t('reachPipeline.pipelineRequired'), trigger: 'change' }],
+  customer_id: [{ required: true, message: t('reachPipeline.customerIdRequired'), trigger: 'blur' }],
+  payloadStr: [{ required: true, message: t('reachPipeline.payloadRequired'), trigger: 'blur' }]
 }
 const openEnqueueJob = () => {
   Object.assign(jobForm, { pipeline_id: null, channel: '', customer_id: '', account_id: '', max_retry: 0, payloadStr: '{}' })
@@ -1688,7 +1709,7 @@ const submitJob = async () => {
     try {
       payload = JSON.parse(jobForm.payloadStr)
     } catch (e) {
-      ElMessage.error(i18n.global.t('Payload 不是有效的 JSON'))
+      ElMessage.error(t('reachPipeline.payloadInvalid'))
       return
     }
     jobSubmitting.value = true
@@ -1702,14 +1723,14 @@ const submitJob = async () => {
         payload
       }
       await reachPipelineApi.enqueueJob(data)
-      ElMessage.success(i18n.global.t('任务已入队'))
+      ElMessage.success(t('reachPipeline.enqueued'))
       jobDialogVisible.value = false
       activeTab.value = 'jobs'
       jobPager.page = 1
       loadJobs()
       loadStats()
     } catch (e) {
-      ElMessage.error(e.message || '入队失败')
+      ElMessage.error(e.message || t('reachPipeline.enqueueFailed'))
     } finally {
       jobSubmitting.value = false
     }
@@ -1724,7 +1745,7 @@ const viewJob = async (row) => {
     currentJob.value = res
     jobDetailVisible.value = true
   } catch (e) {
-    ElMessage.error(e.message || '获取详情失败')
+    ElMessage.error(e.message || t('reachPipeline.detailLoadFailed'))
   }
 }
 const jobStepResults = (j) => (Array.isArray(j && j.step_results) ? j.step_results : [])
@@ -1737,7 +1758,7 @@ const loadStatsSample = async () => {
     const res = await reachPipelineApi.getJobs({ page: 1, page_size: 200 });
     statsSample.value = res.list || []
   } catch (e) {
-    ElMessage.error(e.message || '获取统计样本失败')
+    ElMessage.error(e.message || t('reachPipeline.loadStatsFailed'))
   } finally {
     statsLoading.value = false
   }

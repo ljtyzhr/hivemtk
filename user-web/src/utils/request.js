@@ -4,7 +4,7 @@ import { getApiConfig } from './configManager'
 import i18n from '@/i18n'
 import { getStoredLocale } from '@/i18n/locale'
 import { markUserReported } from './errorReporting'
-// OPT-FE-05（2026-10-24）：信封判定/业务码/错误形状抽到 @hivemtk/http-core
+// 信封判定/业务码/错误形状抽到 @hivemtk/http-core
 // （与 bridge/platform-web 迁移后共用；拦截器装配仍留本文件——应用侧差异）。
 import {
   BIZ_CODE_MODULE_NOT_ENABLED,
@@ -75,7 +75,7 @@ const INIT_REDIRECT_MAP = {
 //      不防抖就是同一秒内几十次 location 赋值 + toast。
 // 4305/4301 跳转互斥节流（修订 #3）：两者共用同一个节流键，10s 内
 // 只允许一次跳转发生 —— 墙页与市场页依赖请求集不得互相触发对方业务码。
-// 业务码数值已迁 @hivemtk/http-core（OPT-FE-05），import 进来直接用。
+// 业务码数值已迁 @hivemtk/http-core，import 进来直接用。
 // ============================================================================
 const SUBSCRIPTION_WALL_REDIRECT = '/subscription-wall'
 const SUB_WALL_THROTTLE_KEY = 'biz_redirect_throttle'
@@ -149,7 +149,7 @@ function showToast(message, type = 'error') {
 }
 
 // isJsonResponse / extractServerMessage / buildRequestError 的形状逻辑迁
-// @hivemtk/http-core（OPT-FE-05）；这里只保留应用侧差异：t() 兜底文案与
+// @hivemtk/http-core；这里只保留应用侧差异：t() 兜底文案与
 // markUserReported 上报挂载。
 function isJsonResponse(resp) {
   return isJsonContentType(resp && resp.headers)

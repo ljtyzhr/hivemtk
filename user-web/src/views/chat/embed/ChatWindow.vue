@@ -555,7 +555,7 @@ const formatTime = (t) => {
   return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-// OPT-FE-13：弹窗焦点管理。src/utils/a11y.js 此前零引用，这里真正接上，
+// 弹窗焦点管理。src/utils/a11y.js 此前零引用，这里真正接上，
 // 使 Tab 键在两个弹窗内循环、关闭后焦点回到触发元素。
 const offlineModalRef = ref(null)
 const ratingModalRef = ref(null)
