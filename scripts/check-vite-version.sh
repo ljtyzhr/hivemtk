@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# check-vite-version.sh —— 前端 vite「主版本不得漂移」守卫（OPT-FE-07 的落地护栏）
+# check-vite-version.sh —— 前端 vite「主版本不得漂移」守卫
 #
 # 立项原因（2026-09-25）：docs/architecture/vite_version_policy.md §2.1 在 2026-08-16
 # 就承诺了本文件（"CI 强制检查：添加 scripts/check-vite-version.sh 检测大版本差异、
-# 阻止引入新的主版本"），但**该脚本从未创建**（find 全仓零命中）。结果是 OPT-FE-07
+# 阻止引入新的主版本"），但**该脚本从未创建**（find 全仓零命中）。结果是
 # 统一完版本后没有任何东西守着：谁在某个 package.json 里改回 5.x/6.x、或新前后端子项目
 # 自带一个别的 majors 的 vite，都不会被拦。本文件补上这个缺口。
 #

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
 # rotate-field-encryption.sh — 字段加密密钥 (FEK) 轮换执行脚本 (骨架)
-# 任务编号: OPT-SEC-EXT-1
 # 配套策略: docs/operations/secret_rotation.md §4.3
 # 创建日期: 2026-08-16
 #

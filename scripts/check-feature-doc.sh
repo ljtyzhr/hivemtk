@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # check-feature-doc.sh
-# 功能文档 8 节模板结构校验（OPT-DOC-13）
+# 功能文档 8 节模板结构校验
 #
 # 对应文档：[docs/standards/FEATURE_DOCUMENTATION_TEMPLATE.md]
 # 校验项：

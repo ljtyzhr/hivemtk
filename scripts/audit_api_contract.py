@@ -253,8 +253,7 @@ def resolve(fkey, var, depth=0):
     # 引入时起的，此前的按名推断表里没有，于是这两条路由被判成"后端没有"，
     # strict 模式直接红。与 `auth`/`public`/`router` 同属一类，一并列出。
     #
-    # `tenantAdmin` 是 2026-10-21 二次审核引入的：admin 档按**数据域**拆两档时
-    # 新增的租户档（setupSystemRoutes / setupModuleRoutes 的租户级端点挂它）。
+    # `tenantAdmin` 是租户档（setupSystemRoutes / setupModuleRoutes 的租户级端点挂它），
     # 装配处 `tenantAdmin := auth.Group("")` ⇒ 前缀同样是 /api。
     # 漏了它 ⇒ 那批端点被判成"后端没有" ⇒ strict 模式红 11 条假缺陷。
     #
@@ -299,8 +298,8 @@ for _ in range(8):
                     # obj 是 import 的包别名，不是本地控制器变量，infer_type_of 必然返回
                     # None。原实现直接 `continue`，导致这类注册的 RouterGroup 参数永远
                     # 绑定不上 → 路由前缀解析为 <UNRESOLVED:xxx> → 前端调用被误判为断链。
-                    # 这里按「包别名 == 被调函数所在目录名」匹配自由函数表。
-                    # （2026-09-16 修复：此前 /api/monitor/* 7 条被误报为 UNMATCHED）
+                    # 这里按「包别名 == 被调函数所在目录名」匹配自由函数表，
+                    # 否则这类注册（如 /api/monitor/*）会被误报为 UNMATCHED。
                     pkg_hit = func_file.get(callee)
                     if not pkg_hit or os.path.basename(os.path.dirname(pkg_hit[0])) != obj:
                         continue
@@ -329,14 +328,12 @@ for _ in range(8):
 # 2) 方法调用 x.RegisterRoutes(y) 已并入上方 fixpoint（obj 分支）
 
 backend = {}
-# 2026-09-30 修复（幻影前缀）：同一路由字面量会被捕获两次 ——
+# 幻影前缀防御：同一路由字面量会被捕获两次 ——
 #   ① 函数级 scope：组变量绑定在本函数内，前缀可正确解析（如 admin := auth.Group("/llm") → /api/llm/xxx）；
 #   ② 文件级伪 scope（qual == '<file>'，body = 整份源码）：groups 由 dict 覆盖式收集，
-#      同名变量在同文件里被反复赋值时**最后一个胜出**。实测 service_routes.go 有 13 处
-#      admin := auth.Group(...)，其中 11 处前缀为空串，于是文件级把 admin 解析成 /api，
-#      产出 /api/scene-routing、/api/strategies、/api/models 这类**运行时不存在的幻影路由**
-#      （真实路由是 /api/llm/scene-routing 等）。幻影与真实路径共存会污染全量矩阵探测、
-#      并把真实路由误算进 BACKEND_NOT_CALLED 死接口清单。
+#      同名变量在同文件里被反复赋值时**最后一个胜出**，会把 admin 这类组变量解析成错误前缀，
+#      产出**运行时不存在的幻影路由**（如 /api/scene-routing，真实路由是 /api/llm/scene-routing）。
+#      幻影与真实路径共存会污染全量矩阵探测、并把真实路由误算进 BACKEND_NOT_CALLED 死接口清单。
 #   此处：先收集「函数级已成功解析」的 (文件, 方法, 字面量) 三元组，再跳过同文件的
 #   文件级重复捕获。文件级独有的注册（包级 init/r.GET 等）不受影响。
 _func_lit = set()

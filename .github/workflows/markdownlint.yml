@@ -1,8 +1,4 @@
-# Markdown 规范检查（OPT-CI-09）
-#
-# 清单曾勾选 OPT-CI-09「添加 .markdownlint.json 集成 CI」为已实施，
-# 但配置文件全仓不存在、无任何 workflow 引用 markdownlint —— 属虚假完成。
-# 本次补齐：规则文件 + cli2 忽略配置 + 本工作流。
+# Markdown 规范检查（OPT-CI-09）。
 #
 # 规则文件：
 #   .markdownlint.json        —— 规则集（default: true 逐条覆盖）

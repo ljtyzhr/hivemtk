@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# RAG 检索延迟基准（OPT-SEC-06）
+# RAG 检索延迟基准
 #
 # 覆盖三档语料规模：100 / 500 / 1000 chunks；
 # 每档构造代表性 query 集，统计 P50 / P95 / P99 延迟。

@@ -598,6 +598,8 @@ audit:
 	@bash scripts/check-bash32-parse.sh
 	@echo "── 常驻变异电池的每份产物都必须写着「这轮读的是哪一笔字节」（轴一形状含 A5 归属／A6 口径对账，A7 名字轴拦「编译绿、跑到那行才 NameError」的悬空调用，轴二实测最近一轮；两份台账 D0–D4／O1–O5 各带上界与过期判据）──"
 	@python3 scripts/check-battery-identity.py --quiet-ok
+	@echo "── RouteSurface 电池锚点前置（12 格）：守卫源码搬家后锚点会静默失效，本档只验锚点不装架、不跑 go ⇒ 绿≠有牙（四刀真杀要会编 Go 的执行点，仍留本地）──"
+	@python3 scripts/mut_route_surface.py --check
 	@echo "── 路由消费面取证器的口径自检（10 枚控制，含两条极性对：夹具锚点与模块说明符都不许算消费方）──"
 	@python3 scripts/route-consumer-triage.py --self-check
 	@echo "── 菜单×路由×守卫三方对账器的口径自检（39 枚控制：两向错配各自开火且有极性对、BLOCK 拆两档的挂载区间正反两枪、UNROUTED 的调用点抽取覆盖面）──"

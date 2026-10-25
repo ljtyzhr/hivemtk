@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # feature-doc-coverage-report.sh
-# marketing-features/*.md 八节模板覆盖情况统计（OPT-DOC-14）
+# marketing-features/*.md 八节模板覆盖情况统计
 #
 # 对应文档：[docs/standards/FEATURE_DOCUMENTATION_TEMPLATE.md]
 # 目标：输出一份覆盖情况表，统计每篇文档的 §一 ~ §八 覆盖情况 + 完成度
@@ -184,7 +184,7 @@ while IFS=$'\t' read -r filename cov filled; do
   rank=$((rank+1))
 done < <(sort -t$'\t' -k3 -nr "$DETAIL_TSV" | head -5)
 
-# §四~§八 专项统计（OPT-DOC-14 重点）
+# §四~§八 专项统计
 TABLE+="\n### §四~§八 专项覆盖（OPT-DOC-14 重点）\n\n"
 TABLE+="| 节 | 标题 | 覆盖文档数 | 总文档 | 覆盖率 |\n"
 TABLE+="|----|------|-----------|--------|--------|\n"
