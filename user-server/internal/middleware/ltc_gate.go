@@ -127,10 +127,15 @@ func ltcStageGateShadow(stage service.LTCStage, reader LTCConfigReader) gin.Hand
 	}
 }
 
-// GatedGroup 返回挂了 shadow 阶段门的子路由组（E-7 装配用）。
+// GatedGroup 返回挂了**强制**阶段门的子路由组（E-7 装配用）。
 // 不用 auth.Use —— 那会波及之后注册在 auth 上的所有路由；子组的作用域才是闸门应有的。
+//
+// 2026-10-25 由 shadow 转强制（D-1，用户强制授权）：阶段关着 ⇒ 409 拒绝，
+// 不再"只记录不阻断"。观察期语义（含 would-refuse 计数）保留在
+// LTCStageGateShadow，历史对照读数不受影响。注意 A 型闸没有 whitelist
+// 中间档（D-1 执行包 §2.1）：灰度手段是 ltc 配置逐阶段开关，不是档位。
 func GatedGroup(auth *gin.RouterGroup, stage service.LTCStage) *gin.RouterGroup {
-	return auth.Group("", LTCStageGateShadow(stage))
+	return auth.Group("", LTCStageGate(stage))
 }
 
 func ltcStageGate(stage service.LTCStage, reader LTCConfigReader) gin.HandlerFunc {

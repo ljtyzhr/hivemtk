@@ -26,7 +26,13 @@ const API = process.env.API_BASE_URL || 'http://localhost:8204'
 const SCREENSHOT_DIR = path.resolve(process.cwd(), 'tests/screenshots/permission_ui')
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true })
 
-const CANDIDATE_PASSWORDS = [
+// E2E_ADMIN_USERNAME/E2E_ADMIN_PASSWORDS：显式注入被测库真实存在的 admin 账号。
+// 旧夹具把用户名写死为 'admin' 且口令只有 4 个硬编码候选 —— 换一个库（如本机
+// user_db，admin 行根本不存在）就整条 describe 全灭（2026-10-25 实测）。
+// 候选支持逗号分隔多值；注入值排在旧硬编码候选**之前**（显式注入优先）。
+const envCandidates = (process.env.E2E_ADMIN_PASSWORDS || '').split(',').map(s => s.trim()).filter(Boolean)
+const envUsername = process.env.E2E_ADMIN_USERNAME || 'admin'
+const CANDIDATE_PASSWORDS = [...envCandidates,
   'Admin@12345678',
   'Admin@123456',
   '62cfdc6bf1b075830734cc6f9a63501b',
@@ -40,10 +46,10 @@ async function adminLogin() {
       const resp = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'admin', password: pwd })
+        body: JSON.stringify({ username: envUsername, password: pwd })
       })
       const data = await resp.json()
-      if (data?.code === 'SUCCESS' && data?.data?.token) {
+      if ((data?.code === 'SUCCESS' || data?.code === 0) && data?.data?.token) {
         return { token: data.data.token, password: pwd }
       }
     } catch (e) {
@@ -71,7 +77,7 @@ async function createCustomerServiceUser(token) {
     })
   })
   const data = await resp.json()
-  if (data?.code !== 'SUCCESS') {
+  if (!(data?.code === 'SUCCESS' || data?.code === 0)) {
     return null
   }
   return { id: data?.data?.id, username, password }
@@ -90,6 +96,13 @@ async function webLogin(page, username, password, token, userInfo) {
       localStorage.setItem('system_initialized', initFlag)
       if (tok) localStorage.setItem('token', tok)
       if (info) localStorage.setItem('user_info', JSON.stringify(info))
+      // 跳过新手引导（driver.js 全屏遮罩 pointer-events:auto 会拦掉后续一切
+      // DOM 点击，用例 3-6 全灭的原因）。把三类导览都标成已完成/已看过，
+      // 与 useOnboarding.ts 的存储键同源（2026-10-25 实测修法）。
+      localStorage.setItem('hivemtk_onboarding_completed_global', 'true')
+      localStorage.setItem('hivemtk_onboarding_completed_module', 'true')
+      localStorage.setItem('hivemtk_onboarding_completed_page', 'true')
+      localStorage.setItem('hivemtk_onboarding_page_seen', JSON.stringify(['*']))
     } catch (e) { /* 忽略异常：失败时保持既有状态，不打断用户 */ }
   }, {
     tok: useToken,
@@ -201,7 +214,7 @@ test.describe('权限系统 UI 多角色验证', () => {
     // 构造 user_info（user store 期望的字段）
     adminUserInfo = {
       id: 136,
-      username: 'admin',
+      username: envUsername,
       role: 'admin',
       real_name: '系统超管',
       email: 'admin@hivemtk.demo'
