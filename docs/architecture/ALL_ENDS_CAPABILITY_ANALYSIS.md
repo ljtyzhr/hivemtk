@@ -234,7 +234,7 @@ graph TD
 ### 6.1 本轮变更清单（已随测试验证）
 
 **文档（工作区 `docs/` + `hivemtk/docs/`）**
-- 新增本报告 `docs/HIVE_MTK_ALL_ENDS_CAPABILITY_ANALYSIS.md`
+- 新增本报告 `docs/HIVE_MTK_ALL_ENDS_CAPABILITY_ANALYSIS.md`（该外层副本已于 2026-10-25 清理删除，以本文件为准）
 - `hivemtk/docs/architecture/ARCHITECTURE_DIAGRAM.md`：实时通道（WS 取代"长轮询已弃用"）、推理栈（TEI 承载 Embedding/Rerank）、端口表、平台端职责（去 License）逐条对齐代码
 - 工作区根 `README.md`：Go 版本徽章 1.25 → 1.26
 
