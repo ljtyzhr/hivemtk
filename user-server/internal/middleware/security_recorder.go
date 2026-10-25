@@ -69,7 +69,19 @@ func recordAuthFailure(kind string, c *gin.Context) {
 		securityFailureFlushing = true
 		shouldFlush = true
 	}
-	deltas := securityFailureDeltas
+	var deltas *model.SecurityAccessFailurePayload
+	if shouldFlush {
+		// 刷盘必须**换出 detach 快照**，不能把活指针递给 goroutine：goroutine 在
+		// 锁外遍历它做 Merge，而请求路径仍在锁内往同一对象 Add——活指针方案 =
+		// concurrent map iteration and map write，进程直接 fatal（2026-10-25 D-3
+		// 走查 18406 实测 crash：api_verify 登录失败段触发，栈在
+		// model/security_access_failure.go Merge ← flushSecurityAccessFailures）。
+		// 换出后新增量落进新载荷，与刷盘中的旧快照互不可见，两条腿都安全。
+		// LastFlsh 同步更新：否则首刷后 interval 判定恒真，退化为每请求一刷。
+		deltas = securityFailureDeltas
+		securityFailureDeltas = model.NewSecurityAccessFailurePayload()
+		securityFailureLastFlsh = time.Now()
+	}
 	securityFailureMu.Unlock()
 
 	if shouldFlush {

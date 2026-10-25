@@ -105,6 +105,14 @@ func (c *AuthController) recordLoginRiskAsync(ctx *gin.Context, username string,
 		defer cancel()
 		if hasTenant {
 			dctx = tenant.OnlyTenant(dctx, tid)
+		} else {
+			// 失败登录（口令错/用户名不存在）没有租户可绑——而这正是防爆破
+			// 计数最需要记账的那一半。登录遥测是**部署级安全数据**（攻击者
+			// 的登录不归属任何租户，与 C-5 的 401 遥测走 platform_config_kv
+			// 同一裁决），落系统作用域；不修则 on 模式下"最近 1 小时失败 N 次"
+			// 恒读 0、审计表里只有成功行（RELEASE_PREPARATION-实跑结果 §5.1
+			// 实测的正是这条：1 次口令探针整链被闸拒）。
+			dctx = tenant.WithSystemScope(dctx)
 		}
 		detector := service.NewAnomalyLoginDetector()
 		if _, err := detector.DetectAndAlert(dctx, lctx); err != nil {

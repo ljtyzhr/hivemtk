@@ -114,7 +114,7 @@
 1. **`login_events` 租户上下文错误**：本次 1 次口令探针（23:46:03）在日志里留下两条 error ——
    「查询最近失败次数失败 / 写入 login_events 失败：表 login_events 需要租户上下文但 ctx 未绑定」。
    ⇒ `TENANT_MODE=on` 下登录事件的读写都被租户门拒绝，**防爆破计数与登录审计实际不落库**。
-   触发者是本次探针（1 次尝试），但代码路径是产品路径，建议单独开条确认（在跑二进制陈旧，可能已修）。
+   ~~建议单独开条确认~~ **〔2026-10-25 已修复〕**：成功路径此前已修（resp.TenantID 回填）；本日补齐**失败登录腿**——`recordLoginRiskAsync` 无租户可绑时落 `tenant.WithSystemScope`（登录遥测=部署级安全数据，与 C-5 的 401 遥测同裁决），回归用例 `TestAuthController_Login_FailedAttempt_RecordsViaSystemScope` 在案。注意复跑验收时读数口径要先切回 off 模式（on 模式下验收方自己的 Count 也会被闸拒，曾把"行已落库"误读成"零行"）。
 2. **PWA 入口回落 SPA**：`/manifest.webmanifest`、`/favicon.svg` 返回 200 但内容是 `index.html`（3175 B）。
    `embed_static_routes.go` 只挂了 `/assets`、`/favicon.ico`、`/logo.png`，其余走 `NoRoute` → SPA。
 3. **前端与后端不同代**：`user-web/dist` 的 `buildId=28b7bdee`（=开跑时 HEAD），`buildTime 2026-10-24T15:21:19Z`；

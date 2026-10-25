@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
@@ -83,5 +84,59 @@ func TestAuthController_Login_BindsTenantToRequestContext(t *testing.T) {
 	}
 	if capturedTenant != 77 {
 		t.Errorf("绑定的租户应为 77, 实际 %d", capturedTenant)
+	}
+}
+
+// TestAuthController_Login_FailedAttempt_RecordsViaSystemScope 回归：失败登录的
+// 风控整链在 on 模式下必须落库。
+//
+// 2026-10-21 那次修复只覆盖了**成功**路径（resp.TenantID 回填）；失败登录
+// （口令错/用户名不存在）没有租户可绑 ⇒ recordLoginRiskAsync 的 dctx 裸奔 ⇒
+// login_events 读写被隔离闸 fail-closed 静默拒绝——防爆破计数恒读 0、审计表
+// 只有成功行（RELEASE_PREPARATION-实跑结果 §5.1 的口令探针实测即此）。
+// 修复：无租户时落系统作用域（登录遥测=部署级安全数据，攻击者不归属租户，
+// 与 C-5 的 401 遥测同一裁决）。本用例钉住：一次失败登录后 login_events 必须多出一行。
+func TestAuthController_Login_FailedAttempt_RecordsViaSystemScope(t *testing.T) {
+	orig := tenant.CurrentMode()
+	tenant.SetMode(tenant.ModeOn)
+	defer tenant.SetMode(orig)
+
+	database := setupTestControllerDB(t)
+	authCtrl := NewAuthController()
+	router := setupGinEngine()
+	router.POST("/login", authCtrl.Login)
+
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]string{"username": "ghost_user", "password": "wrong-password"})
+	router.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(body)))
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("失败登录应 401，got %d", w.Code)
+	}
+
+	// 异步腿：轮询等 login_events 落行（修复前恒 0 行——闸拒，且日志只见
+	// "需要租户上下文但 ctx 未绑定"）。
+	// 读数口径必须先切回 off 模式：on 模式下本测试自己的 Count 查询同样
+	// 被闸 fail-closed（无租户绑定），曾让"行已落库"被误读成"零行"。
+	tenant.SetMode(tenant.ModeOff)
+	deadline := time.Now().Add(15 * time.Second)
+	var count int64
+	for {
+		if err := database.Model(&model.LoginEvent{}).Count(&count).Error; err != nil {
+			t.Fatalf("读数失败: %v", err)
+		}
+		if count > 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if count == 0 {
+		t.Fatal("失败登录后 login_events 零行——风控整链仍被租户闸拒绝（回归了 2026-10-25 的修复）")
+	}
+	var ev model.LoginEvent
+	if err := database.Order("id DESC").First(&ev).Error; err != nil {
+		t.Fatalf("读登录事件失败: %v", err)
+	}
+	if ev.Success {
+		t.Fatal("失败登录不应落成功事件")
 	}
 }

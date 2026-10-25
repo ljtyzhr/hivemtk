@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -106,5 +107,65 @@ func TestPathPrefixOf(t *testing.T) {
 		if got := pathPrefixOf(in); got != want {
 			t.Errorf("pathPrefixOf(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// 回归：异步刷盘腿与记录路径并发（-race 钉死）。旧实现把**活指针**递给 flush
+// goroutine——goroutine 在锁外 Merge 遍历该 map，而请求路径锁内继续 Add，
+// concurrent map iteration and map write 直接 fatal（2026-10-25 D-3 走查
+// 18406 实测进程崩溃）。修复后刷盘走换出快照，本用例以 50 并发请求 × 强制
+// 触发刷盘复现当时的并发形态，-race 下任何 map 并发都会红。
+func TestSecurityRecorder_AsyncFlushRacesWithRecording(t *testing.T) {
+	database := testutil.NewTestDB(t, &model.PlatformConfigKV{})
+	InitSecurityRecorder(database)
+	t.Cleanup(func() { InitSecurityRecorder(nil) })
+
+	gin.SetMode(gin.TestMode)
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	// 记录腿：8 个 goroutine 持续打 401 记录（合法 API 面，路径前缀聚在几段）
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			paths := []string{"/api/system/users", "/api/security/audit/list", "/api/quote/list"}
+			kinds := []string{model.SecurityAccessKindTokenMissing, model.SecurityAccessKindTokenInvalid}
+			for j := 0; ; j++ {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				req := httptest.NewRequest(http.MethodGet, paths[(n+j)%len(paths)], nil)
+				c, _ := gin.CreateTestContext(nil)
+				c.Request = req
+				recordAuthFailure(kinds[j%len(kinds)], c)
+			}
+		}(i)
+	}
+	// 刷盘腿：反复走异步触发形态（flushing 标志 + 锁外 Merge 的同款并发窗口）
+	for round := 0; round < 50; round++ {
+		securityFailureMu.Lock()
+		if !securityFailureFlushing && securityFailureDeltasCount() > 0 {
+			securityFailureFlushing = true
+			deltas := securityFailureDeltas
+			securityFailureMu.Unlock()
+			go func() {
+				defer func() {
+					securityFailureMu.Lock()
+					securityFailureFlushing = false
+					securityFailureMu.Unlock()
+				}()
+				_ = flushSecurityAccessFailures(deltas)
+			}()
+		} else {
+			securityFailureMu.Unlock()
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	close(stop)
+	wg.Wait()
+	if err := FlushSecurityAccessFailures(); err != nil {
+		t.Fatalf("收口刷盘不该失败: %v", err)
 	}
 }
