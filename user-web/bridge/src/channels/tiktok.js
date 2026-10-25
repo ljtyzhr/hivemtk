@@ -603,9 +603,8 @@ const hooks = {
       senderName = getPeerName();
     }
     // ⑥ 消息 id
-    // 2026-08-05 修复（无新消息仍不断回复 AI 的根因）：
     // 兜底 msg_id：优先取 DOM 自带 id，否则按文本内容生成确定性 id。
-    // 幂等去重（消息ID / 内容hash）已由后端统一负责，前端不再计算内容 hash。
+    // 幂等去重（消息ID / 内容hash）由后端统一负责，前端不计算内容 hash。
     const mid =
       item.getAttribute('data-message-id') ||
       item.getAttribute('data-id') ||

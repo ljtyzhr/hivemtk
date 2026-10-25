@@ -87,9 +87,9 @@ export function setValue(el, value) {
  * 抖音 fillInputViaPaste：contenteditable 填值（粘贴事件优先，保证框架识别输入）。
  * 参考 DY-auto fillInputViaPaste：触发 paste + 写入 innerText + 派发 input。
  *
- * 2026-08-07 修复（用户诉求③）：增加 clearBefore 选项，下发场景必须先清空输入框旧内容，
+ * clearBefore 选项：下发场景必须先清空输入框旧内容再写入，
  *   避免「用户正在打字 + extension 同时下发」导致旧内容+新内容拼接发出。
- *   - clearBefore: true  → 先清空（innerText=''/value=''）再 insertText（默认 false 兼容历史行为）
+ *   - clearBefore: true  → 先清空（innerText=''/value=''）再 insertText（默认 false）
  *   - 历史回填场景保持原行为（不清空，仅 append）
  */
 export function fillContentEditable(el, text, { clearBefore = false } = {}) {

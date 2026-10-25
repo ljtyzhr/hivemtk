@@ -2,11 +2,10 @@
 const ACCOUNT_CACHE_KEY = 'bridgeAccountFallback';
 
 // 8 account_id 多层 fallback 派生 ——
-// 2026-08-15 治本：全部候选为空时返回 `${channel}-unknown`（稳定占位，绝不空串）。
-// 背景：前端 getAccountId() DOM 多层兜底（URL 路径/用户链接/meta 标签/缓存）全部失败时，
-// 旧逻辑返回空串 → WS 握手持空 account_id → 服务端 401 拒绝 → 历史/实时全不上行。
-// 改为稳定 `${channel}-unknown` 后：上行不中断，后端按 (platform + sender_name + content)
-// 三元组命中 outbound（见 service/inbox_ingress_outbound.go 层0 回采），unknown 仅为身份兜底。
+// 全部候选为空时返回 `${channel}-unknown`（稳定占位，绝不空串——空 account_id 会被
+// 服务端 401 拒绝、上行全断）。改为稳定 `${channel}-unknown` 后：上行不中断，
+// 后端按 (platform + sender_name + content) 三元组命中 outbound
+// （见 service/inbox_ingress_outbound.go 层0 回采），unknown 仅为身份兜底。
 export function deriveAccountId(channel, candidates) {
   for (const c of candidates) {
     if (c && typeof c === 'string' && c.trim()) return c.trim();

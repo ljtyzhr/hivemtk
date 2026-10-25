@@ -3,10 +3,9 @@
 // 顺序：先匹配具体平台域，最后 fallback 到 'common'（仅 ping/selfcheck）
 // 调整需同步 manifest.json content_scripts[*].js 与 build.mjs entries
 //
-// 2026-08-05 审计 P0 修复（H5 域名白名单）：
-//   原实现漏了 xianyu/goofish 域名 → popup 自检自动注入 xianyu 永远走 unsupported_host 失败路径。
-//   补全 xianyu.com / goofish.com（咸鱼两个域名共用 content-xianyu.js）。
-//   并集中到 SUPPORTED_HOSTS 常量，供各处运行时校验复用（manifest matches + popup 域名判断）。
+// H5 域名白名单须含全部支持平台（漏了某域名 → 注入永远走 unsupported_host 失败路径）。
+//   xianyu.com / goofish.com（咸鱼两个域名共用 content-xianyu.js）。
+//   集中在 SUPPORTED_HOSTS 常量，供各处运行时校验复用（manifest matches + popup 域名判断）。
 export const SUPPORTED_HOSTS = [
   'douyin.com',
   'xiaohongshu.com',

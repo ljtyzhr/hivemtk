@@ -418,11 +418,10 @@ function getConversationList() {
 
 // 未读检测：会话项自身带未读 class，或其内部含未读红点/badge，即视为有新消息。
 //
-// 2026-08-05 修复：原版仅靠 SEL.UNREAD 选择器匹配，但小红书会话列表的未读徽章
-//   class 名多变（badge/count/num/dot 等），且徽章可能是纯数字文本元素无明确 class。
-//   实测 detectUnread 全返回 false → 巡检"未读 0" → 新消息不上报。
+// 小红书未读徽章 class 名多变（badge/count/num/dot 等），且徽章可能是纯数字文本元素
+// 无明确 class，仅靠 SEL.UNREAD 选择器匹配不可靠（detectUnread 会全返回 false → 新消息不上报）。
 //
-//   修复策略（多层兜底）：
+//   检测策略（多层兜底）：
 //   1) SEL.UNREAD 选择器匹配（扩展后覆盖更多 class）
 //   2) 数字徽章检测：遍历候选 badge 元素，文本是纯数字 > 0 即视为未读
 //   3) data 属性检测：data-unread / data-count / data-msg-count / data-unread-count
@@ -605,12 +604,12 @@ const hooks = {
       log.error('未找到小红书输入框（merged + strict + fallback 均失败）');
       throw new Error('xhs input not found');
     }
-    // 2026-08-07 修复（用户诉求③）：下发场景必须先清空输入框旧内容再写入新内容，
-    //   避免「用户正在打字时 extension 同时下发」导致「旧内容+新内容」拼接发出。
+    // 下发场景必须先清空输入框旧内容再写入新内容，
+    // 避免「用户正在打字时 extension 同时下发」导致「旧内容+新内容」拼接发出。
     //   - contenteditable：fillContentEditableHumanized({ clearBefore: true }) 先清空子节点再逐段拟人 insertText
     //   - textarea：setValue(el, '') 先清空再 setValue(el, text) 覆盖
     //   顺序：清空 → 拟人键入 → 拟人点击间隔（humanDelay click 档案）→ 发送 → 立即通知调用方（ack 由 downlin k 队列统一处理）
-    //   批25 补充：清空只解决"输入框内容归属"，不解决"输入框属于哪个会话"——键入期间被巡检
+    //   清空只解决"输入框内容归属"，不解决"输入框属于哪个会话"——键入期间被巡检
     //   切走仍会把文案点进下一个会话，故点击前还有一道 assertConvOrAbort 复核（见下）。
     const isContentEditable = input.isContentEditable || input.getAttribute('contenteditable') === 'true' || input.tagName !== 'TEXTAREA';
     if (isContentEditable) {

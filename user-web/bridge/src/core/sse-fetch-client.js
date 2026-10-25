@@ -15,7 +15,7 @@
 
 import { createLogger } from './logger.js';
 import { DEFAULT_USER_SERVER, TENANT_CODE } from './constants.js';
-// OPT-FE-05（2026-10-24）：信封消息提取改用共享包（@hivemtk/http-core），
+// 信封消息提取改用共享包（@hivemtk/http-core），
 // 与 user-web 的 request.js 同一来源——各前端不再各写一份 message/msg 兼容。
 import { extractServerMessage } from '../../../../packages/http-core/index.js';
 
@@ -145,7 +145,7 @@ async function buildSSEError(response) {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object') {
       code = typeof parsed.code === 'string' ? parsed.code : '';
-      // OPT-FE-05：message/msg 兼容口径来自共享包（SSE 错误信封与 REST 信封同形）。
+      // message/msg 兼容口径来自共享包（SSE 错误信封与 REST 信封同形）。
       message = typeof extractServerMessage(parsed, '') === 'string' ? extractServerMessage(parsed, '') : '';
     }
   } catch (_) {

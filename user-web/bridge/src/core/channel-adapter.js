@@ -769,10 +769,8 @@ export class BaseAdapter {
       list = this.getConversationList() || [];
     } catch (_) { list = []; }
     if (!Array.isArray(list)) list = [];
-    // 命中目标：优先精确 id；兼容 id 表述不一致（如 /user/ 链接 vs data-* / conv: 前缀）
-    // 2026-08-05 修复：补全双向 conv: 前缀匹配。
-    //   原版仅覆盖 cid 带 conv: 前缀（剥掉比对）和 c.id 不带但 cid 带（补 conv: 比对）两个方向，
-    //   缺漏「c.id 带 conv: 前缀但 cid 不带」→ 巡检用 data-conv-id 找会话时找不到 → 巡检失效。
+    // 命中目标：优先精确 id；兼容 id 表述不一致（如 /user/ 链接 vs data-* / conv: 前缀）。
+    //   双向 conv: 前缀匹配：缺任一方向都会导致巡检用 data-conv-id 找会话时找不到 → 巡检失效。
     let target = list.find((c) => c && c.id === cid);
     if (!target) {
       target = list.find((c) => c && (
@@ -948,9 +946,8 @@ export class BaseAdapter {
             continue;
           }
         }
-        // 本轮结束：滚动列表到底部，等待加载更多（虚拟/懒加载列表），继续下一轮
-        // 2026-08-05 修复：两轮列表之间间隔从 500ms 提到 scrollLoadMs（默认 1500ms），
-        //   旧值 500ms 太快，虚拟列表还没加载完就开下一轮 → 漏抓 + 平台风控
+        // 本轮结束：滚动列表到底部，等待加载更多（虚拟/懒加载列表），继续下一轮。
+        //   间隔必须够长（scrollLoadMs，默认 1500ms）：太快时虚拟列表还没加载完就开下一轮 → 漏抓 + 平台风控
         const scroller = this._findListScroller();
         if (scroller) {
           try { scroller.scrollTop = scroller.scrollHeight; } catch (_) {  }
@@ -1086,11 +1083,8 @@ export class BaseAdapter {
 
     try {
       // ============ 阶段 1：扫描左侧列表（轻量级）============
-      // 2026-08-05 修复：巡检改为直接遍历所有会话，不再判断未读。
-      //   原版仅访问有未读标记的会话（c.unread），但小红书未读徽章 DOM 不稳定
-      //   （.xhs-im-conv-item__bottom-right 常为空 <!---->），detectUnread 全返回 false →
-      //   "未读 0，跳过本轮" → 新消息永不上报。
-      //   新逻辑：直接遍历所有会话，靠 _collectUnseenText 的 seenNodes/seen 去重，
+      //   直接遍历所有会话，不判断未读（小红书未读徽章 DOM 不稳定，
+      //   detectUnread 不可靠）。靠 _collectUnseenText 的 seenNodes/seen 去重，
       //   只有真正新增的消息才上行 inbound 触发 AI（"合理评论" = 不重复触发已处理消息）。
       const allList = [];
       try {

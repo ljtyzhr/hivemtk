@@ -440,10 +440,8 @@ export function startBridge(channel, buildAdapter) {
   let deactivateBridge = null;
   let pollTimer = null;
 
-  // 2026-08-05 HTTP-only 重构：移除所有 WebSocket 相关状态机。
-  //   原来「sync 限速 + onDisconnect 退避 + 5 次连续失败」全是 WS 时代的产物，
-  //   HTTP 长轮询无状态、每次请求独立，无需重连计数。保留 sync() 限速用于
-  //   「SPA 浮层打开/关闭」时频繁调用 activateBridge 的去抖。
+  // HTTP-only：无 WebSocket 重连/退避状态机（HTTP 长轮询无状态、每次请求独立）。
+  //   保留 sync() 限速用于「SPA 浮层打开/关闭」时频繁调用 activateBridge 的去抖。
   let lastSyncAt = 0;
   const SYNC_THROTTLE_MS = 3000;      
 
@@ -528,7 +526,7 @@ export function startBridge(channel, buildAdapter) {
   };
 
   const sync = () => {
-    // 2026-08-05 修复：sync 节流，防止 SPA 浮层打开/关闭切换时被频繁激活。
+    // sync 节流：防止 SPA 浮层打开/关闭切换时被频繁激活。
     //   至少 3 秒间隔，上次 sync 不足 3 秒则跳过。
     const now = Date.now();
     if (now - lastSyncAt < SYNC_THROTTLE_MS) return;

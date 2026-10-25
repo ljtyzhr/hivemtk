@@ -1106,8 +1106,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     btn.disabled = true;
-    // 占位文案不写死某个路径：命中哪一条由 HEALTH_PATHS 的顺序决定（本机实测停在 /health），
-    // 原来那句"… /api/health"与实际打的那一口不一致，照着它排查会走偏。
+    // 占位文案不写死某个路径：命中哪一条由 HEALTH_PATHS 的顺序决定，
+    // 写死某一口若与实际打的不一致，照着排查会走偏。
     showBanner('info', '⏳ 正在测试…', `${serverUrl}\n健康口依次试：${HEALTH_PATHS.join(' → ')}\n凭证口：${BRIDGE_CREDENTIAL_PROBE_PATH}`);
     const r = await testConnection(serverUrl);
     // 健康口都没通时不再打凭证探测：那时它必然也失败，只会把"地址不通"淹在第二条红里。

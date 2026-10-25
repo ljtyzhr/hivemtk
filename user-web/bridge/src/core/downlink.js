@@ -163,19 +163,14 @@ export async function withOutboundLock(key, fn) {
   return locks.request(`bridge-outbound:${key}`, fn);
 }
 
-// _pendingAckByChannel：按渠道维护"待重试 ack"的 msg_id 队列（2026-08-15 P0-9 升级为带退避的 Map）。
-//
-// 2026-08-14 修复（用户诉求 "不要兜底逻辑会导致垃圾数据" 的反例——这里必须"兜底"）：
-//   sendOutbound 已成功 = 用户已收到。这条事实是"用户是否收到"的唯一权威。
-//   ack 服务端只是后端记账的副作用——若 ack 失败（网络/服务暂时不可用），
+// _pendingAckByChannel：按渠道维护"待重试 ack"的 Map<msg_id, { attempts, firstSeenAt, lastTryAt, lastError }>。
+//   sendOutbound 已成功 = 用户已收到，这是"用户是否收到"的唯一权威。
+//   ack 只是后端记账的副作用——若 ack 失败（网络/服务暂时不可用），
 //   必须 (a) 立刻写本地已发缓存防重发 (b) 记入此队列等下轮重发 ack。
-//
-// 2026-08-15 P0-9 升级（10/10 任务清单）：
-//   - 由 Set 升级为 Map<msg_id, { attempts, firstSeenAt, lastTryAt, lastError }>
-//   - 加入最大重试次数（MAX_ACK_RETRY_ATTEMPTS=10），超过则放弃重试但仍保留 cache
+//   - 最大重试次数（MAX_ACK_RETRY_ATTEMPTS=10），超过则放弃重试但仍保留 cache
 //     （用户已收到，后端状态机不一致无影响；避免永久重试导致队列膨胀）
-//   - 加入指数退避（baseMs=1000 → 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s, 60s, 60s）
-//   - 加入条目级 TTL（MAX_ACK_ENTRY_AGE_MS=24h），超过则清理（防永久残留）
+//   - 指数退避（baseMs=1000 → 1s, 2s, 4s, 8s, 16s, 32s, 60s, 60s, 60s, 60s）
+//   - 条目级 TTL（MAX_ACK_ENTRY_AGE_MS=24h），超过则清理（防永久残留）
 const MAX_ACK_RETRY_ATTEMPTS = 10;
 const MAX_PENDING_ACK_PER_CHANNEL = 1000;
 const ACK_RETRY_BACKOFF_BASE_MS = 1000;     
@@ -351,14 +346,11 @@ export function dmAwareConvId(row, fallbackConvId) {
 // pollDownlink 通道C·下发轮询 + 通道B·状态确认。
 // 拉取本渠道待发消息 → 按 conversation_id 分组并行转发到对应网页会话 → 成功后批量 ack delivered。
 //
-// 2026-08-07 修复（用户诉求 ①②③）：
-//   ① 下发转发不应该串行——回复谁的消息就应该在谁的消息输入框。
-//      旧版 for...of 串行处理：第 1 条发送成功 markSent → lastGlobalSendAt 立刻更新 → 第 2 条
-//      tryAcquire 命中 minIntervalMs(1500ms) → 整批 break → 第二个会话永远不发。
-//      改为按 conversation_id 分组并行：每个会话独立 tryAcquire/markSent/rate-limit，
-//      会话 A 限速拦截不影响会话 B；同时同一会话内按原顺序串行（保留单会话限速语义）。
-//   ② 下发转发应该即时——并行处理 + 会话内串行减少总等待时间。
-//   ③ 每次下发转发消息应该清空输入框内容——见 xhs.js sendText fillContentEditable 调用前先清空。
+//   下发按 conversation_id 分组并行、会话内串行：
+//   ① 回复谁的消息就应该在谁的消息输入框——每个会话独立 tryAcquire/markSent/rate-limit，
+//      会话 A 限速拦截不影响会话 B；同一会话内按原顺序串行（保留单会话限速语义）。
+//   ② 并行处理 + 会话内串行减少总等待时间。
+//   ③ 每次下发转发消息先清空输入框内容——见 xhs.js sendText fillContentEditable 调用前先清空。
 export async function pollDownlink(channel, accountId, getConfig, options = {}) {
   const sendOutbound = options && typeof options.sendOutbound === 'function' ? options.sendOutbound : null;
   // 下发转发超时（实现 BRIDGE_THREE_CHANNEL.sendOutboundTimeoutMs）：sendOutbound 卡死时
