@@ -281,7 +281,7 @@ jobs:
           v=$(/bin/bash -c 'echo $BASH_VERSION')
           case "$v" in
             3.*) echo "实测 /bin/bash = $v ⇒ 有牙档，门的判据在本作业成立" ;;
-            *) echo "::error::runner 的 /bin/bash 是 $v（不是 3.x）⇒ check-bash32-parse.sh 在这里只会打 SKIP，本作业没有判据"
+            *) echo "::error::runner 的 /bin/bash 是 ${v}（不是 3.x）⇒ check-bash32-parse.sh 在这里只会打 SKIP，本作业没有判据"
                exit 1 ;;
           esac
 
@@ -329,10 +329,10 @@ jobs:
           pass=$(printf '%s\n' "$out" | grep -c -- '--- PASS' || true)
           fail=$(printf '%s\n' "$out" | grep -c -- '--- FAIL' || true)
           if [ "$pass" -lt 1 ] || [ "$fail" -ne 0 ]; then
-            echo "❌ 控制组判据不成立：--- PASS = $pass（须 ≥1），--- FAIL = $fail（须 0）"
+            echo "❌ 控制组判据不成立：--- PASS = ${pass}（须 ≥1），--- FAIL = ${fail}（须 0）"
             exit 1
           fi
-          echo "✓ 控制组：--- PASS × $pass，--- FAIL × 0"
+          echo "✓ 控制组：--- PASS × ${pass}，--- FAIL × 0"
 
       - name: 四刀全族（K1–K4 全 KILLED，判定由电池退出码与产物持有）
         run: python3 scripts/mut_db_poolcfg.py
