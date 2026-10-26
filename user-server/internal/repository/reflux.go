@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -55,15 +56,20 @@ func (r *RefluxRepository) UpdateCluster(ctx context.Context, id int64, updates 
 
 // TransitionQuestion CAS 式状态迁移：仅当当前状态等于 from 才写 to。
 // 与原实现一致：命中零行不算错误（RowsAffected 由调用方按需判读）。
+//
+// 0 行必须报错：CAS 条件下 0 行说明"这条不存在"或"状态已被别人改走"，
+// 直接当成功会让 POST /api/unknown-questions/{id}/submit 对不存在的 id 回 code=0
+// （实测 999999 → 200「ok, pending_review」，前端乐观更新出一个幽灵记录）。
+// 用 EnsureAffected ⇒ ErrRecordNotFound，由 controller 翻成 404。
 func (r *RefluxRepository) TransitionQuestion(ctx context.Context, id int64, from, to string) error {
-	return r.db.WithContext(ctx).Table("unknown_questions").
-		Where("id = ? AND status = ?", id, from).Update("status", to).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Table("unknown_questions").
+		Where("id = ? AND status = ?", id, from).Update("status", to))
 }
 
 // TransitionCluster 簇的 CAS 式状态迁移（口径同 TransitionQuestion）。
 func (r *RefluxRepository) TransitionCluster(ctx context.Context, id int64, from, to string) error {
-	return r.db.WithContext(ctx).Table("unknown_question_clusters").
-		Where("id = ? AND status = ?", id, from).Update("status", to).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Table("unknown_question_clusters").
+		Where("id = ? AND status = ?", id, from).Update("status", to))
 }
 
 // AdoptClusterMembers 采纳整簇：事务内先把待审成员全部置 adopted 并回填 faq_id，

@@ -133,6 +133,16 @@ func Error(c *gin.Context, code any, message string, data ...any) {
 		errorCode = utils.ErrorCodeUnknown
 	}
 
+	// 入参校验错误的通用文案（「无效的请求参数」）会把真正的字段原因埋在 data 里，
+	// 前端只能看到一句无从下手的话（A20 一类）。data[0] 是绑定/校验错误字符串时，
+	// 把它并入 message —— 绑定错误只含字段名与 tag，不含敏感值。
+	if len(data) > 0 {
+		if detail, ok := data[0].(string); ok && detail != "" &&
+			(message == ErrInvalidParams || message == i18n.T(localeOf(c), "invalid_params")) {
+			message = message + ": " + detail
+		}
+	}
+
 	resp := Response{
 		Code:    errorCode,
 		Message: i18n.Localize(localeOf(c), message),
@@ -392,7 +402,9 @@ func FileUploadError(c *gin.Context, errorCode utils.ErrorCode, message string) 
 func BindJSON(c *gin.Context, obj any) bool {
 	if err := c.ShouldBindJSON(obj); err != nil {
 		logger.Errorf("BindJSON failed on %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
-		Error(c, http.StatusBadRequest, i18n.T(localeOf(c), "invalid_params"))
+		// 绑定错误只含字段名/tag，不含敏感值：把它带给调用方，才能知道"哪个字段不合格"，
+		// 否则所有入参错误都只剩一句「无效的请求参数」（A20）。
+		Error(c, http.StatusBadRequest, i18n.T(localeOf(c), "invalid_params")+": "+err.Error())
 		return false
 	}
 	return true
@@ -402,7 +414,7 @@ func BindJSON(c *gin.Context, obj any) bool {
 func BindQuery(c *gin.Context, obj any) bool {
 	if err := c.ShouldBindQuery(obj); err != nil {
 		logger.Errorf("BindQuery failed on %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
-		Error(c, http.StatusBadRequest, i18n.T(localeOf(c), "invalid_params"))
+		Error(c, http.StatusBadRequest, i18n.T(localeOf(c), "invalid_params")+": "+err.Error())
 		return false
 	}
 	return true

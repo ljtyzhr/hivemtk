@@ -48,7 +48,14 @@ func (r *MCPServerRepository) List(ctx context.Context) ([]*model.MCPServer, err
 
 // Delete 按 id 删除。
 func (r *MCPServerRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.MCPServer{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.MCPServer{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetByID 单条；不存在返回 gorm.ErrRecordNotFound。

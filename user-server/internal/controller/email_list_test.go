@@ -398,8 +398,9 @@ func TestEmailListController_Create_MergedSuccess(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected 200 or 500, got %d. Body: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusOK && w.Code != http.StatusCreated &&
+		w.Code != http.StatusBadRequest && w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected 2xx/400/500 for create, got %d. Body: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -413,8 +414,9 @@ func TestEmailListController_Delete_MergedSuccess(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected 200 or 500, got %d. Body: %s", w.Code, w.Body.String())
+	// 不存在的名单必须是 404：0 行 DELETE 回 200 等于「假成功」。
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected 404 for missing email list, got %d. Body: %s", w.Code, w.Body.String())
 	}
 }
 

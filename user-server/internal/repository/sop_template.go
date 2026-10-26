@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -250,9 +251,29 @@ func (r *SOPTemplateRepository) Update(ctx context.Context, id uint, tpl *model.
 	}
 	// id 参数是权威：Select("*") 包含主键列，若沿用 tpl.ID 会把 body 里带的其他 id 写回。
 	tpl.ID = id
+	// 只写表单拥有的列（与 faq_entry 同一条口径）：
+	//   - Select("*") 会把零值 tenant_id 写回，SaaS 形态下租户插件按 fail-closed 直接拒绝
+	//     （实测 PUT /api/sop-templates/{id} → 500「更新不可改写 tenant_id」）；
+	//   - hit_count 不是表单字段，全量写回会被清零，命中统计从列表上凭空消失。
+	updates := map[string]any{
+		"name":       tpl.Name,
+		"intent":     tpl.Intent,
+		"stage":      tpl.Stage,
+		"template":   tpl.Template,
+		"vars":       tpl.Vars,
+		"priority":   tpl.Priority,
+		"confidence": tpl.Confidence,
+		"updated_at": time.Now(),
+	}
+	if tpl.Enabled != nil {
+		updates["enabled"] = *tpl.Enabled
+	}
+	if tpl.AgentID != nil && *tpl.AgentID != 0 {
+		updates["agent_id"] = *tpl.AgentID
+	}
 	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.SOPTemplate{}).
 		Where("id = ?", id).
-		Select("*").Updates(tpl))
+		Updates(updates))
 }
 
 // SetEnabled 仅切换启用状态（列表页开关专用，避免全量 Update 的 required 校验）。

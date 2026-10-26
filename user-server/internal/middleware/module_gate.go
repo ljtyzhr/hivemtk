@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"hivemtk-user/internal/domain/errors"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 
@@ -138,12 +139,19 @@ func GuardModulePath() gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		// 注意：即便 off 模式要「全部放行」，也必须**先调用 checker**——
+		// checker 的 ctx 透传是既有契约（TestGateThreadsRequestContextToChecker），
+		// 直接 return 会把「模块开关读到的是哪个租户」这条证据链掐断。
+		_ = tenant.IsMultiTenant()
 		checker := currentModuleGate()
 		if checker == nil {
 			c.Next()
 			return
 		}
-		if checker.IsEnabled(c.Request.Context(), owner) {
+		enabled := checker.IsEnabled(c.Request.Context(), owner)
+		// 私域独立部署（TENANT_MODE=off）没有「订阅」这层商业关系：整实例就是
+		// 一个商户的自有系统，未订阅不等于不可用（A17）。
+		if enabled || !tenant.IsMultiTenant() {
 			c.Next()
 			return
 		}

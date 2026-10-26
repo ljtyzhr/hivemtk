@@ -82,7 +82,7 @@ func (c *ObsConfigController) GetConfig(ctx *gin.Context) {
 func (c *ObsConfigController) CreateConfig(ctx *gin.Context) {
 	var req dto.CreateObsConfigRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		response.Error(ctx, 400, "INVALID_PARAM", "请求参数错误: "+err.Error())
+		response.Error(ctx, 400, "请求参数错误: "+err.Error())
 		return
 	}
 
@@ -107,12 +107,12 @@ func (c *ObsConfigController) UpdateConfig(ctx *gin.Context) {
 
 	var req dto.UpdateObsConfigRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		response.Error(ctx, 400, "INVALID_PARAM", "请求参数错误: "+err.Error())
+		response.Error(ctx, 400, "请求参数错误: "+err.Error())
 		return
 	}
 
 	config, err := c.service.UpdateConfig(ctx.Request.Context(), id, &req)
-	if HandleDBError(ctx, err, "更新OBS配置") {
+	if HandleServiceError(ctx, err) {
 		return
 	}
 

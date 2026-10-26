@@ -197,7 +197,13 @@ const sourceTag = (s) => ({ crawl: 'warning', feedback: 'primary', manual: 'info
 const sourceLabel = (s) => ({ crawl: 'knowledge.qaCandidate.sourceCrawl', feedback: 'knowledge.qaCandidate.sourceFeedback', manual: 'knowledge.qaCandidate.sourceManual' }[s] || s)
 const statusTag = (s) => ({ pending_review: 'warning', approved: 'success', rejected: 'danger', indexed: 'success' }[s] || 'info')
 const statusLabel = (s) => ({ pending_review: 'knowledge.qaCandidate.pending', approved: 'knowledge.qaCandidate.approved', rejected: 'knowledge.qaCandidate.rejected', indexed: 'knowledge.qaCandidate.indexed' }[s] || s)
-const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
+const formatDate = (d) => {
+  if (!d) return '-'
+  const t = new Date(d)
+  // 零值时间（0001-01-01…）不能显示成 1/1/1
+  if (Number.isNaN(t.getTime()) || t.getUTCFullYear() <= 1) return '-'
+  return t.toLocaleString('zh-CN')
+}
 
 onMounted(loadList)
 </script>

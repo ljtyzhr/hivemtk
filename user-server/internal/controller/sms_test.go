@@ -1328,8 +1328,9 @@ func TestSmsController_DeleteJob_NotCompleted(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
+	// 状态守卫是业务校验（「只能删除已完成或失败的任务」），应为 400 而非 500。
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d, body: %s", w.Code, w.Body.String())
 	}
 }
 

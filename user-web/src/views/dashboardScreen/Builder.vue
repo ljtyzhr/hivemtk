@@ -236,7 +236,22 @@ function blockStyle(b) {
   }
 }
 
-function addBlock() {}
+function addBlock(type) {
+  // 「+ 添加组件」与组件库点击都走这里；空实现会让按钮与调色板全是死点击
+  // （只有拖拽 onDrop 能加，鼠标点按无任何反馈）。默认落一个折线块。
+  const wanted = type || 'line'
+  const meta = blockTypes.find((b) => b.type === wanted) || blockTypes[0]
+  if (!meta) return
+  blocks.value.push({
+    id: _id++,
+    type: meta.type,
+    title: meta.label,
+    width: 6,
+    height: 240,
+    data: { value: Math.floor(Math.random() * 1000) }
+  })
+  ElMessage.success('已添加组件')
+}
 function resize(i) {
   blocks.value[i].width = blocks.value[i].width === 6 ? 12 : 6
 }

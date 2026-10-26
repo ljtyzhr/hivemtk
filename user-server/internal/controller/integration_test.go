@@ -212,8 +212,9 @@ func TestIntegrationController_DeleteAccount_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status OK or Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
+	// 不存在的账号必须是 404（0 行 DELETE 不再谎报成功）。
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected 404 for missing account, got %d, body: %s", w.Code, w.Body.String())
 	}
 }
 

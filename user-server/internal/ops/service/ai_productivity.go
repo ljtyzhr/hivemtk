@@ -34,8 +34,12 @@ type ProductivityReport struct {
 	GeneratedAt        time.Time `json:"generated_at"`
 }
 
-// BuildReport 构建产能报告
-func (s *AIProductivityService) BuildReport(startTime, endTime time.Time) (*ProductivityReport, error) {
+// BuildReport 构建产能报告。
+//
+// ctx 必须来自请求（`ctx.Request.Context()`）：SaaS 形态下租户插件按 ctx 注入
+// tenant_id，用 context.Background() 会查不到任何行，同一份数据在独立部署有数、
+// 在 SaaS 恒为 0。仓储层已按 ctx 取数，这里不再另造背景上下文。
+func (s *AIProductivityService) BuildReport(ctx context.Context, startTime, endTime time.Time) (*ProductivityReport, error) {
 	if startTime.IsZero() {
 		startTime = time.Now().AddDate(0, 0, -30)
 	}
@@ -43,7 +47,6 @@ func (s *AIProductivityService) BuildReport(startTime, endTime time.Time) (*Prod
 		endTime = time.Now()
 	}
 
-	ctx := context.Background()
 	rep := &ProductivityReport{
 		StartTime:   startTime,
 		EndTime:     endTime,

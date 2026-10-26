@@ -24,7 +24,7 @@ func NewConversionFunnelController() *ConversionFunnelController {
 // GetFunnel 获取漏斗
 func (c *ConversionFunnelController) GetFunnel(ctx *gin.Context) {
 	start, end := parseTimeRange(ctx)
-	report, err := c.svc.BuildFunnel(start, end)
+	report, err := c.svc.BuildFunnelCtx(ctx.Request.Context(), start, end)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "漏斗生成失败: "+err.Error())
 		return
@@ -36,7 +36,7 @@ func (c *ConversionFunnelController) GetFunnel(ctx *gin.Context) {
 func (c *ConversionFunnelController) GetStageDetails(ctx *gin.Context) {
 	stage := ctx.Query("stage")
 	start, end := parseTimeRange(ctx)
-	det, err := c.svc.GetStageDetails(stage, start, end)
+	det, err := c.svc.GetStageDetailsCtx(ctx.Request.Context(), stage, start, end)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "阶段详情失败: "+err.Error())
 		return

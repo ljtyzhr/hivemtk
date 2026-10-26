@@ -39,7 +39,7 @@ type SmsService interface {
 
 	GetDraftList(ctx context.Context, req *dto.SmsDraftListRequest) ([]*model.SmsDraft, int64, error)
 	GetDraftByID(ctx context.Context, id uint) (*model.SmsDraft, error)
-	CreateDraft(ctx context.Context, req *dto.SmsDraftCreateRequest) error
+	CreateDraft(ctx context.Context, req *dto.SmsDraftCreateRequest) (*model.SmsDraft, error)
 	UpdateDraft(ctx context.Context, id uint, req *dto.SmsDraftUpdateRequest) error
 	DeleteDraft(ctx context.Context, id uint) error
 	SendDraft(ctx context.Context, id uint, phone string) error
@@ -693,12 +693,17 @@ func (s *smsService) GetDraftByID(ctx context.Context, id uint) (*model.SmsDraft
 	return s.repo.GetDraftByID(ctx, id)
 }
 
-func (s *smsService) CreateDraft(ctx context.Context, req *dto.SmsDraftCreateRequest) error {
+func (s *smsService) CreateDraft(ctx context.Context, req *dto.SmsDraftCreateRequest) (*model.SmsDraft, error) {
 	draft := &model.SmsDraft{
 		Title:   req.Title,
 		Content: req.Content,
 	}
-	return s.repo.CreateDraft(ctx, draft)
+	if err := s.repo.CreateDraft(ctx, draft); err != nil {
+		return nil, err
+	}
+	// 返回落库后的草稿（含 id）：只回 "success" 会让前端无法继续对这条草稿
+	// 做编辑/发送，用户看不到"刚建的是哪一条"（sms 草稿实测）。
+	return draft, nil
 }
 
 func (s *smsService) UpdateDraft(ctx context.Context, id uint, req *dto.SmsDraftUpdateRequest) error {

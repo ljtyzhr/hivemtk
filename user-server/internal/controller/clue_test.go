@@ -140,8 +140,9 @@ func TestClueController_DeleteClue_NotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status OK or Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
+	// 不存在的线索必须是 404：0 行 DELETE 回 200 等于「假成功」（A5/A6 收口）。
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected 404 for missing clue, got %d, body: %s", w.Code, w.Body.String())
 	}
 }
 

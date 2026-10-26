@@ -121,7 +121,10 @@ export class ChatSocket {
       this.stopPing()
       this._flushAcks(true);
       if (event.code === 1006 || event.code === 4001) {
-        this._tryRefreshTokenAndReconnect()
+        // 4001 = 鉴权失败：强制换一次令牌；1006 = 网络闪断：令牌仍新鲜就直接重连，
+        // 不再无条件打 refresh（旧实现每次断线都轮换一次，和请求拦截器并发时后端
+        // 会拉黑另一路刚换到的令牌，表现为“用着用着被踢回登录页”）。
+        this._tryRefreshTokenAndReconnect(event.code === 4001)
       } else {
         this.onDisconnected(event)
         if (this.shouldReconnect) {
@@ -131,7 +134,7 @@ export class ChatSocket {
     }
   }
 
-  async _tryRefreshTokenAndReconnect() {
+  async _tryRefreshTokenAndReconnect(authFailed = false) {
     // 1006（服务器重启/网络闪断）在访客侧最常见：浏览器无 close 帧，
     // 与"token 失效"无关。访客端没有 agent token，不能因缺少它而放弃重连
     // （否则聊天窗口永久冻结，访客以为客服不理人）；有 agent token 的坐席端
@@ -146,15 +149,26 @@ export class ChatSocket {
       return
     }
     try {
-      const { http } = await import('@/utils/request')
-      const resp = await http.post('/api/auth/refresh-token', undefined, { _silent: true })
-      if (resp && resp.token) {
-        localStorage.setItem('token', resp.token)
-        console.info('[ChatSocket] token 已刷新，重连')
+      // 与 axios 拦截器共用同一把单飞锁；1006 且令牌未到期时不会发请求。
+      const { refreshAccessToken } = await import('@/utils/request')
+      const token = await refreshAccessToken({ force: authFailed })
+      if (token) {
+        console.info('[ChatSocket] token 已确认，重连')
         this.connect()
+        return
       }
     } catch (err) {
-      console.warn('[ChatSocket] token 刷新失败，需重新登录', err)
+      // 明确 401 = 会话已失效，交给上层跳登录；网络类失败继续退避重连
+      if (err?.response?.status === 401) {
+        console.warn('[ChatSocket] token 刷新失败，需重新登录', err)
+        this.onError(new Error('auth_required'))
+        return
+      }
+      console.warn('[ChatSocket] token 刷新暂时失败，稍后重连', err)
+    }
+    if (this.shouldReconnect) {
+      this.scheduleReconnect()
+    } else {
       this.onError(new Error('auth_required'))
     }
   }

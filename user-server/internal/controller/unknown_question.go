@@ -141,6 +141,11 @@ func (c *UnknownQuestionController) Submit(ctx *gin.Context) {
 			response.Error(ctx, http.StatusBadRequest, err.Error())
 			return
 		}
+		// 0 行迁移（id 不存在 / 状态已被改走）不再冒充成功，按"这条没了"回 404。
+		if isNotFoundError(err) {
+			response.NotFound(ctx, "未知问题不存在或状态已变更")
+			return
+		}
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}

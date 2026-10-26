@@ -130,7 +130,7 @@
           限制
         </el-divider>
         <el-form-item label="用户数">
-          <span class="form-tips">无限制（私域独立部署不限制用户数）</span>
+          <span class="form-tips">{{ tenantMode ? '按订阅套餐限制（以平台账单为准）' : '无限制（私域独立部署不限制用户数）' }}</span>
         </el-form-item>
         <el-form-item label="文件上传大小(MB)">
           <el-input-number

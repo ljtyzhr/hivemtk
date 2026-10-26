@@ -333,7 +333,8 @@ const initial = computed(() => (form.username || '?').charAt(0).toUpperCase())
 
 const roleLabel = computed(() => {
   const r = form.role || userStore.role || ''
-  if (r === 'admin') return '商户管理员'
+  // 「商户管理员」是 SaaS 形态的称呼；私域独立部署没有商户概念，同一角色叫「管理员」。
+  if (r === 'admin') return tenantMode.value ? '商户管理员' : '管理员'
   if (r === 'manager') return '销售主管'
   if (r === 'sales') return '一线销售'
   if (r === 'viewer') return '数据分析师'

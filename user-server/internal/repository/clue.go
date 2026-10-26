@@ -170,7 +170,16 @@ func (r *clueRepo) GetClueList(ctx context.Context, page int, limit int) ([]*mod
 	return cluelists, total, err
 }
 func (r *clueRepo) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Clue{}).Error
+	// 0 行必须报「不存在」：DELETE 成功但没有任何行被删，对调用方等于假成功
+	// （A5/A6 一类）。上层 ErrorFromDB 会把 ErrRecordNotFound 映射成 404。
+	res := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Clue{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *clueRepo) GetClueStatistics(ctx context.Context) ([]map[string]any, error) {

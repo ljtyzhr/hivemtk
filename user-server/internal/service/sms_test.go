@@ -493,9 +493,12 @@ func TestSmsService_CreateDraft(t *testing.T) {
 		Content: "【测试签名】这是一条测试短信",
 	}
 
-	err := service.CreateDraft(context.Background(), req)
+	draft, err := service.CreateDraft(context.Background(), req)
 	if err != nil {
 		t.Fatalf("CreateDraft failed: %v", err)
+	}
+	if draft == nil || draft.ID == 0 {
+		t.Fatalf("CreateDraft 未回传落库后的草稿 id（前端无法继续编辑/发送）")
 	}
 
 	var count int64

@@ -105,7 +105,11 @@ func (s *BackupGapService) Stats(ctx context.Context) (*BackupStatsRow, error) {
 	row.Total = total
 	if last, err := s.repo.LastSuccess(ctx); err == nil {
 		row.LastSuccess = last.CreatedAt.Format("2006-01-02 15:04")
-		row.TotalSize = last.FileSize
+	}
+	// 「总大小」是全部已完成备份的合计，不是最近一条的大小。取数失败时保留 0，
+	// 但不再把某个单条大小冒充合计。
+	if sum, err := s.repo.SumCompletedSize(ctx); err == nil {
+		row.TotalSize = sum
 	}
 
 	if stats, err := s.repo.TableStats(ctx); err == nil {

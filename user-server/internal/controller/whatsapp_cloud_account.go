@@ -144,7 +144,7 @@ type whatsAppCloudCreateReq struct {
 func (ctrl *WhatsAppCloudAccountController) Create(c *gin.Context) {
 	var req whatsAppCloudCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		response.Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
 	acc := &model.WhatsAppCloudAccount{
@@ -189,7 +189,7 @@ func (ctrl *WhatsAppCloudAccountController) Update(c *gin.Context) {
 	}
 	var req whatsAppCloudUpdateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		response.Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
 	acc, err := ctrl.svc.GetAccount(c.Request.Context(), uint(id))
@@ -278,7 +278,7 @@ func (ctrl *WhatsAppCloudAccountController) TestSend(c *gin.Context) {
 	}
 	var req whatsAppCloudTestSendReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		response.Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
 	integration := ctrl.integrationSvc

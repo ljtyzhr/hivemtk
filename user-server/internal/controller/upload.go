@@ -207,7 +207,13 @@ func UploadFile(ctx *gin.Context) {
 	baseDir, publicURLPrefix, uploadFolder := storage.LocalSource()
 	driver := storage.NewLocalDriver(baseDir, publicURLPrefix)
 
-	publicURL, _, err := driver.UploadReader(ctx, bytes.NewReader(fileBytes), header.Size, uploadFolder, header.Filename)
+	// 必须传 ctx.Request.Context() 而不是 *gin.Context：gin 的 Context.Value 只有在
+	// Engine.ContextWithFallback=true 时才回落到 Request.Context()（本进程没开），
+	// 直接把 gin.Context 当 context.Context 传下去，租户绑定（tenant.WithTenantID）
+	// 读不到 ⇒ on 模式下落盘路径丢 tenant_<id>/ 前缀、PublicURL 也签不出 ?s=，
+	// 上传成功但 URL 一访问就 404（私域单租户无前缀，所以 off 模式看不出来）。
+	fileCtx := ctx.Request.Context()
+	publicURL, _, err := driver.UploadReader(fileCtx, bytes.NewReader(fileBytes), header.Size, uploadFolder, header.Filename)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "保存文件失败")
 		return

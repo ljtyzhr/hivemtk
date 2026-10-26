@@ -28,7 +28,7 @@
               <component :is="tool.icon" />
             </el-icon>
           </div>
-          <h3>{{ tool.name }}</h3>
+          <h3>{{ tool.label || tool.name }}</h3>
           <p>{{ tool.description }}</p>
           <div class="tool-stats">
             <span>已执行: {{ tool.usedCount }}</span>
@@ -459,13 +459,31 @@ const previewSummary = ref({ total: 0, success: 0, failed: 0, errors: [] })
 const getStatusType = (s) => ({ running: 'warning', success: 'success', failed: 'danger', partial: 'warning' }[s])
 const getStatusText = (s) => ({ running: '执行中', success: '完成', failed: '失败', partial: '部分成功' }[s] || s)
 
+const TOOL_PRESENTATION = {
+  import: { icon: 'Upload', color: '#4F46E5' },
+  export: { icon: 'Download', color: '#10B981' },
+  delete: { icon: 'Delete', color: '#EF4444' },
+  update: { icon: 'Edit', color: '#F59E0B' }
+}
+
 const loadTools = async () => {
+  // 后端 /api/batch/tools 返回的是 {list:[{name,label,description}], total}，
+  // 不是裸数组。旧实现 `tools.value = res || [...]` 把对象塞进 v-for，
+  // 卡片区整块渲染不出来（页面只剩操作历史），兜底数组也永远用不上。
   const res = await getBatchTools()
-  tools.value = res || [
-    { name: '批量发送消息', description: '批量发送邮件/短信/WhatsApp', color: '#4F46E5', icon: 'ChatLineRound', usedCount: 0 },
-    { name: '批量导入线索', description: 'Excel/CSV 批量导入', color: '#10B981', icon: 'Document', usedCount: 0 },
-    { name: '批量更新标签', description: '为客户批量打标签', color: '#F59E0B', icon: 'Promotion', usedCount: 0 },
-    { name: '批量分配销售', description: '将线索分配给销售', color: '#EF4444', icon: 'User', usedCount: 0 }
+  const list = Array.isArray(res) ? res : (res?.list || [])
+  const mapped = list.map((t) => ({
+    name: t.name,
+    label: t.label || t.name,
+    description: t.description || '',
+    usedCount: t.usedCount || 0,
+    ...(TOOL_PRESENTATION[t.name] || { icon: 'Operation', color: '#909399' })
+  }))
+  tools.value = mapped.length ? mapped : [
+    { name: 'import', label: '批量导入', description: '通过 CSV 文件批量导入数据', icon: 'Upload', color: '#4F46E5', usedCount: 0 },
+    { name: 'export', label: '批量导出', description: '导出数据为 CSV 文件', icon: 'Download', color: '#10B981', usedCount: 0 },
+    { name: 'update', label: '批量更新', description: '批量更新选中记录的字段', icon: 'Edit', color: '#F59E0B', usedCount: 0 },
+    { name: 'delete', label: '批量删除', description: '批量删除选中的记录', icon: 'Delete', color: '#EF4444', usedCount: 0 }
   ]
 }
 

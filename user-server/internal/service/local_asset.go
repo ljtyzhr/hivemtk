@@ -237,11 +237,19 @@ func (s *LocalAssetService) Get(ctx context.Context, id int64) (*model.LocalAsse
 
 // SoftDelete 软删
 func (s *LocalAssetService) SoftDelete(ctx context.Context, id int64) error {
+	// 先确认存在：GORM 的 UPDATE/DELETE 在 0 行时 err 仍为 nil，直接下发会把
+	// 「删/停一个不存在的资产」报成成功，前端拿不到任何「这条早没了」的信号。
+	if _, err := s.assetRepo.FindByID(ctx, id); err != nil {
+		return bizerr.Wrap(bizerr.CodeAssetNotFound, "资产不存在", err)
+	}
 	return s.assetRepo.SoftDelete(ctx, id)
 }
 
 // ToggleActive 启停
 func (s *LocalAssetService) ToggleActive(ctx context.Context, id int64, active bool) error {
+	if _, err := s.assetRepo.FindByID(ctx, id); err != nil {
+		return bizerr.Wrap(bizerr.CodeAssetNotFound, "资产不存在", err)
+	}
 	return s.assetRepo.ToggleActive(ctx, id, active)
 }
 

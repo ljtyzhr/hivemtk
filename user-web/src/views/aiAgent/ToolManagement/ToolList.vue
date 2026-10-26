@@ -8,7 +8,7 @@
         <div>
           <h2>AI 工具管理</h2>
           <p class="subtitle">
-            管理 40 个 AI 工具的启用状态和账号绑定
+            管理 {{ stats.total }} 个 AI 工具的启用状态和账号绑定
           </p>
         </div>
         <div class="header-actions">

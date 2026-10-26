@@ -413,6 +413,33 @@ func (r *CustomerServiceAgentRepository) Create(ctx context.Context, c *model.Cu
 	return r.db.WithContext(ctx).Create(c).Error
 }
 
+// FindSoftDeletedByPair 查同一座席 + 同一智能体的软删行（绕过 deleted_at 过滤）。
+//
+// 存在意义：`idx_cs_agent_unique (tenant_id, agent_status_id, ai_agent_id)` 是普通
+// 唯一索引，不含 `deleted_at IS NULL` 条件。软删一行之后再点「新增同样的挂载」，
+// INSERT 会撞唯一键，把一条正常业务操作报成数据库错误（还把 SQLSTATE 原话漏给前端）。
+func (r *CustomerServiceAgentRepository) FindSoftDeletedByPair(ctx context.Context, agentStatusID, aiAgentID uint) (*model.CustomerServiceAgent, error) {
+	var c model.CustomerServiceAgent
+	err := r.db.WithContext(ctx).Unscoped().
+		Where("agent_status_id = ? AND ai_agent_id = ? AND deleted_at IS NOT NULL", agentStatusID, aiAgentID).
+		First(&c).Error
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// Restore 复活软删行（清 deleted_at 并写回本次的启用/主挂载标记）。
+func (r *CustomerServiceAgentRepository) Restore(ctx context.Context, id uint, isPrimary, enabled bool) error {
+	return r.db.WithContext(ctx).Unscoped().Model(&model.CustomerServiceAgent{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"deleted_at": nil,
+			"is_primary": isPrimary,
+			"enabled":    enabled,
+		}).Error
+}
+
 func (r *CustomerServiceAgentRepository) GetByID(ctx context.Context, id uint) (*model.CustomerServiceAgent, error) {
 	var c model.CustomerServiceAgent
 	if err := r.db.WithContext(ctx).First(&c, id).Error; err != nil {

@@ -1,7 +1,11 @@
 package controller
 
 import (
+	"errors"
+	"strings"
+
 	"hivemtk-user/internal/content/service"
+	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/errhttp"
 	"hivemtk-user/internal/pkg/utils/response"
@@ -10,6 +14,29 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// handleFlowWriteError 分流营销流程写口的错误：
+//   - 入参/业务校验 → 400，并把原文带给调用方（A15）
+//   - 无权限 → 403（contract 测试要求）
+//   - 其他（含租户 fail-closed）→ 500 原文，保留既有契约
+func handleFlowWriteError(ctx *gin.Context, err error, fallback string) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	switch {
+	case errors.Is(err, utils.ErrInvalidInput):
+		response.Error(ctx, http.StatusBadRequest, msg)
+	case strings.Contains(msg, "forbidden"), strings.Contains(msg, "无权限"):
+		response.Error(ctx, http.StatusForbidden, msg)
+	case errhttp.IsNotFoundError(err):
+		response.NotFound(ctx, msg)
+	default:
+		// 内部错误（含租户 fail-closed）只回兜底文案，不回显表名/租户细节
+		response.Error(ctx, http.StatusInternalServerError, fallback)
+	}
+	return true
+}
 
 // flowCaller 取「身份 + 是否管理员」。
 //
@@ -51,7 +78,11 @@ func (c *MarketingFlowController) CreateFlow(ctx *gin.Context) {
 	}
 
 	flow, err := c.flowService.CreateFlow(ctx.Request.Context(), userID, &req)
-	if errhttp.HandleDBError(ctx, err, "创建营销流程") {
+	// 创建失败大多是**入参/业务规则**（trigger_type 非法、flow_data 结构不对），
+	// 用 HandleDBError 会统一压成 400 INVALID_PARAM + 一句「创建营销流程失败」，
+	// 把可行动的原因吃掉（A15）。但租户 fail-closed / 无权访问又必须保持 500 / 403
+	// （既有契约测试钉住），所以这里按错误类别分流，而不是一刀切。
+	if handleFlowWriteError(ctx, err, "创建营销流程失败") {
 		return
 	}
 
@@ -106,7 +137,7 @@ func (c *MarketingFlowController) UpdateFlow(ctx *gin.Context) {
 
 	userID, _, isAdmin := flowCaller(ctx)
 	flow, err := c.flowService.UpdateFlow(ctx.Request.Context(), id, userID, isAdmin, &req)
-	if errhttp.HandleDBError(ctx, err, "更新营销流程") {
+	if handleFlowWriteError(ctx, err, "更新营销流程失败") {
 		return
 	}
 

@@ -67,7 +67,14 @@ func (r *emailListRepo) Update(ctx context.Context, list *model.EmailList) error
 }
 
 func (r *emailListRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&model.EmailList{}, "id = ?", id).Error
+	res := r.db.WithContext(ctx).Delete(&model.EmailList{}, "id = ?", id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *emailListRepo) GetUnsentEmailList(ctx context.Context, limit int) ([]*model.EmailList, error) {

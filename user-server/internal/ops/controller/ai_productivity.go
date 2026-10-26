@@ -25,7 +25,7 @@ func NewAIProductivityController() *AIProductivityController {
 // GetReport 获取产能报告
 func (c *AIProductivityController) GetReport(ctx *gin.Context) {
 	start, end := parseTimeRange(ctx)
-	rep, err := c.svc.BuildReport(start, end)
+	rep, err := c.svc.BuildReport(ctx.Request.Context(), start, end)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "报告生成失败: "+err.Error())
 		return

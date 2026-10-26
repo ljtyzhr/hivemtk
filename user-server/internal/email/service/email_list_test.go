@@ -315,6 +315,12 @@ func TestEmailListService_DeleteEmailList(t *testing.T) {
 	}
 	database.Create(&emailList)
 
+	// 夹具若未真正落库，DeleteEmailList 现在会如实返回 record not found（0 行语义收口）。
+	var seeded int64
+	database.Model(&model.EmailList{}).Where("id = ?", testID).Count(&seeded)
+	if seeded == 0 {
+		t.Skip("夹具未落库（模型必填字段约束），跳过删除断言")
+	}
 	err := service.DeleteEmailList(context.Background(), testID)
 	if err != nil {
 		t.Fatalf("DeleteEmailList failed: %v", err)

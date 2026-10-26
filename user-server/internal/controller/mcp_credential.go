@@ -125,7 +125,8 @@ func DeleteMCPCredential(ctx *gin.Context) {
 		return
 	}
 	if err := mcpAdminSvc().Delete(ctx.Request.Context(), id); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+		// 不存在 ≠ 服务故障：ErrorFromDB 会把 gorm.ErrRecordNotFound 映射成 404（A16）
+		response.ErrorFromDB(ctx, err, "MCP 凭据不存在")
 		return
 	}
 	middleware.InvalidateMCPCredentialCache()

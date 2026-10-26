@@ -127,7 +127,10 @@ func (c *CustomReportController) UpdateReport(ctx *gin.Context) {
 
 	userID, isAdmin := extractUserContext(ctx)
 	report, err := c.reportService.UpdateReport(ctx.Request.Context(), uint(id), userID, isAdmin, &req)
-	if errhttp.HandleDBError(ctx, err, "更新报表") {
+	// 与 CreateReport 同一条映射：不支持的图表类型/数据源是**入参错误**（400），
+	// 不是数据库错误。用 HandleDBError 会把它压成 500「更新报表失败」，把可行动的
+	// 原因（哪一项不支持）换成一句无从下手的话。
+	if errhttp.HandleServiceError(ctx, err) {
 		return
 	}
 
@@ -220,7 +223,7 @@ func (c *CustomReportController) QueryReportData(ctx *gin.Context) {
 		return
 	}
 
-	data, err := c.reportService.QueryReportData(ctx, report, params)
+	data, err := c.reportService.QueryReportData(ctx.Request.Context(), report, params)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return

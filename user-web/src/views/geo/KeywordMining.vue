@@ -684,6 +684,9 @@ const handleDelete = (row) => {
 
 onMounted(async () => {
   loadList()
+  // 漏斗卡自己有一个刷新按钮，但进页面时没人点它 ⇒ 四层统计一直显示 0，
+  // 看起来像「库是空的」。进页即拉一次。
+  loadFunnel()
   loadFunnel()
   try {
     const cfg = await geoApi.getConfig()

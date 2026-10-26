@@ -62,6 +62,17 @@ type StageError struct {
 // 两边各有一条测试钉住同一个序列（repository 的 _LiveOrderIsTheResponseContract 钉词表，
 // service 的 _GoldenContract 钉响应），所以任一侧单独调序也会红 —— 别把它拆成一条。
 func (s *ConversionFunnelService) BuildFunnel(startTime, endTime time.Time) (*FunnelReport, error) {
+	return s.BuildFunnelCtx(context.Background(), startTime, endTime)
+}
+
+// BuildFunnelCtx 与 BuildFunnel 同口径，但用调用方 ctx 取数。
+//
+// 为什么必须单独开一口：`TENANT_MODE=on` 下租户插件按 ctx 注入 tenant_id，
+// 用 `context.Background()` 建的报告会让五个阶段全部 fail-closed —— 响应仍是
+// 200，但 degraded=true、五段全 0（用户看到的是"漏斗全空"，不是错误）。
+// HTTP 入口一律走本方法并传 `ctx.Request.Context()`；无 ctx 的旧调用（测试/后台）
+// 继续走 BuildFunnel，行为不变。
+func (s *ConversionFunnelService) BuildFunnelCtx(ctx context.Context, startTime, endTime time.Time) (*FunnelReport, error) {
 	if startTime.IsZero() {
 		startTime = time.Now().AddDate(0, 0, -30)
 	}
@@ -69,7 +80,6 @@ func (s *ConversionFunnelService) BuildFunnel(startTime, endTime time.Time) (*Fu
 		endTime = time.Now()
 	}
 
-	ctx := context.Background()
 	report := &FunnelReport{
 		StartTime:   startTime,
 		EndTime:     endTime,
@@ -175,6 +185,11 @@ type SourceStat struct {
 
 // GetStageDetails 阶段详情
 func (s *ConversionFunnelService) GetStageDetails(stage string, startTime, endTime time.Time) (*StageConversion, error) {
+	return s.GetStageDetailsCtx(context.Background(), stage, startTime, endTime)
+}
+
+// GetStageDetailsCtx 与 GetStageDetails 同口径，用调用方 ctx 取数（SaaS 租户隔离）。
+func (s *ConversionFunnelService) GetStageDetailsCtx(ctx context.Context, stage string, startTime, endTime time.Time) (*StageConversion, error) {
 	if startTime.IsZero() {
 		startTime = time.Now().AddDate(0, 0, -30)
 	}
@@ -182,7 +197,6 @@ func (s *ConversionFunnelService) GetStageDetails(stage string, startTime, endTi
 		endTime = time.Now()
 	}
 
-	ctx := context.Background()
 	det := &StageConversion{Stage: stage}
 	// 未登记的阶段名（演示表那套 exposure/click/…、以及拼错的键）一律保持现状：
 	// 返回 200 + 空名字 + 0 计数，不判 404 —— 那是改变现网行为，

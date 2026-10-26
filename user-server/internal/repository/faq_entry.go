@@ -304,9 +304,28 @@ func (r *FAQRepository) ListWithFilter(ctx context.Context, filter FAQListParams
 
 // Update 更新 FAQ
 func (r *FAQRepository) Update(ctx context.Context, id uint, entry *model.FAQEntry) error {
+	// 只写「编辑表单真正拥有的列」：
+	//   - `Select("*").Updates(entry)` 会把零值 tenant_id 一起写回，SaaS 下被隔离
+	//     callback 判成「改写 tenant_id」直接 500；off 模式下同一条语句也会把
+	//     req.Enabled 为 nil 的 NULL 写进 not-null 的 enabled 列。
+	//   - 缺省字段（enabled/agent_id）保持原值，符合「编辑不传即不改」的直觉。
+	updates := map[string]any{
+		"question":   entry.Question,
+		"answer":     entry.Answer,
+		"keywords":   entry.Keywords,
+		"category":   entry.Category,
+		"intent":     entry.Intent,
+		"confidence": entry.Confidence,
+	}
+	if entry.AgentID != nil {
+		updates["agent_id"] = *entry.AgentID
+	}
+	if entry.Enabled != nil {
+		updates["enabled"] = *entry.Enabled
+	}
 	return r.db.WithContext(ctx).Model(&model.FAQEntry{}).
 		Where("id = ?", id).
-		Select("*").Updates(entry).Error
+		Updates(updates).Error
 }
 
 // SetEnabled 仅切换启用状态（列表页开关专用，避免全量 Update 的 required 校验）

@@ -55,7 +55,10 @@ func (c *MCPClientController) Delete(ctx *gin.Context) {
 		return
 	}
 	if err := c.svc.Delete(ctx.Request.Context(), uint(id)); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+		// 不存在 ≠ 服务器故障：repo 对 0 行返回 gorm.ErrRecordNotFound，
+		// 直接 500 会让前端把「这条早删了」读成「服务挂了」（A16）。
+		// ErrorFromDB 统一把 gorm.ErrRecordNotFound 映射成 404（含被 %w 包裹的情况）
+		response.ErrorFromDB(ctx, err, "MCP 配置不存在")
 		return
 	}
 	response.Success(ctx, nil, "已删除")

@@ -1758,14 +1758,14 @@
           "summary": "The message hub turns every channel into one ledger: the cards on top show total volume, inbound/outbound split and unread count, and the platform bar breaks the traffic down per channel. The table below is the full message flow, filterable by channel, status and time, where each row traces back to sender, content and delivery result. To reach out on your own, use \"Push message\" in the top-right corner for a one-off send or a template broadcast.",
           "step2": {
             "title": "Filter and search",
-            "description": "Narrow the ledger by channel, message status and time range; the keyword matches both sender and message body. The filters decide which rows appear in the table below, so apply them and press \"Query\" to refresh."
+            "description": "Narrow the ledger by channel, message status and time range; the keyword matches both sender and message body. The filters decide which rows appear in the table below, so apply them, then use the search button to refresh."
           }
         },
         "abExperimentList": {
           "summary": "The A/B experiment page manages \"split the same audience into two groups, see which variant wins\". The four cards on top give running / completed / variants that already have a winner / total participants; the table below lists each experiment with its source type (page, component, message, ...), traffic split, status and date range. An experiment needs its variants and weights plus a source object before it can be started; while running it can be paused, and the results view shows traffic, conversions and conversion rate per variant.",
           "step2": {
             "title": "Experiment list and actions",
-            "description": "Each row is one experiment: name, source type and source ID, traffic split, status and date range. The action column offers start / pause / edit / detail / delete depending on status — a draft can be started or published first, and a running one can be paused to watch. The filter narrows by status and experiment name; press \"Query\" to apply."
+            "description": "Each row is one experiment: name, source type and source ID, traffic split, status and date range. The action column offers start / pause / edit / detail / delete depending on status — a draft can be started or published first, and a running one can be paused to watch. The filter narrows by status and experiment name; use the search button to apply."
           }
         },
         "aiAgentList": {

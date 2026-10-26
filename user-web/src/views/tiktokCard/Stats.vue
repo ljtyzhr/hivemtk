@@ -121,11 +121,10 @@
                   label="卡片标题"
                 />
                 <el-table-column
-                  prop="viewCount"
                   label="浏览量"
                 >
                   <template #default="scope">
-                    {{ formatNumber(scope.row.viewCount) }}
+                    {{ formatNumber(scope.row.view_count ?? scope.row.viewCount) }}
                   </template>
                 </el-table-column>
                 <el-table-column
@@ -157,9 +156,12 @@
                 style="width: 100%"
               >
                 <el-table-column
-                  prop="cardTitle"
                   label="卡片标题"
-                />
+                >
+                  <template #default="scope">
+                    {{ scope.row.card_title ?? scope.row.cardTitle }}
+                  </template>
+                </el-table-column>
                 <el-table-column
                   prop="action"
                   label="操作"
@@ -175,11 +177,10 @@
                   label="用户"
                 />
                 <el-table-column
-                  prop="createdAt"
                   label="时间"
                 >
                   <template #default="scope">
-                    {{ formatTime(scope.row.createdAt) }}
+                    {{ formatTime(scope.row.created_at ?? scope.row.createdAt) }}
                   </template>
                 </el-table-column>
               </el-table>
@@ -231,14 +232,16 @@ const fetchOverallStats = async () => {
     }
     
     const res = await getTikTokCardOverallStats(params)
-    const data = res;
+    const data = res || {};
+    // 后端 StatsOverall 返回 snake_case（total_cards/daily_stats/popular_cards…），
+    // 旧实现只读 camelCase ⇒ 统计卡全 0、列表全空。两种命名都兼容。
     Object.assign(overallStats, {
-      total_cards: data.totalCards || 0,
-      active_cards: data.activeCards || 0,
-      total_views: data.totalViews || 0,
-      top_cards: data.popularCards || [],
-      stats_by_time: data.dailyStats || [],
-      recent_activity: data.recentActivity || []
+      total_cards: data.total_cards ?? data.totalCards ?? 0,
+      active_cards: data.active_cards ?? data.activeCards ?? 0,
+      total_views: data.total_views ?? data.totalViews ?? 0,
+      top_cards: data.popular_cards ?? data.popularCards ?? [],
+      stats_by_time: data.daily_stats ?? data.dailyStats ?? [],
+      recent_activity: data.recent_activity ?? data.recentActivity ?? []
     })
 
     nextTick(() => {
@@ -272,7 +275,7 @@ const updateCharts = () => {
     
     visitChartInstance = safeInit(visitTrendChart.value)
     const dates = overallStats.stats_by_time.map(item => item.date)
-    const views = overallStats.stats_by_time.map(item => item.viewCount || 0)
+    const views = overallStats.stats_by_time.map(item => item.view_count ?? item.viewCount ?? 0)
     
     visitChartInstance.setOption({
       tooltip: {

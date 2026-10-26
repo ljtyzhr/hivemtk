@@ -299,7 +299,18 @@ func (c *TuningController) ListPromptCandidates(ctx *gin.Context) {
 // UpdatePromptCandidateStatus 更新候选状态
 func (c *TuningController) UpdatePromptCandidateStatus(ctx *gin.Context) {
 	id := ctx.Param("id")
+	// status 先看 body，再回落 query。
+	// 前端 feedbackLoop/Panel.vue:642 是 `updatePromptCandidateStatus(row.id, {status:'approved'})`
+	// ——axios 把第二个参数放进 **body**。只读 query 的话，"批准/驳回"按钮稳定 400
+	// 「status required」，候选池永远停在待审（实测两形态一致）。
 	status := ctx.Query("status")
+	if status == "" {
+		var body struct {
+			Status string `json:"status"`
+		}
+		_ = ctx.ShouldBindJSON(&body)
+		status = body.Status
+	}
 	if status == "" {
 		response.Error(ctx, http.StatusBadRequest, "status required")
 		return

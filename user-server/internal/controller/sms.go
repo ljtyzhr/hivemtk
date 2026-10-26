@@ -119,7 +119,9 @@ func (c *SmsController) DeleteJob(ctx *gin.Context) {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.DeleteJob(ctx.Request.Context(), uint(id)), "删除任务") {
+	// 与 PauseJob/ResumeJob/StopJob 同口径：删除的失败大多是**状态校验**
+	// （"只能删除已完成或失败的任务"），走 HandleDBError 会压成 500 吞掉原因。
+	if HandleServiceError(ctx, c.service.DeleteJob(ctx.Request.Context(), uint(id))) {
 		return
 	}
 
@@ -332,12 +334,13 @@ func (c *SmsController) CreateDraft(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.service.CreateDraft(ctx.Request.Context(), &req); err != nil {
+	draft, err := c.service.CreateDraft(ctx.Request.Context(), &req)
+	if err != nil {
 		response.ErrorFromDB(ctx, err, "创建草稿失败: "+err.Error())
 		return
 	}
 
-	response.Success(ctx, nil, "success")
+	response.Success(ctx, draft, "success")
 }
 
 // @Summary      更新草稿

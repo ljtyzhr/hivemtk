@@ -57,5 +57,12 @@ func (r *emailJobsRepo) Update(ctx context.Context, jobs *model.EmailJobs) error
 }
 
 func (r *emailJobsRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&model.EmailJobs{}, "id = ?", id).Error
+	res := r.db.WithContext(ctx).Delete(&model.EmailJobs{}, "id = ?", id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

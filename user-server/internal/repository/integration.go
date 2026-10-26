@@ -100,7 +100,14 @@ func (r *IntegrationAccountRepository) UpdateToken(ctx context.Context, id uint,
 }
 
 func (r *IntegrationAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.IntegrationAccount{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.IntegrationAccount{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *IntegrationAccountRepository) UpdateSyncTime(ctx context.Context, id uint) error {

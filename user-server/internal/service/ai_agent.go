@@ -552,6 +552,19 @@ func (s *CustomerServiceAgentService) Create(ctx context.Context, c *model.Custo
 			return fmt.Errorf("清除旧主挂载失败: %w", err)
 		}
 	}
+	// 同一座席 + 同一智能体曾有软删行时复活它，而不是再 INSERT：
+	// 唯一索引不含 deleted_at 条件，直接插会撞 idx_cs_agent_unique。
+	if old, err := s.repo.FindSoftDeletedByPair(ctx, c.AgentStatusID, c.AIAgentID); err == nil && old != nil {
+		primary := boolOrDefaultTrue(c.IsPrimary)
+		enabled := boolOrDefaultTrue(c.Enabled)
+		if err := s.repo.Restore(ctx, old.ID, primary, enabled); err != nil {
+			return err
+		}
+		old.IsPrimary = &primary
+		old.Enabled = &enabled
+		*c = *old
+		return nil
+	}
 	return s.repo.Create(ctx, c)
 }
 

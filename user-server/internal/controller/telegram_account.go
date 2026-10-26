@@ -161,7 +161,7 @@ type telegramAccountCreateReq struct {
 func (ctrl *TelegramAccountController) Create(c *gin.Context) {
 	var req telegramAccountCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		response.Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
 	if req.BotToken == "" {
@@ -226,7 +226,7 @@ func (ctrl *TelegramAccountController) Update(c *gin.Context) {
 	}
 	var req telegramAccountCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		response.Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
 	if req.BotToken != "" {
@@ -470,7 +470,7 @@ func (ctrl *TelegramAccountController) TestSend(c *gin.Context) {
 		Text   string `json:"text" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		response.Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
 	if err := tgbot.SendMessage(acc.BotToken, req.ChatID, req.Text); err != nil {

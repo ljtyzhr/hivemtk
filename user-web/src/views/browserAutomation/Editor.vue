@@ -657,6 +657,16 @@ async function reconcileDependency(taskId) {
 }
 
 async function save() {
+  // 必填项在前端先拦：旧实现直接打后端，用户看到的是一句英文键名的
+  // 「参数不合法：name 为必填项；url 为必填项」，且一次保存弹两条。
+  if (!String(form.value.name || '').trim()) {
+    ElMessage.warning('请填写任务名称')
+    return
+  }
+  if (!String(form.value.url || '').trim()) {
+    ElMessage.warning('请填写起始 URL')
+    return
+  }
   // F-1 收口：提示不拦保存 = 允许配出必失败的任务。M3 之前，不支持的平台
   // 直接拒绝保存（与 onPlatformChange 的警告同判据：can_post_comment）。
   const plat = platforms.value.find((x) => x.identifier === form.value.platform)
