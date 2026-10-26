@@ -33,7 +33,7 @@
 | F2 | `/chat/embed/:channel_ref` | 两形态 | 选择**未绑定任何智能体**的渠道（如 `ak_yE5wgTSyTPRutWJhR3JVEv2F`）后发消息：接口 200 且 `ai_replied=false`、`transferred=false`，访客端只看到自己那条消息，既无 AI 回复也无转人工提示；同一实例的默认挂件（`web_embed/default` 绑定 agent 53）能正常回复 | 未绑定渠道时「消息进黑洞」；且 `chat_channels.default_rag_product_id` 全仓**无消费点**（仅存取），配置了也不生效 | 待评估（产品/数据侧）；先记 |
 | F3 | `/chat/embed/default` | 两形态 | AI 回复正文含模板占位符：`这款核心卖点：①[核心功能A] ②[核心功能B] ③[独特优势]` | 种子 FAQ 数据未替换占位符，直接展示给终端访客 | 待评估（数据）；先记 |
 | F4 | `profile` | 私域独立部署 | 角色文案固定显示「商户管理员」（`Profile.vue:336` 硬编码 `admin → 商户管理员`） | 独立部署没有「商户」概念，SaaS 专属措辞泄漏到私域形态 | 待修（按 `tenant_mode` 分形态） |
-| F5 | 全站（登录态） | 两形态 | 长时间停留 + 访客挂件收发消息后，约 16 分钟时出现 401 爆发（`notifications`/`current-user`/`refresh-token` 全 401），`localStorage.token` 被清、跳登录；同一轮后续复测未能稳定复现 | 疑似并发 refresh 令牌轮换与 401 清理竞态（`ensureFreshToken` 失败分支无条件 `clearAuthAndGoLogin`） | 待复现专项 |
+| F5 | 全站（登录态） | 两形态 | 长时间停留 + 访客挂件收发消息后，约 16 分钟时出现 401 爆发（`notifications`/`current-user`/`refresh-token` 全 401），`localStorage.token` 被清、跳登录 | 并发续期竞态：请求拦截器与 chatSocket 各自发 `/api/auth/refresh-token`，后一次用已拉黑旧令牌必 401，且失败分支**无条件** `clearAuthAndGoLogin` 会把另一次刚换到的新令牌一起抹掉 | **已修**：抽出 `utils/tokenRefresh.js` 单飞续期 + 401 分档（仅「401 且仍是同一把令牌」才清会话）+ 不覆盖并发新令牌；chatSocket 复用同一把锁（1006 不再无条件轮换）；7 枚单测 + 浏览器并发 `force` 双调用实测（一次轮换、双方同值、token/user_info 均在、无跳转） |
 | F6 | `/aiAgent/tools` | 两形态 | 页头写死「管理 **40** 个 AI 工具」，实际列表接口 `/api/ai-tools` 只回 1 条，统计卡「工具总数 1」 | 文案常量与数据源脱节（`ToolList.vue:11` 硬编码 40） | 待修（改为动态或对齐口径） |
 | F7 | `/aiProductivity/list` | **仅 SaaS** | 同一 DB、同一 JWT（tenant_id=1），独立部署返回 `total_conversations=95/ai_replies=240`，SaaS 返回 **0/0**；接口均 200 | `ops/service/ai_productivity.go:46` 用 `context.Background()` 建报告，SaaS 租户插件按 ctx 注入 `tenant_id`，无租户上下文 ⇒ 查不到任何行；`conversion_funnel.go:72/185` 同族 | 待修（透传 request ctx，并核 conversion funnel） |
 
@@ -111,6 +111,7 @@
 | SaaS 设置页出现私域文案 | `system/Config.vue`（tenantMode 分流） | SaaS 显示「按订阅套餐限制」 |
 | 旅程大屏 0 值无解释 | `customerJourney/Dashboard.vue`（零值时 info 横幅说明内存态） | 横幅「本进程尚未捕获客户旅程状态」 |
 | 浏览器任务空提交英文键名报错 | `browserAutomation/Editor.vue`（name/url 前置校验） | 空提交仅「请填写任务名称」一条 toast，不发请求 |
+| 登录态偶发被清（401 爆发） | 新增 `utils/tokenRefresh.js`；`request.js` 续期改用该单飞锁；`chatSocket.js` 1006 不再无条件轮换、4001 才 force，且复用同一锁 | 7 枚单测全绿；浏览器内并发 `refreshAccessToken({force:true})` ×2：仅一次轮换、双方同值、`token`/`user_info` 均在、未跳登录 |
 
 ### 8.3 判为「非缺陷 / 设计口径」
 

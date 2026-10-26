@@ -4,6 +4,7 @@ import { getApiConfig } from './configManager'
 import i18n from '@/i18n'
 import { getStoredLocale } from '@/i18n/locale'
 import { markUserReported } from './errorReporting'
+import { createTokenRefresher } from './tokenRefresh'
 // OPT-FE-05（2026-10-24）：信封判定/业务码/错误形状抽到 @hivemtk/http-core
 // （与 bridge/platform-web 迁移后共用；拦截器装配仍留本文件——应用侧差异）。
 import {
@@ -221,72 +222,38 @@ function expireSession(sentWith) {
 // 中间件直接拒绝，15 分钟窗口就是给这条路径留的余量。
 // ============================================================================
 
-// 剩余寿命低于该阈值就触发换发（后端令牌 24h 有效期，15 分钟余量足够覆盖
-// 用户关屏/挂机的短暂停顿，又不会让换发过于频繁）
-const TOKEN_REFRESH_WINDOW_MS = 15 * 60 * 1000
-
-// 单飞锁：并发请求同时发现"快过期"时只发一次 refresh。不锁的后果是后到的
-// 请求带着已被服务端拉黑的旧令牌打出去，401 会把刚换到的新会话连带清掉。
-let refreshPromise = null
-// 刷新失败跳登录的去重位：并发调用方共享同一个失败结果，只跳一次
-let refreshRedirecting = false
-
-// base64url 解码 JWT payload 段拿 exp（秒级 Unix 时间戳）。
-// 不引库：JWT 三段用 . 切开，payload 是 base64url（-_/ 兼容回标准字母表、补 =）。
-// 解析失败一律返回 null——调用方按"读不出 exp"处理（不刷新，交由服务端 401 收口）。
-function parseJwtExp(token) {
-  try {
-    const payload = String(token).split('.')[1]
-    if (!payload) return null
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
-    const decoded = JSON.parse(atob(padded))
-    const exp = decoded && decoded.exp
-    return typeof exp === 'number' ? exp : null
-  } catch {
-    return null
+// 续期的单飞锁、401 分档与“不覆盖并发新令牌”全在 tokenRefresh.js 里，
+// request 拦截器与 chatSocket 共用同一份状态（这是修“偶发被踢回登录”的关键：
+// 两个入口各自 refresh 会让后端轮换两次，后一次必 401，旧失败分支还会清掉新令牌）。
+const tokenRefresher = createTokenRefresher({
+  getToken: () => localStorage.getItem('token'),
+  setToken: (t) => localStorage.setItem('token', t),
+  onSessionInvalid: () => clearAuthAndGoLogin(),
+  refreshCall: async (token) => {
+    // 裸 axios 实例：不挂业务拦截器——刷新请求自身绝不能再触发续期 / 401 清会话
+    const raw = axios.create({
+      baseURL: request.defaults.baseURL,
+      headers: { 'Content-Type': 'application/json' }
+    })
+    const res = await raw.post('/api/auth/refresh-token', null, {
+      headers: { Authorization: `Bearer ${token}` },
+      _skipRefresh: true
+    })
+    // 响应是信封 {code, data:{token}}，裸实例不拆信封
+    return res?.data?.data?.token
   }
-}
+})
 
 // ensureFreshToken 确保 localStorage 里的令牌剩余寿命充足，不足则静默换发。
-// 失败语义：清凭据 + 跳登录，但不 toast（请求拦截器里的静默路径不该弹提示，
-// 后续 401 也不再有会话可清）；抛错由调用方决定是否继续。
+// 失败语义：只有「明确 401 且仍是同一把令牌」才清凭据跳登录（且不 toast）；
+// 网络错误 / 5xx / 并发轮换期间令牌已被别处换新，一律保留会话。
 function ensureFreshToken() {
-  const token = localStorage.getItem('token')
-  if (!token) return Promise.resolve()
-  const exp = parseJwtExp(token)
-  // 非 JWT / 被篡改读不出 exp：不在这里判死，让请求照常携带，服务端说了算
-  if (exp === null) return Promise.resolve()
-  if (exp * 1000 - Date.now() > TOKEN_REFRESH_WINDOW_MS) return Promise.resolve()
-  if (refreshPromise) return refreshPromise
+  return tokenRefresher.refresh()
+}
 
-  refreshPromise = (async () => {
-    try {
-      // 裸 axios 实例：不挂业务拦截器——刷新请求自身绝不能再触发 ensureFreshToken
-      // / 401 清会话，否则换发失败时会与这里的清理逻辑互相嵌套
-      const raw = axios.create({
-        baseURL: request.defaults.baseURL,
-        headers: { 'Content-Type': 'application/json' }
-      })
-      const res = await raw.post('/api/auth/refresh-token', null, {
-        headers: { Authorization: `Bearer ${token}` },
-        _skipRefresh: true
-      })
-      // 响应是信封 {code, data:{token}}，裸实例不拆信封
-      const newToken = res?.data?.data?.token
-      if (!newToken) throw new Error('refresh-token 响应缺少 token')
-      localStorage.setItem('token', newToken)
-    } catch (err) {
-      if (!refreshRedirecting) {
-        refreshRedirecting = true
-        clearAuthAndGoLogin()
-      }
-      throw err
-    } finally {
-      refreshPromise = null
-    }
-  })()
-  return refreshPromise
+// chatSocket 等非 axios 入口复用同一把单飞锁；force=true 用于 WS 4001（鉴权失败）。
+export function refreshAccessToken(options) {
+  return tokenRefresher.refresh(options)
 }
 
 const addInterceptors = () => {
