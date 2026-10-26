@@ -118,3 +118,37 @@
 ---
 
 *最后更新: 2026-10-24 · 009 收口：修正头句为双形态、挂入 architecture/operations/standards/specs 四层导航、补 SAAS_PRODUCTION_CONSTRAINTS 与 TENANT_MODE_REVIEW、补 005/006/009 规格施工源；三份主文档与 AI 功能清单基线口径不变*
+
+---
+
+## 四、按主题索引（2026-10-26 目录收敛后补登）
+
+### 当前待办与验证台账
+
+| 文档 | 用途 |
+|---|---|
+| [OPEN_ITEMS.md](OPEN_ITEMS.md) | **唯一未完成清单**（完成即删行，不写流水账） |
+| [verification/api-verification-round-2026-10-26.md](verification/api-verification-round-2026-10-26.md) | 1077 条前端 API 双形态逐路由实测记录与缺陷台账 |
+| [verification/task3-api-verification.md](verification/task3-api-verification.md) | 任务三（首轮）API 验证与验收账号口径 |
+| [verification/ui-test-progress.md](verification/ui-test-progress.md) | 页面路由拟人点击测试进度与结论 |
+| [verification/ui-test-round-2026-10-25.md](verification/ui-test-round-2026-10-25.md) | UI 二次审核回合的缺陷与判定 |
+
+### 竞品与调研
+
+| 文档 | 用途 |
+|---|---|
+| [competitor/COMPETITOR_ANALYSIS_202610.md](competitor/COMPETITOR_ANALYSIS_202610.md) | 模块级竞品对比 |
+| [competitor/COMPETITOR_FEATURE_CHECKLIST_202610.md](competitor/COMPETITOR_FEATURE_CHECKLIST_202610.md) | 逐条能力对照清单 |
+| [competitor/COMPETITOR_GAP_TASKLIST_202610.md](competitor/COMPETITOR_GAP_TASKLIST_202610.md) | 竞品缺口任务清单 |
+| [competitor/COMPETITOR_DEEP_DIVE_20261024.md](competitor/COMPETITOR_DEEP_DIVE_20261024.md) | 实现原理级对照 |
+| [research/OURSTACK_IMPL_PRINCIPLES_20261024.md](research/OURSTACK_IMPL_PRINCIPLES_20261024.md) | 我方实现原则（原理层） |
+
+### 部署 / 贡献 / 设计
+
+| 文档 | 用途 |
+|---|---|
+| [SECRETS_DEPLOYMENT.md](SECRETS_DEPLOYMENT.md) | 密钥与凭证的部署注入口径 |
+| [CONFIG_INVENTORY_20261020.md](CONFIG_INVENTORY_20261020.md) | 配置项全量盘点（参数中心/环境变量） |
+| [contribute/CODEBASE_MAP.md](contribute/CODEBASE_MAP.md) | 代码地图（按层定位） |
+| [contribute/CODE_COLLABORATION.md](contribute/CODE_COLLABORATION.md) | 协作与改动边界 |
+| [marketing-features/GEO_MODULE_DESIGN.md](marketing-features/GEO_MODULE_DESIGN.md) | GEO 模块设计说明 |
