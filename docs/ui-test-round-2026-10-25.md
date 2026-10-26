@@ -118,3 +118,41 @@
 - `/email/smtp` 27 条空记录：为历史测试数据残留；`CreateEmailSmtpRequest` 六个字段均 `binding:"required"`，实测空提交 400（F15 撤销）。
 - `/sopAgent/list`「已激活 0」：统计请求返回前截图的瞬时态；`/api/sop/stats` 实测 `active:5`（F23 撤销）。
 - `/followups/*`、`/dashboard/drafts*`：特性开关未装配，页面按 503/档位分别措辞，`[~]`。
+
+## 9. 二次审核 / 对抗性检查 / CI
+
+### 9.1 对抗性抽查（主智能体亲自跑）
+
+| 检查 | 方法 | 结果 |
+|---|---|---|
+| 租户隔离未因 ctx 透传而放宽 | SaaS `/api/ai-productivity/overview` | 95 会话 / 240 AI 回复（与私域同值，未跨租户合并） |
+| 备份统计在 SaaS 的租户范围 | SaaS `/api/backup/stats` | total=124、lastSuccess=2026-10-26 03:05、totalSize=731724 |
+| 增强日志时间过滤 | SaaS `/api/operation-logs?start=…&end=…` | total=54400，当前页 2 行（非空） |
+| TikTok 统计字段兼容 | SaaS `/api/tiktok-card/stats/overall` | total_cards=24 / active_cards=22 / total_views=1 |
+| 空对象资产详情 | SaaS `/api/v1/asset-market/detail/nope` | 200 + `data:{}`；前端按「不存在」空态渲染，不再出假资产 |
+| Playground 合法 aid | `/asset-bundle/playground/starter-bundle` | 正常加载，`loadFailed=false`，保存可用 |
+| 报表四腿解包 | `/reports/llm` | KPI 15 调用 / 53.33% / 210 tokens，趋势与明细非空 |
+
+### 9.2 构建与测试（合并后的上游树）
+
+- `go build ./...`：rc=0
+- `go test ./internal/ops/... ./internal/repository/...`：全绿（ops 4 包 + repository 152s）
+- `go test ./internal/service`：**ok 843.4s**
+- `user-web npm run build`：rc=0（PWA 608 precache）
+- `user-web npm run lint:check`：**0 errors**（1209 warnings 为存量）
+
+### 9.3 提交与推送
+
+- `8ddbff49` 主修复（27 文件 + 点验报告）
+- `f0d1973c` 清 ESLint 5 处 error（存量债，Lint 作业常年红）
+- `dfd8504c` 修 lint.yml 三处 `$VAR（` → `${VAR}`（macOS bash3.2 + UTF-8 吃掉变量名，控制组全 PASS 却 exit 1）
+- `a0aa75da` 修 RELEASE_NOTES 全角括号被 lychee 当端口（Docs Link 常年红）
+- 双远端 master 均已推至 `a0aa75da`
+
+### 9.4 仍为红/已知存量（非本批引入，已在提交说明与本节点名）
+
+| 作业 | 现象 | 归属 |
+|---|---|---|
+| Docs Consistency · `check-no-xapptool` | 140 处仍指向已下线线上域（`website/`、`未完成任务.md`） | 官网域名迁移泳道；改动面跨 website 构建与文档，未在本批代改 |
+| user-server-ci | 见推送后流水线；本机 `go test ./...` 相关包与 service 全绿 | 若红优先归因环境/共享盘 |
+| Docs Link Check | 已随 `a0aa75da` 修复待复跑 | — |
