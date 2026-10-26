@@ -10,11 +10,11 @@
 
 ## 0. 结论摘要
 
-1. **端清单共 9 个**：用户端 4 个（user-server / user-web / embed-sdk / website）+ 平台端 3 个（platform-server / platform-web / platform-contributor）+ 支撑端 2 个（assetdpo / cold-start）。**移动端（uniapp）不在本工作区**，只存在于外部仓（`未完成任务.md` 亦已登记）。
+1. **端清单共 9 个**：用户端 4 个（user-server / user-web / embed-sdk / website）+ 平台端 3 个（platform-server / platform-web / platform-contributor）+ 支撑端 2 个（assetdpo / cold-start）。**移动端（uniapp）不在本工作区**，只存在于外部仓（`docs/OPEN_ITEMS.md（历史台账已归档）` 亦已登记）。
 2. **主战场是 user-server**：Go 1.26 + Gin + GORM + pgvector，**3243 个 `.go` 文件**、**183 个 Controller**、**374 个 Service**、**195 个 Repository**、**168 个 Model**、**1137 条路由注册**。五层架构（Router→Controller→Service→Repository→Model）在目录与命名上基本落地，`handler` 包零命中（与仓库 `CLAUDE.md` 一致）。
 3. **端间通信共 7 条主通道**：访客聊天（chat/public + WS）、渠道扩展桥（bridge）、渠道网关 WS（channelgw）、外部渠道 Webhook、平台心跳/安装/模块/资产市场/LLM 代理、MCP 工具入口、前端静态托管。详见 §4。
 4. **主要问题不是"缺能力"，而是"文档漂移"**：多处既有架构文档与代码现状不一致（WS 是否弃用、推理栈端口/模型、Go 版本、模块计数）。这些漂移会让后来者按错的图施工，已在 §5 逐条论证、并在 §6 修复。
-5. **真实能力缺口 2 处**：`/ws/chat` 路由**从未注册**（死代码，`internal/router/ws.go` 自认）；平台撤回（Recall）在 `integration_reach_adapter.go` 仍是恒错 stub（`未完成任务.md` B2 已登记）。前者已在本轮**只读论证 + 文档如实标注**，后者属跨渠道新功能，登记为待开发。
+5. **真实能力缺口 2 处**：`/ws/chat` 路由**从未注册**（死代码，`internal/router/ws.go` 自认）；平台撤回（Recall）在 `integration_reach_adapter.go` 仍是恒错 stub（`docs/OPEN_ITEMS.md（历史台账已归档）` B2 已登记）。前者已在本轮**只读论证 + 文档如实标注**，后者属跨渠道新功能，登记为待开发。
 
 ---
 
@@ -205,7 +205,7 @@ graph TD
 | D5 | README「**62 个核心业务模块**」 | 控制器 183 个、视图 220 个、迁移 55 个 | ⚠️ "62" 为营销口径，非代码口径 |
 | D6 | README「ReAct **41 工具**」 | 工具以 Provider 自注册（`auto_register.go`），无集中清单可数 | ⚠️ 需以 `/api/agent/tools/list` 运行时为准 |
 | D7 | `internal/router/ws.go:11` 自述「`RegisterWSRoutes` **全树零调用方**，`/ws/chat` 从未注册」 | grep 确认零调用方 | ✅ **真缺陷**：死代码，已如实登记 |
-| D8 | `未完成任务.md` §1「Recall 恒返回错误 stub」 | `integration_reach_adapter.go` Recall 仍为 stub | ✅ **真缺口**：跨渠道撤回未实现 |
+| D8 | `docs/OPEN_ITEMS.md（历史台账已归档）` §1「Recall 恒返回错误 stub」 | `integration_reach_adapter.go` Recall 仍为 stub | ✅ **真缺口**：跨渠道撤回未实现 |
 | D9 | 架构门 `scripts/check-architecture.sh` 为 CI 阻断步骤（`.github/workflows/user-server-ci.yml:194`） | 干净 HEAD 复跑报 **11 个错误**（含 7 个在已提交的干净文件上）：`llm_platform_usage.go` 直接 `db.GetDB()`、`tenant.go`/`tenant_module.go` 有非 Hook 方法、7 个 `_controller.go`/`_service.go` 冗余后缀 | ✅ **真缺陷**（阻断门在 master 常红）→ 本轮修复 |
 
 ### 5.1 端能力完整性核验
@@ -214,7 +214,7 @@ graph TD
 - **平台端闭环** ✅：注册 → 心跳/安装 → 模块下发 → 订单/计费 → 资产市场，端点齐备；且 `/api/platform/*` 为公开统计口、无签名要求（与"仅统计"定位一致）。
 - **贡献者端闭环** ✅：注册/登录 → 资产上传/版本 → 提交审核 → 收益/提现。
 - **支撑端闭环** ✅：assetdpo 产出资产 → 平台资产市场 → 商户 user-server 同步。
-- **移动端** ❌：本仓无 uniapp；`未完成任务.md` 已登记"user 桶 419 死路由无法仓内验证"（外部仓依赖）。
+- **移动端** ❌：本仓无 uniapp；`docs/OPEN_ITEMS.md（历史台账已归档）` 已登记"user 桶 419 死路由无法仓内验证"（外部仓依赖）。
 
 ---
 

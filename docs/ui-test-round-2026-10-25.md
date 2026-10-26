@@ -154,7 +154,7 @@
 
 | 作业 | 现象 | 归因证据 |
 |---|---|---|
-| Docs Consistency · `check-no-xapptool` | 140 处仍指向已下线线上域（`website/`、`未完成任务.md`） | 命中集中在 website 构建/内容与旧任务清单；本批 diff 不含这些文件 |
+| Docs Consistency · `check-no-xapptool` | 140 处仍指向已下线线上域（`website/`、`docs/OPEN_ITEMS.md（历史台账已归档）`） | 命中集中在 website 构建/内容与旧任务清单；本批 diff 不含这些文件 |
 | Static gates · 日期口径守卫 | 24 处 vs 基线 21 | **在上游基线 `dc021489` 的独立 worktree 复跑同为 24/21（rc=1）**，与本批无关 |
 | Security scans · govulncheck | Go 依赖漏洞 | `go.mod/go.sum` 未在本批变更 |
 | npm audit (user-web) | 依赖公告 | `package-lock.json` 未在本批变更 |
