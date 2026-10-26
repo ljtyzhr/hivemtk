@@ -12,7 +12,7 @@
 | SaaS 多租户 | `http://127.0.0.1:8325` | `TENANT_MODE=on`，同一隔离库 `user_db_api` |
 
 - 令牌：`/private/var/folders/xw/pd_rr_z54w38gq41yfm8h7sm0000gn/T/opencode/hvapi/tok`（`uit_admin`，tenant 1，admin）。
-- DB 只读口令查询：`PGPASSWORD=ChangeMe_To_Strong_Password_123! psql -h 127.0.0.1 -p 8202 -U admin -d user_db_api`
+- DB 只读口令查询：`PGPASSWORD=<见本机 .env 的 POSTGRES_PASSWORD>! psql -h 127.0.0.1 -p 8202 -U admin -d user_db_api`
 - 源码：`user-server/`（Go）、`user-web/src/api/*.js`。
 - 本机 LLM 未起：真要调 LLM 的端点会 500，属环境前提，记 `[x]` 并注明。
 

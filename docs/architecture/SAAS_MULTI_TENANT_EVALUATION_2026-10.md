@@ -236,7 +236,7 @@ go test ./internal/pkg/db/... -run 'TestTenantCallback_'     # 22 passed
 go test ./...                       # 全量套件
 ```
 
-**环境注记**：仓库 `.env` 的 `POSTGRES_PASSWORD` 是占位符 `ChangeMe_To_Strong_Password_123!`，
+**环境注记**：仓库 `.env` 的 `POSTGRES_PASSWORD` 是占位符 `<见本机 .env 的 POSTGRES_PASSWORD>!`，
 与本机容器 `mtk-postgres` 的实际口令**不一致**；直接按 `.env` 导出变量跑测试会得到
 `SQLSTATE 28P01` 全量红——那是**环境失败不是代码 bug**（与 CLAUDE.md 3.5 同一类坑，只是这次是
 **密码值**不一致而非变量名不一致）。
