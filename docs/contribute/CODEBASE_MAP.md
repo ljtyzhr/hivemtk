@@ -18,7 +18,7 @@ hivemtk/
 ├── Makefile              # 全部构建/启动入口(make install / dev / test-go / lint)
 ├── .env-example          # 环境变量样例(端口/密钥/模型)
 ├── CONTRIBUTING.md       # 贡献指南
-├── GIT_RULES.md          # Git 分支与 commit 规范(唯一权威)
+├── docs/contribute/GIT_RULES.md          # Git 分支与 commit 规范(唯一权威)
 ├── CLAUDE.md             # AI 编码铁律(五层架构/API 规范)
 ├── CLA.md / LICENSE      # 贡献者协议 / AGPL-3.0
 └── hivemtk/scripts/      # 子目录仅含脚本(非重复代码)

@@ -19,7 +19,7 @@
 /CODE_OF_CONDUCT.md                 @hivemtk-devrel-lead
 /CONTRIBUTING.md                    @hivemtk-devrel-lead
 /CODEOWNERS                         @hivemtk-bdfl
-/GIT_RULES.md                       @hivemtk-bdfl @hivemtk-devops-lead
+/docs/contribute/GIT_RULES.md                       @hivemtk-bdfl @hivemtk-devops-lead
 
 # ---------- CI/CD 与构建 ----------
 /.github/                           @hivemtk-devops-lead

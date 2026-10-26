@@ -12,7 +12,7 @@
 import re
 import sys
 
-LIST = "api-list.md"
+LIST = "docs/verification/api-list.md"
 ROW = re.compile(r"^(\|\s*)(\d+)(\s*\|\s*)\[([ xX~!-])\](\s*\|.*)$", re.M)
 
 

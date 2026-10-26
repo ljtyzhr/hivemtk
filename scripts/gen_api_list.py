@@ -18,7 +18,7 @@ from collections import OrderedDict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API_DIR = os.path.join(ROOT, "user-web", "src", "api")
-OUT = os.path.join(ROOT, "api-list.md")
+OUT = os.path.join(ROOT, "docs", "verification", "api-list.md")
 
 # http.<method>( "url"  或  `url`  或  ${base}/x  或  base（裸标识符）
 CALL_RE = re.compile(
@@ -191,7 +191,7 @@ def load_prior_status():
     if not os.path.exists(OUT):
         return {}
     pat = re.compile(
-        r"^\|\s*\d+\s*\|\s*\[([ xX~!-])\]\s*\|\s*(\w+)\s*\|\s*`([^`]*)`\s*\|[^|]*\|[^|]*\|[^|]*\|\s*"
+        r"^\|\s*\d+\s*\|\s*\[([ xX~!-])\]\s*\|\s*(\w+)\s*\|\s*`([^`]*)`\s*\|(?:\\.|[^|])*\|(?:\\.|[^|])*\|(?:\\.|[^|])*\|\s*"
         r"`src/api/([^`]*)`\s*\|\s*(\d+)\s*\|"
     )
     out = {}
@@ -218,7 +218,7 @@ def load_prior_responses():
     if not os.path.exists(OUT):
         return {}
     pat = re.compile(
-        r"^\|\s*\d+\s*\|\s*\[[ xX~!-]\]\s*\|\s*(\w+)\s*\|\s*`([^`]*)`\s*\|[^|]*\|[^|]*\|\s*([^|]*?)\s*\|\s*"
+        r"^\|\s*\d+\s*\|\s*\[[ xX~!-]\]\s*\|\s*(\w+)\s*\|\s*`([^`]*)`\s*\|(?:\\.|[^|])*\|(?:\\.|[^|])*\|\s*((?:\\.|[^|])*?)\s*\|\s*"
         r"`src/api/([^`]*)`\s*\|\s*(\d+)\s*\|"
     )
     out = {}

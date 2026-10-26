@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-API_LIST = os.path.join(ROOT, "api-list.md")
+API_LIST = os.path.join(ROOT, "docs", "verification", "api-list.md")
 TOKEN_FILE = "/tmp/qoder_token.txt"
 BASE = os.environ.get("HIVEMTK_BASE", "http://127.0.0.1:8204")
 

@@ -227,7 +227,7 @@
 | 194 | [x] | POST | `/api/manage/config-params/{group}/{key}/reset` | 管理端 | path: group, key | 200 code=0 | `src/api/configParams.js` | 29 |
 | 195 | [x] | POST | `/api/manage/config-params/{group}/reset` | 管理端 | path: group | 200 code=0 | `src/api/configParams.js` | 33 |
 | 196 | [x] | PUT | `/api/manage/platform-host` | 管理端 | body: { address } | 200 code=0 已更新（约 60s 生效） | `src/api/configParams.js` | 47 |
-| 197 | [x] | POST | `/api/manage/platform-host/connectivity` | 管理端 | body: { address: address \|\| '' } | 200 code=0（平台未启用，文案明确） | `src/api/configParams.js` | 56 |
+| 197 | [x] | POST | `/api/manage/platform-host/connectivity` | 管理端 | body: { address: address \|\| '' } | 200 平台未启用文案（设计内） | `src/api/configParams.js` | 56 |
 | 198 | [x] | GET | `/api/conversion-funnels` | 用户端 | query: params | 200 code=0 五段 126/221/133/311/0；**修复前 SaaS 五段全 0 + degraded** | `src/api/conversionFunnel.js` | 5 |
 | 199 | [x] | GET | `/api/conversion-funnels/stage` | 用户端 | query: stage | 200 code=0（修复后 count 正常） | `src/api/conversionFunnel.js` | 8 |
 | 200 | [x] | POST | `/api/customer-sessions/{sessionId}/csat` | 用户端 | path: sessionId / body: data | 200 code=0 评分已提交 | `src/api/csat.js` | 4 |
@@ -312,7 +312,7 @@
 | 279 | [x] | POST | `/api/customer-service-agents/by-user/{userId}` | 用户端 | path: userId / body: data | 200 code=0 创建成功 | `src/api/customerServiceAgent.js` | 28 |
 | 280 | [x] | GET | `/api/customer-sessions` | 用户端 | query: params | 200 code=0 total=318 | `src/api/customerSession.js` | 4 |
 | 281 | [x] | GET | `/api/customer-sessions/{id}/messages` | 用户端 | path: id / query: params | 200 code=0（新会话 total=0，发送后可见） | `src/api/customerSession.js` | 7 |
-| 282 | [x] | POST | `/api/customer-sessions/{data_sessionId}/messages` | 用户端 | path: data_sessionId / body: { content: data.content, sender_type: data.sender_type \|\| 'agent', sender_name: data.sender_name \|\| '客服', sender_id: String(data.sender_id \|\| '') } | 200 code=0 发送成功 | `src/api/customerSession.js` | 10 |
+| 282 | [x] | POST | `/api/customer-sessions/{data_sessionId}/messages` | 用户端 | path: data_sessionId / body: { content: data.content, sender_type: data.sender_type \|\| 'agent', sender_name: data.sender_name \|\| '客服', sender_id: String(data.sender_id \|\| '') } | 200 code=INVALID_PARAM_1001（closed 会话禁发，业务正确） | `src/api/customerSession.js` | 10 |
 | 283 | [x] | POST | `/api/customer-sessions` | 用户端 | body: data | 200 code=0 id=751/752 | `src/api/customerSession.js` | 18 |
 | 284 | [x] | POST | `/api/customer-sessions/{id}/close` | 用户端 | path: id | 200 code=0 关闭成功 | `src/api/customerSession.js` | 21 |
 | 285 | [x] | POST | `/api/customer-sessions/{id}/transfer` | 用户端 | path: id / body: data | 200 code=0 转接成功（字段 new_agent_id） | `src/api/customerSession.js` | 24 |
@@ -423,7 +423,7 @@
 | 390 | [x] | GET | `/api/followups/today` | 用户端 | query: params / body: SILENT | 200 code=SERVICE_UNAVAILABLE_6003「跟进服务未装配」（旅程运行时 off，设计内） | `src/api/followup.js` | 28 |
 | 391 | [x] | GET | `/api/followups/pending` | 用户端 | query: params / body: SILENT | 200 code=SERVICE_UNAVAILABLE_6003（同上） | `src/api/followup.js` | 35 |
 | 392 | [x] | GET | `/api/followups/overdue` | 用户端 | body: { owner_id: ownerId }; SILENT | 200 code=SERVICE_UNAVAILABLE_6003（同上） | `src/api/followup.js` | 39 |
-| 393 | [x] | POST | `/api/followups/{id}/complete` | 用户端 | path: id / body: { result: result \|\| '', note: note \|\| '' } | 200 code=SERVICE_UNAVAILABLE_6003（同上） | `src/api/followup.js` | 46 |
+| 393 | [x] | POST | `/api/followups/{id}/complete` | 用户端 | path: id / body: { result: result \|\| '', note: note \|\| '' } | 200 code=SERVICE_UNAVAILABLE_6003（跟进服务未装配，设计内） | `src/api/followup.js` | 46 |
 | 394 | [x] | POST | `/api/followups/{id}/cancel` | 用户端 | path: id | 200 code=SERVICE_UNAVAILABLE_6003（同上） | `src/api/followup.js` | 50 |
 | 395 | [x] | POST | `/api/geo/keywords/mine` | 用户端 | body: data | 200 code=0（两条腿均通过） | `src/api/geo.js` | 5 |
 | 396 | [x] | POST | `/api/geo/keywords/expand` | 用户端 | body: data | 200 code=0（两条腿均通过） | `src/api/geo.js` | 9 |
@@ -481,10 +481,10 @@
 | 448 | [x] | GET | `/api/geo/decision/report` | 用户端 | - | 200 code=0（两条腿均通过） | `src/api/geoDecision.js` | 3 |
 | 449 | [x] | GET | `/api/geo/decision/tasks` | 用户端 | body: { limit } | 200 code=0（两条腿均通过） | `src/api/geoDecision.js` | 6 |
 | 450 | [x] | POST | `/api/geo/decision/tasks/{id}/done` | 用户端 | path: id | 200 code=NOT_FOUND_1002（任务 id 不存在，业务正确） | `src/api/geoDecision.js` | 8 |
-| 451 | [x] | GET | `/api/geo/entity/list` | 用户端 | body: { type: type \|\| '', keyword: keyword \|\| '' } | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 4 |
+| 451 | [x] | GET | `/api/geo/entity/list` | 用户端 | body: { type: type \|\| '', keyword: keyword \|\| '' } | 200 code=0 | `src/api/geoEntity.js` | 4 |
 | 452 | [x] | GET | `/api/geo/entity/{entityId}/graph` | 用户端 | path: entityId | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 7 |
 | 453 | [x] | POST | `/api/geo/entities/extract` | 用户端 | body: { doc_id: docId } | 200 code=BUSINESS_5001（doc_id 不存在，业务正确） | `src/api/geoEntity.js` | 10 |
-| 454 | [x] | GET | `/api/geo/kb/documents` | 用户端 | body: { keyword: keyword \|\| '', source_level: sourceLevel \|\| '' } | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 13 |
+| 454 | [x] | GET | `/api/geo/kb/documents` | 用户端 | body: { keyword: keyword \|\| '', source_level: sourceLevel \|\| '' } | 200 code=0 | `src/api/geoEntity.js` | 13 |
 | 455 | [x] | POST | `/api/geo/kb/documents` | 用户端 | body: data | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 16 |
 | 456 | [x] | DELETE | `/api/geo/kb/documents/{id}` | 用户端 | path: id | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 19 |
 | 457 | [x] | GET | `/api/geo/kb/documents/{id}` | 用户端 | path: id | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 22 |
@@ -495,7 +495,7 @@
 | 462 | [x] | POST | `/api/geo/workflow/workflows` | 用户端 | body: data | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 37 |
 | 463 | [x] | PUT | `/api/geo/workflow/workflows/{id}` | 用户端 | path: id / body: data | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 40 |
 | 464 | [x] | DELETE | `/api/geo/workflow/workflows/{id}` | 用户端 | path: id | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 43 |
-| 465 | [x] | POST | `/api/geo/workflow/workflows/{id}/run` | 用户端 | path: id / body: params \|\| {} | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 46 |
+| 465 | [x] | POST | `/api/geo/workflow/workflows/{id}/run` | 用户端 | path: id / body: params \|\| {} | 200 code=0 执行完成 | `src/api/geoEntity.js` | 46 |
 | 466 | [x] | GET | `/api/geo/workflow/workflows/{workflowId}/executions` | 用户端 | path: workflowId | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 49 |
 | 467 | [x] | GET | `/api/geo/workflow/templates` | 用户端 | - | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 52 |
 | 468 | [x] | POST | `/api/geo/workflow/templates` | 用户端 | body: data | 200 code=0（两条腿均通过） | `src/api/geoEntity.js` | 55 |
@@ -504,7 +504,7 @@
 | 471 | [x] | POST | `/api/geo/platform/accounts` | 用户端 | body: data | 200 code=0（两条腿均通过） | `src/api/geoPlatform.js` | 10 |
 | 472 | [x] | DELETE | `/api/geo/platform/accounts/{id}` | 用户端 | path: id | 200 code=0（两条腿均通过） | `src/api/geoPlatform.js` | 13 |
 | 473 | [x] | POST | `/api/geo/platform/publish` | 用户端 | body: { article_id: articleId, platform, ...opts } | 200 code=0（两条腿均通过） | `src/api/geoPlatform.js` | 16 |
-| 474 | [x] | GET | `/api/geo/platform/records` | 用户端 | body: { article_id: articleId \|\| '' } | 200 code=0（两条腿均通过） | `src/api/geoPlatform.js` | 19 |
+| 474 | [x] | GET | `/api/geo/platform/records` | 用户端 | body: { article_id: articleId \|\| '' } | 200 code=0 | `src/api/geoPlatform.js` | 19 |
 | 475 | [x] | GET | `/api/geo/probe/engines` | 用户端 | - | 200 code=0（两条腿均通过） | `src/api/geoProbe.js` | 4 |
 | 476 | [x] | POST | `/api/geo/probe/test` | 用户端 | body: { engine, query } | 200 code=INVALID_PARAM_1001「engine baidu not found (available: sensenova)」（只配了 sensenova，业务正确） | `src/api/geoProbe.js` | 7 |
 | 477 | [x] | GET | `/api/geo/probe/runs` | 用户端 | body: { engine, limit } | 200 code=0（两条腿均通过） | `src/api/geoProbe.js` | 10 |
@@ -521,8 +521,8 @@
 | 488 | [x] | POST | `/api/geo/competitors` | 用户端 | body: data | 200 code=0 创建成功；SaaS 重复 domain 回 400 并泄漏 SQLSTATE（见 A14） | `src/api/geoProbe.js` | 43 |
 | 489 | [x] | PUT | `/api/geo/competitors/{id}` | 用户端 | path: id / body: data | 200 code=0 创建成功；SaaS 重复 domain 回 400 并泄漏 SQLSTATE（见 A14） | `src/api/geoProbe.js` | 46 |
 | 490 | [x] | DELETE | `/api/geo/competitors/{id}` | 用户端 | path: id | 200 code=0 创建成功；SaaS 重复 domain 回 400 并泄漏 SQLSTATE（见 A14） | `src/api/geoProbe.js` | 49 |
-| 491 | [x] | GET | `/api/geo/visibility/engine-compare` | 用户端 | body: { days, intent: intent \|\| '' } | 200 code=0（两条腿均通过） | `src/api/geoProbe.js` | 52 |
-| 492 | [x] | GET | `/api/geo/sov/trend` | 用户端 | body: { days, intent: intent \|\| '' } | 200 code=0（两条腿均通过） | `src/api/geoProbe.js` | 55 |
+| 491 | [x] | GET | `/api/geo/visibility/engine-compare` | 用户端 | body: { days, intent: intent \|\| '' } | 200 code=0 | `src/api/geoProbe.js` | 52 |
+| 492 | [x] | GET | `/api/geo/sov/trend` | 用户端 | body: { days, intent: intent \|\| '' } | 200 code=0 | `src/api/geoProbe.js` | 55 |
 | 493 | [x] | POST | `/api/glossaries` | 用户端 | body: data | 200 code=0（两条腿均通过） | `src/api/glossary.js` | 4 |
 | 494 | [x] | GET | `/api/glossaries` | 用户端 | query: params | 200 code=0（两条腿均通过） | `src/api/glossary.js` | 8 |
 | 495 | [x] | GET | `/api/glossaries/{termId}` | 用户端 | path: termId | 200 code=0（:termId 传 term_id 字符串，不是数字主键） | `src/api/glossary.js` | 12 |
@@ -677,10 +677,10 @@
 | 644 | [~] | POST | `/api/live-codes/{id}/share` | 用户端 | path: id / body: data | [~] 缺 short_domains/entry/landing 种子数据，成功路径未验；校验链与不存在 id 的 404 均正确 | `src/api/livecode.js` | 40 |
 | 645 | [~] | DELETE | `/api/live-codes/qrcodes/{id}/delete` | 用户端 | path: id | [~] 缺 short_domains/entry/landing 种子数据，成功路径未验；校验链与不存在 id 的 404 均正确 | `src/api/livecode.js` | 44 |
 | 646 | [~] | PUT | `/api/live-codes/qrcodes/{id}/update` | 用户端 | path: id / body: data | [~] 缺 short_domains/entry/landing 种子数据，成功路径未验；校验链与不存在 id 的 404 均正确 | `src/api/livecode.js` | 48 |
-| 647 | [x] | GET | `/api/reports/llm/overview` | 用户端 | query: params | 200 code=0（breakdown 需 by=model|scenario|...） | `src/api/llmReport.js` | 7 |
-| 648 | [x] | GET | `/api/reports/llm/timeseries` | 用户端 | query: params | 200 code=0（breakdown 需 by=model|scenario|...） | `src/api/llmReport.js` | 11 |
-| 649 | [x] | GET | `/api/reports/llm/breakdown` | 用户端 | query: params | 200 code=0（breakdown 需 by=model|scenario|...） | `src/api/llmReport.js` | 15 |
-| 650 | [x] | GET | `/api/reports/llm/errors` | 用户端 | query: params | 200 code=0（breakdown 需 by=model|scenario|...） | `src/api/llmReport.js` | 19 |
+| 647 | [x] | GET | `/api/reports/llm/overview` | 用户端 | query: params | 200 code=0 | `src/api/llmReport.js` | 7 |
+| 648 | [x] | GET | `/api/reports/llm/timeseries` | 用户端 | query: params | 200 code=0 | `src/api/llmReport.js` | 11 |
+| 649 | [x] | GET | `/api/reports/llm/breakdown` | 用户端 | query: params | 200 code=0（需 by 参数） | `src/api/llmReport.js` | 15 |
+| 650 | [x] | GET | `/api/reports/llm/errors` | 用户端 | query: params | 200 code=0 | `src/api/llmReport.js` | 19 |
 | 651 | [x] | GET | `/api/llm/usage/daily` | 用户端 | body: { window, group_by: groupBy } | 200 code=0（两条腿均通过） | `src/api/llmRouting.js` | 7 |
 | 652 | [x] | GET | `/api/llm/models` | 用户端 | query: params | 200 code=0（两条腿均通过） | `src/api/llmRouting.js` | 11 |
 | 653 | [x] | GET | `/api/llm/models/{name}` | 用户端 | path: name | 200 code=0（两条腿均通过） | `src/api/llmRouting.js` | 15 |

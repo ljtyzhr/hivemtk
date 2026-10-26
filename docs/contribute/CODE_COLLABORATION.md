@@ -43,5 +43,5 @@ git ls-remote upstream master; git ls-remote gitee-upstream master   # 两边 SH
 
 - 2026-09-05 之前:PR/MR 模式(GitHub #11-#15,Gitee !1-!7),因双平台各自 squash 产生 sha 永久分叉,每次贡献需双份合并 + cherry-pick 重建。
 - 2026-09-05 定案改版:成员直推 + 双端同 SHA。历史已在本次一次性对齐(双端 master = 同一批 commit),PR 时代文档已删除。
-- 保留物:`.github/` 下 Issue/PR 模板保留,服务可能到来的外部贡献者;GIT_RULES.md / CONTRIBUTING.md 为上游原有治理文档,其中 PR 流程章节对外部贡献者仍适用,成员内部以本文件为准。
+- 保留物:`.github/` 下 Issue/PR 模板保留,服务可能到来的外部贡献者;docs/contribute/GIT_RULES.md / CONTRIBUTING.md 为上游原有治理文档,其中 PR 流程章节对外部贡献者仍适用,成员内部以本文件为准。
 - 已合并的 PR/MR 记录(#12-#15 / !3-!7)是既成历史,不删除,仅此后不再产生新的。
