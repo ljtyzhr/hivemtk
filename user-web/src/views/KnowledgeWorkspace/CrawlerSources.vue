@@ -64,10 +64,13 @@
           width="70"
         />
         <el-table-column
-          prop="kb_id"
           :label="$t('knowledge.crawlerSource.kb')"
-          width="90"
-        />
+          width="140"
+        >
+          <template #default="{ row }">
+            {{ kbName(row.kb_id) }}
+          </template>
+        </el-table-column>
         <el-table-column
           :label="$t('knowledge.crawlerSource.type')"
           width="100"
@@ -329,6 +332,12 @@ const loading = ref(false)
 const creating = ref(false)
 const sources = ref([])
 const kbList = ref([])
+// 表格里显示知识库名称，而不是裸 ID（kb_id=12 这种读不出是哪一份库）
+const kbName = (id) => {
+  if (id === null || id === undefined || id === '') return '-'
+  const kb = kbList.value.find((k) => String(k.id) === String(id))
+  return kb?.name || String(id)
+}
 const filter = reactive({ kb_id: '', status: '' })
 const showCreate = ref(false)
 const form = reactive({

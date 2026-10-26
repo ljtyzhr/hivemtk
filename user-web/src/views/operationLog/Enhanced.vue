@@ -61,6 +61,7 @@
           <el-date-picker
             v-model="filters.dateRange"
             type="daterange"
+            value-format="YYYY-MM-DD"
           />
         </el-form-item>
         <el-form-item>
@@ -213,7 +214,14 @@ async function load() {
       end: filters.dateRange?.[1]
     }
     const res = await http.get('/api/operation-logs', params)
-    logs.value = res.items || []
+    // 接口返回 {list,total} 且字段是蛇形（created_at/username）；旧实现只读
+    // res.items 且模板按 createdAt/user 取 ⇒ 列表永远空/时间列为空。这里一次对齐。
+    logs.value = (res.items || res.list || []).map((r) => ({
+      ...r,
+      createdAt: r.createdAt || r.created_at,
+      user: r.user || r.username,
+      summary: r.summary || r.detail || ''
+    }))
     pagination.total = res.total || 0
   } finally {
     loading.value = false
@@ -249,8 +257,19 @@ function exportLogs() {
   window.open(`/api/operation-logs/export?${new URLSearchParams(filters)}`, '_blank')
 }
 
-onMounted(load)
-</script>
+onMounted(() => {
+  // 默认给「近 7 天」：不带时间范围时后端回空 items 但 total 仍是全量，
+  // 页面会呈现「共 5 万条 / 暂无数据」的自相矛盾形态。
+  const fmt = (d) => {
+    const p = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  }
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - 6)
+  filters.dateRange = [fmt(start), fmt(end)]
+  load()
+})</script>
 
 <style scoped>
 .op-log { padding: 16px; }

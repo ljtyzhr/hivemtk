@@ -8,6 +8,12 @@
       @back="$router.back()"
     />
     <el-card
+      v-if="!detail && !loading"
+      class="mt-16"
+    >
+      <el-empty description="资产不存在，或当前部署未接入资产市场" />
+    </el-card>
+    <el-card
       v-if="detail"
       class="mt-16"
     >
@@ -89,7 +95,10 @@ const fetchDetail = async () => {
   loading.value = true
   try {
     const resp = await assetDetail(route.params.id)
-    detail.value = resp?.data || resp
+    const data = resp?.data || resp
+    // 平台未接入/资产不存在时后端回 200 + {}（不是 404）；空对象 truthy，
+    // 旧实现会渲染成「?」+免费试用按钮的空壳资产。无可识别字段即视为不存在。
+    detail.value = (data && (data.asset_id || data.id || data.name)) ? data : null
   } catch (e) {
     ElMessage.error(e?.message || '获取资产详情失败')
   } finally {

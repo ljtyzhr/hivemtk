@@ -208,30 +208,31 @@ function renderErrorPie() {
 }
 
 async function loadOverview() {
-  const { data } = await LlmReportApi.getOverview(rangeParams())
-  overview.value = data?.data || data
+  // http.get 已把信封拆到 data.data，这里再 `const { data } = ...` 拿到的是
+  // undefined ⇒ KPI 永远渲染 0。四个 loader 同一形状，统一改成直接用返回值。
+  const data = await LlmReportApi.getOverview(rangeParams())
+  overview.value = data || {}
 }
 
 async function loadTrend() {
-  const { data } = await LlmReportApi.getTimeseries(rangeParams())
-  trendPoints.value = data?.data || data || []
+  const data = await LlmReportApi.getTimeseries(rangeParams())
+  trendPoints.value = data || []
   renderTrend()
 }
 
 async function loadBreakdown() {
-  const { data } = await LlmReportApi.getBreakdown({ ...rangeParams(), by: breakdownBy.value })
-  breakdownRows.value = data?.data || data || []
+  const data = await LlmReportApi.getBreakdown({ ...rangeParams(), by: breakdownBy.value })
+  breakdownRows.value = data || []
   renderBreakdown()
   if (breakdownBy.value === 'error_class') renderErrorPie()
 }
 
 async function loadErrors() {
-  const { data } = await LlmReportApi.getErrors({
+  const d = await LlmReportApi.getErrors({
     ...rangeParams(),
     page: errorPage.value,
     page_size: errorPageSize
-  })
-  const d = data?.data || data || {}
+  }) || {}
   errorRows.value = d.rows || []
   errorTotal.value = d.total || 0
 }

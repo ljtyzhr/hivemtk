@@ -271,7 +271,11 @@ func (r *LLMUsageReportRepository) Timeseries(ctx context.Context, from, to time
 			SUM(prompt_tokens) AS prompt_tokens,
 			SUM(completion_tokens) AS completion_tokens,
 			SUM(total_cost_cents) AS total_cost_cents,
-			CASE WHEN SUM(call_count) > 0 THEN SUM(latency_sum_ms)/SUM(call_count) ELSE 0 END AS avg_latency_ms`).
+			-- 整数列扫描：numeric 除法会产生 "0.533..." 字符串，直接 Scan 到 int64 会
+			-- 500（Scan error converting string to int64）。显式取整并转 bigint。
+			CASE WHEN SUM(call_count) > 0
+				THEN ROUND(SUM(latency_sum_ms)::numeric / SUM(call_count))::bigint
+				ELSE 0 END AS avg_latency_ms`).
 		Where("stat_date >= ? AND stat_date < ?", from.Format("2006-01-02"), to.Format("2006-01-02")).
 		Group("stat_date").Order("stat_date")
 	q = applyReportDims(q, f.Model, f.Scenario)

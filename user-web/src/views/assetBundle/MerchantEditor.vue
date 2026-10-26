@@ -188,6 +188,10 @@
                 placeholder="选择阈值"
               >
                 <el-option
+                  label="关闭（不触发危机感门禁）"
+                  value="0"
+                />
+                <el-option
                   label="危机感 ≥ 2 分时，强制触发转人工门禁"
                   value="2"
                 />
@@ -223,6 +227,10 @@
                 <el-option
                   label="高（情绪词频繁，真人感强）"
                   value="high"
+                />
+                <el-option
+                  label="友好亲切（兼容旧版配置）"
+                  value="friendly"
                 />
               </el-select>
             </el-form-item>
@@ -563,7 +571,7 @@ const loadBundle = async () => {
       if (parsed.enabled_intents && parsed.enabled_intents.length) {
         form.enabled_intents = parsed.enabled_intents
       }
-      form.crisis_threshold = parsed.crisis_threshold || '4';
+      form.crisis_threshold = String(parsed.crisis_threshold ?? '4');
       form.tone_level = parsed.tone_level || 'medium'
       form.censorship_level = parsed.censorship_level || 'default'
     }

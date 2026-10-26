@@ -55,12 +55,13 @@
             <el-button
               type="primary"
               :loading="saving"
+              :disabled="loadFailed"
               @click="handleSave"
             >
               💾 保存
             </el-button>
             <el-button
-              v-if="bundle.id"
+              v-if="bundle.id && !loadFailed"
               type="success"
               @click="handlePublish"
             >
@@ -70,6 +71,16 @@
         </el-col>
       </el-row>
     </el-card>
+
+    <el-alert
+      v-if="loadFailed"
+      type="error"
+      :closable="false"
+      show-icon
+      class="mb-3"
+      title="资产包不存在或加载失败"
+      :description="`aid=${aid}：请返回资产包列表重新选择。本页已禁用保存/发布，避免把空白模板写回并覆盖线上资产。`"
+    />
 
     <el-row
       :gutter="16"
@@ -379,6 +390,7 @@ const route = useRoute()
 const router = useRouter()
 const chatHistoryRef = ref(null)
 const saving = ref(false)
+const loadFailed = ref(false)
 // 关态下后端对上架写接口回 403，入口直接不渲染；取不到就按关态处理
 const platformEnabled = ref(false)
 
@@ -461,6 +473,7 @@ const moveDown = (idx) => {
 
 const loadBundle = async () => {
   if (!aid.value) return
+  loadFailed.value = false
   try {
     const resp = await getBundleByAssetID(aid.value)
     const data = resp?.data || resp
@@ -476,11 +489,15 @@ const loadBundle = async () => {
       bundle.messages = (data.messages || []).map(m => ({ ...m }))
     }
   } catch (e) {
+    // 404（aid 不存在）时旧实现只 toast 一句，页面仍是空白新建模板且保存可用，
+    // 用户可能把空模板写回。这里明确置失败态并禁用保存/发布。
+    loadFailed.value = true
     ElMessage.error('加载资产包失败: ' + (e?.message || e))
   }
 };
 
 const handleSave = async () => {
+  if (loadFailed.value) return
   if (!bundle.asset_id) {
     ElMessage.warning('请填写资产 ID')
     return
@@ -527,6 +544,7 @@ const handleSave = async () => {
 };
 
 const handlePublish = async () => {
+  if (loadFailed.value) return
   if (!bundle.id) {
     ElMessage.warning('请先保存资产包')
     return

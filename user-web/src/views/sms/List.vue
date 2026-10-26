@@ -104,10 +104,13 @@
           </template>
         </el-table-column>
         <el-table-column
-          prop="sendTime"
           label="发送时间"
           width="180"
-        />
+        >
+          <template #default="scope">
+            {{ formatTime(scope.row.sendTime) }}
+          </template>
+        </el-table-column>
         <el-table-column
           label="操作"
           width="150"
@@ -195,6 +198,15 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import smsApi from '@/api/sms'
 import { getOrderStatusLabel, getOrderStatusTagType } from '@/constants/orderStatus';
+
+// 未发送/失败的短信 sendTime 是 Go 零值（0001-01-01T08:05:43+08:05），直接渲染
+// 会显示公元 1 年。零值与非时间一律显示 '-'。
+const formatTime = (d) => {
+  if (!d) return '-'
+  const t = new Date(d)
+  if (Number.isNaN(t.getTime()) || t.getUTCFullYear() <= 1) return '-'
+  return t.toLocaleString('zh-CN')
+}
 
 const searchForm = ref({
   phone: '',

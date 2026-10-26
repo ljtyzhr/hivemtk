@@ -34,13 +34,28 @@ func (r *BackupGapRepo) CountBackups(ctx context.Context) (int64, error) {
 
 func (r *BackupGapRepo) LastSuccess(ctx context.Context) (*model.Backup, error) {
 	var last model.Backup
+	// 备份完成态在库里是 `completed`（历史版本写过 `success`）：只按 success 过滤
+	// 会让 116 条已完成备份全部看不见，页面「最近成功」恒为 "-"。两种都收。
 	err := r.db.WithContext(ctx).
-		Where("status = ?", "success").
+		Where("status IN ?", []string{"success", "completed"}).
 		Order("created_at DESC").First(&last).Error
 	if err != nil {
 		return nil, err
 	}
 	return &last, nil
+}
+
+// SumCompletedSize 已完成备份的文件大小合计（字节）。
+// 统计卡的「总大小」是合计口径，不是最近一条的大小；旧实现只取 LastSuccess.FileSize，
+// 于是在没有 success 行时恒为 0，与下方列表里每条都有大小自相矛盾。
+func (r *BackupGapRepo) SumCompletedSize(ctx context.Context) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Backup{}).
+		Where("status IN ?", []string{"success", "completed"}).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&total).Error
+	return total, err
 }
 
 type TableStatsRow struct {
