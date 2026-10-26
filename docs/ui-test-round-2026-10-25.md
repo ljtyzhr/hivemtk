@@ -149,10 +149,16 @@
 - `a0aa75da` 修 RELEASE_NOTES 全角括号被 lychee 当端口（Docs Link 常年红）
 - 双远端 master 均已推至 `a0aa75da`
 
-### 9.4 仍为红/已知存量（非本批引入，已在提交说明与本节点名）
+### 9.4 仍为红/已知存量（非本批引入，已逐条归因）
 
-| 作业 | 现象 | 归属 |
+| 作业 | 现象 | 归因证据 |
 |---|---|---|
-| Docs Consistency · `check-no-xapptool` | 140 处仍指向已下线线上域（`website/`、`未完成任务.md`） | 官网域名迁移泳道；改动面跨 website 构建与文档，未在本批代改 |
-| user-server-ci | 见推送后流水线；本机 `go test ./...` 相关包与 service 全绿 | 若红优先归因环境/共享盘 |
-| Docs Link Check | 已随 `a0aa75da` 修复待复跑 | — |
+| Docs Consistency · `check-no-xapptool` | 140 处仍指向已下线线上域（`website/`、`未完成任务.md`） | 命中集中在 website 构建/内容与旧任务清单；本批 diff 不含这些文件 |
+| Static gates · 日期口径守卫 | 24 处 vs 基线 21 | **在上游基线 `dc021489` 的独立 worktree 复跑同为 24/21（rc=1）**，与本批无关 |
+| Security scans · govulncheck | Go 依赖漏洞 | `go.mod/go.sum` 未在本批变更 |
+| npm audit (user-web) | 依赖公告 | `package-lock.json` 未在本批变更 |
+| user-server-ci · Unit tests -race | `TestSSEScopedPublisher_ReceivesTenantBoundContext`（bridge_outbound 全局 SSE publisher）与 `TestTenantService_LoginSuspendedTenant`（module gate 全局）DATA RACE | **在上游基线 `dc021489` worktree 以同命令复跑 `-race` 同样 FAIL（rc=1）**；两处文件本批未改 |
+| user-server-ci · Coverage | 随 service 包失败级联 | 本机 `go test ./internal/service`（非 -race）843s 全绿 |
+| Docs Link Check | 已随 `a0aa75da` 修复并通过 | — |
+| Lint（含电池控制组） | 已随 `f0d1973c`（ESLint）与 `dfd8504c`（bash3.2 `$VAR（`）修复并通过 | — |
+| ci-bridge | 已随 `60895bfc`（navigator getter-only）修复并通过（73 文件/898 通过） | — |
