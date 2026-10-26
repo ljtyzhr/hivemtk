@@ -67,7 +67,7 @@ const resolveClueIds = async (data) => {
 
   const params = { page: 1, limit: CLUE_IDS_LIMIT }
   if (source === 'filter' && data?.filter) {
-    let filter = {}
+    let filter
     try {
       filter = JSON.parse(data.filter)
     } catch {

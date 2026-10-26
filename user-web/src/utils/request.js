@@ -5,7 +5,7 @@ import i18n from '@/i18n'
 import { getStoredLocale } from '@/i18n/locale'
 import { markUserReported } from './errorReporting'
 import { createTokenRefresher } from './tokenRefresh'
-// 信封判定/业务码/错误形状抽到 @hivemtk/http-core
+// OPT-FE-05（2026-10-24）：信封判定/业务码/错误形状抽到 @hivemtk/http-core
 // （与 bridge/platform-web 迁移后共用；拦截器装配仍留本文件——应用侧差异）。
 import {
   BIZ_CODE_MODULE_NOT_ENABLED,
