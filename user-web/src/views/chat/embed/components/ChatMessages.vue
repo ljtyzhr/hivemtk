@@ -76,6 +76,7 @@
                   @error="onMediaError(msg)"
                 >
               </div>
+              <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -- 访客上传的 UGC 音视频没有字幕轨，平台侧无法替上传者补 -->
               <video
                 v-else-if="msg.content_type === 'video' && msg.media_url"
                 :src="msg.media_url"
@@ -83,6 +84,7 @@
                 preload="metadata"
                 class="media-video"
               />
+              <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -- 同上：UGC 语音消息无字幕源 -->
               <audio
                 v-else-if="msg.content_type === 'audio' && msg.media_url"
                 :src="msg.media_url"
@@ -141,6 +143,7 @@
 
     <!-- T2 引用详情浮窗：FAQ 问/答或文档片段 -->
     <Teleport to="body">
+      <!-- eslint-disable-next-line vuejs-accessibility/click-events-have-key-events, vuejs-accessibility/no-static-element-interactions -- 遮罩点击关闭；键盘用户可用浮窗内的关闭按钮 -->
       <div
         v-if="citationDetail"
         class="citation-overlay"

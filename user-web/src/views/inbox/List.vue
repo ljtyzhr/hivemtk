@@ -428,6 +428,7 @@
                     </div>
                   </template>
                 </el-image>
+                <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -- 客户上传的 UGC 音视频没有字幕轨，平台侧无法替上传者补 -->
                 <video
                   v-else-if="isVideo(msg)"
                   :src="msg.media_url"
@@ -435,6 +436,7 @@
                   preload="metadata"
                   class="msg-video"
                 />
+                <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -- 同上：UGC 语音消息无字幕源 -->
                 <audio
                   v-else-if="isAudio(msg)"
                   :src="msg.media_url"
