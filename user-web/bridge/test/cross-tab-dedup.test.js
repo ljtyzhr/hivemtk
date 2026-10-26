@@ -81,8 +81,11 @@ describe('跨 tab SentCache', () => {
   it('发送临界区串行：两个并发调用不重叠执行（navigator.locks 语义）', async () => {
     const held = new Set();
     const queued = new Map();
-    globalThis.navigator = globalThis.navigator || {};
-    globalThis.navigator.locks = {
+    // Window.navigator 在 jsdom/Node 新版本是 getter-only，直接赋值会抛
+    // "Cannot set property navigator"；用 vi.stubGlobal 安装可控桩。
+    vi.stubGlobal('navigator', {
+      ...(globalThis.navigator || {}),
+      locks: {
       request(name, fn) {
         if (held.has(name)) {
           return new Promise((resolve) => {
@@ -97,7 +100,8 @@ describe('跨 tab SentCache', () => {
           if (q && q.length) q.shift()();
         });
       },
-    };
+      },
+    });
 
     const order = [];
     let active = 0;
@@ -122,10 +126,12 @@ describe('跨 tab SentCache', () => {
 
   it('轮询发送会请求跨 tab 锁（不是只刷新缓存就算数）', async () => {
     const requested = [];
-    globalThis.navigator = globalThis.navigator || {};
-    globalThis.navigator.locks = {
-      request(name, fn) { requested.push(name); return Promise.resolve(fn()); },
-    };
+    vi.stubGlobal('navigator', {
+      ...(globalThis.navigator || {}),
+      locks: {
+        request(name, fn) { requested.push(name); return Promise.resolve(fn()); },
+      },
+    });
     await initDownlink(['xtab_c']);
     getOutbox.mockResolvedValue({
       status: 'ok',
